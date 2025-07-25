@@ -4,6 +4,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { Layout } from "./components/Layout";
+import { AuthProvider } from "@/hooks/useAuth";
 import Dashboard from "./pages/Dashboard";
 import Clients from "./pages/Clients";
 import Estimates from "./pages/Estimates";
@@ -16,33 +17,37 @@ import Archive from "./pages/Archive";
 import AIAssistants from "./pages/AIAssistants";
 import VoiceAssistant from "./pages/VoiceAssistant";
 import NotFound from "./pages/NotFound";
+import { Auth } from "./pages/Auth";
 
 const queryClient = new QueryClient();
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
-      <Toaster />
-      <Sonner />
-      <BrowserRouter>
-        <Routes>
-          <Route path="/" element={<Layout />}>
-            <Route index element={<Dashboard />} />
-            <Route path="clients" element={<Clients />} />
-            <Route path="estimates" element={<Estimates />} />
-            <Route path="proposals" element={<Proposals />} />
-            <Route path="contractors" element={<Contractors />} />
-            <Route path="suppliers" element={<Suppliers />} />
-            <Route path="materials" element={<Materials />} />
-            <Route path="tasks" element={<Tasks />} />
-            <Route path="archive" element={<Archive />} />
-            <Route path="ai-assistants" element={<AIAssistants />} />
-            <Route path="voice-assistant" element={<VoiceAssistant />} />
-          </Route>
-          {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-          <Route path="*" element={<NotFound />} />
-        </Routes>
-      </BrowserRouter>
+      <AuthProvider>
+        <Toaster />
+        <Sonner />
+        <BrowserRouter>
+          <Routes>
+            <Route path="/auth" element={<Auth />} />
+            <Route path="/" element={<Layout />}>
+              <Route index element={<Dashboard />} />
+              <Route path="clients" element={<Clients />} />
+              <Route path="estimates" element={<Estimates />} />
+              <Route path="proposals" element={<Proposals />} />
+              <Route path="contractors" element={<Contractors />} />
+              <Route path="suppliers" element={<Suppliers />} />
+              <Route path="materials" element={<Materials />} />
+              <Route path="tasks" element={<Tasks />} />
+              <Route path="archive" element={<Archive />} />
+              <Route path="ai-assistants" element={<AIAssistants />} />
+              <Route path="voice-assistant" element={<VoiceAssistant />} />
+            </Route>
+            {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </BrowserRouter>
+      </AuthProvider>
     </TooltipProvider>
   </QueryClientProvider>
 );
