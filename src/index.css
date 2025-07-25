@@ -8,33 +8,52 @@ All colors MUST be HSL.
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
+    --background: 210 20% 98%;
+    --foreground: 160 10% 15%;
 
     --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
+    --card-foreground: 160 10% 15%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
+    --popover-foreground: 160 10% 15%;
 
-    --primary: 222.2 47.4% 11.2%;
-    --primary-foreground: 210 40% 98%;
+    --primary: 150 60% 35%;
+    --primary-foreground: 0 0% 98%;
 
-    --secondary: 210 40% 96.1%;
-    --secondary-foreground: 222.2 47.4% 11.2%;
+    --secondary: 150 20% 95%;
+    --secondary-foreground: 160 15% 25%;
 
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
+    --muted: 150 15% 96%;
+    --muted-foreground: 160 8% 45%;
 
-    --accent: 210 40% 96.1%;
-    --accent-foreground: 222.2 47.4% 11.2%;
+    --accent: 140 50% 92%;
+    --accent-foreground: 160 20% 20%;
 
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 210 40% 98%;
 
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 222.2 84% 4.9%;
+    --border: 150 25% 90%;
+    --input: 150 20% 94%;
+    --ring: 150 60% 35%;
+
+    --success: 140 70% 45%;
+    --success-foreground: 0 0% 98%;
+    
+    --warning: 45 95% 55%;
+    --warning-foreground: 45 10% 15%;
+
+    /* CRM Status Colors */
+    --status-new: 200 80% 50%;
+    --status-in-progress: 45 95% 55%;
+    --status-proposal-sent: 260 75% 60%;
+    --status-call-scheduled: 150 60% 45%;
+    --status-postponed: 25 75% 60%;
+    --status-closed: 140 70% 45%;
+
+    /* Gradients */
+    --gradient-primary: linear-gradient(135deg, hsl(150 60% 35%), hsl(140 70% 45%));
+    --gradient-card: linear-gradient(145deg, hsl(0 0% 100%), hsl(150 15% 98%));
+    --gradient-sidebar: linear-gradient(180deg, hsl(150 25% 97%), hsl(150 20% 95%));
 
     --radius: 0.5rem;
 
