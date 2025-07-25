@@ -29,9 +29,10 @@ const VoiceAssistant = () => {
   const [inputMessage, setInputMessage] = useState('');
   const [isVoiceMode, setIsVoiceMode] = useState(false);
   const [isListening, setIsListening] = useState(false);
+  const [isSpeaking, setIsSpeaking] = useState(false);
   const [apiKey, setApiKey] = useState(localStorage.getItem('elevenlabs_api_key') || '');
   const [showSettings, setShowSettings] = useState(!apiKey);
-  const [agentId, setAgentId] = useState('');
+  const [agentId, setAgentId] = useState(localStorage.getItem('elevenlabs_agent_id') || '');
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
   
@@ -41,18 +42,32 @@ const VoiceAssistant = () => {
       setIsListening(true);
       toast({
         title: "Голосовой режим активен",
-        description: "Говорите с помощником",
+        description: "Теперь говорите с помощником непрерывно",
       });
     },
     onDisconnect: () => {
       console.log('Disconnected from ElevenLabs');
       setIsListening(false);
       setIsVoiceMode(false);
+      setIsSpeaking(false);
     },
     onMessage: (message) => {
       console.log('Message received:', message);
-      // Простая обработка сообщений от ElevenLabs
-      addMessage('assistant', message.message || 'Сообщение получено', false);
+      
+      // Обработка голосовых команд для переключения в текстовый режим
+      if (message.message && 
+          (message.message.toLowerCase().includes('отвечай в текст') || 
+           message.message.toLowerCase().includes('текстовый режим'))) {
+        setIsVoiceMode(false);
+        conversation.endSession();
+        addMessage('assistant', 'Переключился в текстовый режим. Теперь буду отвечать только текстом.');
+        return;
+      }
+      
+      // Добавляем сообщение от помощника
+      if (message.message) {
+        addMessage('assistant', message.message, true);
+      }
     },
     onError: (error) => {
       console.error('Conversation error:', error);
@@ -63,8 +78,16 @@ const VoiceAssistant = () => {
       });
       setIsVoiceMode(false);
       setIsListening(false);
+      setIsSpeaking(false);
     }
   });
+
+  // Отслеживание состояния говорения
+  useEffect(() => {
+    if (conversation.isSpeaking !== undefined) {
+      setIsSpeaking(conversation.isSpeaking);
+    }
+  }, [conversation.isSpeaking]);
 
   const addMessage = (type: 'user' | 'assistant', content: string, isVoice = false) => {
     const newMessage: Message = {
@@ -316,10 +339,50 @@ const VoiceAssistant = () => {
                   </Button>
                 </div>
                 
-                {isListening && (
-                  <div className="mt-2 flex items-center gap-2 text-sm text-muted-foreground">
-                    <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse" />
-                    Слушаю...
+                {/* Голосовой режим - центральный индикатор как в ChatGPT */}
+                {isVoiceMode && (
+                  <div className="mt-4 flex flex-col items-center space-y-3">
+                    <div className="relative">
+                      {/* Центральный круг с анимацией */}
+                      <div className={`w-20 h-20 rounded-full border-4 flex items-center justify-center transition-all duration-300 ${
+                        isSpeaking 
+                          ? 'border-emerald-400 bg-emerald-50 animate-pulse' 
+                          : isListening 
+                            ? 'border-blue-400 bg-blue-50 animate-pulse' 
+                            : 'border-gray-300 bg-gray-50'
+                      }`}>
+                        {isSpeaking ? (
+                          <Volume2 className="w-8 h-8 text-emerald-600" />
+                        ) : isListening ? (
+                          <Mic className="w-8 h-8 text-blue-600" />
+                        ) : (
+                          <MicOff className="w-8 h-8 text-gray-500" />
+                        )}
+                      </div>
+                      
+                      {/* Внешние кольца анимации */}
+                      {(isListening || isSpeaking) && (
+                        <>
+                          <div className="absolute inset-0 w-20 h-20 rounded-full border-2 border-current opacity-30 animate-ping" style={{
+                            color: isSpeaking ? '#10b981' : '#3b82f6'
+                          }} />
+                          <div className="absolute -inset-2 w-24 h-24 rounded-full border border-current opacity-20 animate-ping" style={{
+                            animationDelay: '0.5s',
+                            color: isSpeaking ? '#10b981' : '#3b82f6'
+                          }} />
+                        </>
+                      )}
+                    </div>
+                    
+                    {/* Статус текст */}
+                    <div className="text-center">
+                      <p className="text-sm font-medium">
+                        {isSpeaking ? 'Помощник говорит...' : isListening ? 'Слушаю вас...' : 'Ожидание'}
+                      </p>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Скажите "отвечай текстом" для выхода из голосового режима
+                      </p>
+                    </div>
                   </div>
                 )}
               </div>
