@@ -10,6 +10,10 @@ import Estimates from "./pages/Estimates";
 import Proposals from "./pages/Proposals";
 import Contractors from "./pages/Contractors";
 import Suppliers from "./pages/Suppliers";
+import Materials from "./pages/Materials";
+import Tasks from "./pages/Tasks";
+import Archive from "./pages/Archive";
+import AIAssistants from "./pages/AIAssistants";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -28,6 +32,10 @@ const App = () => (
             <Route path="proposals" element={<Proposals />} />
             <Route path="contractors" element={<Contractors />} />
             <Route path="suppliers" element={<Suppliers />} />
+            <Route path="materials" element={<Materials />} />
+            <Route path="tasks" element={<Tasks />} />
+            <Route path="archive" element={<Archive />} />
+            <Route path="ai-assistants" element={<AIAssistants />} />
           </Route>
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
