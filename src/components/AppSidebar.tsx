@@ -8,7 +8,8 @@ import {
   CheckSquare, 
   Archive, 
   Bot,
-  LayoutDashboard
+  LayoutDashboard,
+  Mic
 } from "lucide-react";
 import { NavLink, useLocation } from "react-router-dom";
 
@@ -36,6 +37,7 @@ const navigationItems = [
   { title: "Задачи", url: "/tasks", icon: CheckSquare },
   { title: "Архив проектов", url: "/archive", icon: Archive },
   { title: "ИИ-помощники", url: "/ai-assistants", icon: Bot },
+  { title: "Голосовой помощник", url: "/voice-assistant", icon: Mic },
 ];
 
 export function AppSidebar() {
