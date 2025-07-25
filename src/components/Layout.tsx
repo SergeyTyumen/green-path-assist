@@ -13,10 +13,8 @@ export function Layout() {
         <div className="flex-1 flex flex-col">
           <header className="h-14 flex items-center justify-between px-4 border-b bg-card/50 backdrop-blur-sm">
             <div className="flex items-center gap-4">
-              <SidebarTrigger asChild>
-                <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-                  <Menu className="h-4 w-4" />
-                </Button>
+              <SidebarTrigger className="h-8 w-8 p-0 hover:bg-accent hover:text-accent-foreground">
+                <Menu className="h-4 w-4" />
               </SidebarTrigger>
               <div className="text-sm text-muted-foreground">
                 CRM система для ландшафтного бизнеса
