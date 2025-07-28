@@ -105,25 +105,33 @@ async function calculateMaterialConsumption(services: ServiceInput[], userId: st
       const serviceLower = service.service.toLowerCase();
       const suggestedMaterials = allMaterials?.filter(material => {
         const materialLower = material.name.toLowerCase();
+        const purposeLower = (material.purpose || '').toLowerCase();
+        const characteristicsLower = (material.characteristics || '').toLowerCase();
         
-        // Умное сопоставление материалов по названию услуги
+        // Умное сопоставление на основе названия, назначения и характеристик
+        const searchTerms = [materialLower, purposeLower, characteristicsLower].join(' ');
+        
         if (serviceLower.includes('газон') || serviceLower.includes('трав')) {
-          return materialLower.includes('трав') || materialLower.includes('газон') || 
-                 materialLower.includes('семен') || materialLower.includes('рулон');
+          return searchTerms.includes('трав') || searchTerms.includes('газон') || 
+                 searchTerms.includes('семен') || searchTerms.includes('рулон');
         }
         
         if (serviceLower.includes('плитка') || serviceLower.includes('мощение')) {
-          return materialLower.includes('плитка') || materialLower.includes('брусчатка') ||
-                 materialLower.includes('песок') || materialLower.includes('цемент');
+          return searchTerms.includes('плитка') || searchTerms.includes('брусчатка') ||
+                 searchTerms.includes('песок') || searchTerms.includes('цемент');
+        }
+        
+        if (serviceLower.includes('бордюр')) {
+          return searchTerms.includes('бордюр') || materialLower.startsWith('бр');
         }
         
         if (serviceLower.includes('дренаж')) {
-          return materialLower.includes('щебень') || materialLower.includes('геотекстиль') ||
-                 materialLower.includes('дренаж');
+          return searchTerms.includes('щебень') || searchTerms.includes('геотекстиль') ||
+                 searchTerms.includes('дренаж');
         }
         
         if (serviceLower.includes('подсыпка') || serviceLower.includes('основание')) {
-          return materialLower.includes('песок') || materialLower.includes('щебень');
+          return searchTerms.includes('песок') || searchTerms.includes('щебень');
         }
         
         return false;

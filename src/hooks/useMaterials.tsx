@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
 import { toast } from 'sonner';
+import type { Database } from '@/integrations/supabase/types';
 
 export interface Material {
   id: string;
@@ -13,6 +14,9 @@ export interface Material {
   stock: number;
   min_stock: number;
   supplier?: string;
+  purpose?: string;
+  characteristics?: string | null;
+  properties?: Database['public']['Tables']['materials']['Row']['properties'];
   created_at: string;
   updated_at: string;
   last_updated: string;

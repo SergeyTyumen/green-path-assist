@@ -24,6 +24,9 @@ export function MaterialDialog({ children, material, onSuccess }: MaterialDialog
     stock: material?.stock || 0,
     min_stock: material?.min_stock || 0,
     supplier: material?.supplier || "",
+    purpose: material?.purpose || "",
+    characteristics: material?.characteristics || "",
+    properties: material?.properties || {}
   });
 
   const { createMaterial, updateMaterial } = useMaterials();
@@ -74,6 +77,9 @@ export function MaterialDialog({ children, material, onSuccess }: MaterialDialog
           stock: 0,
           min_stock: 0,
           supplier: "",
+          purpose: "",
+          characteristics: "",
+          properties: {}
         });
       }
     } catch (error) {
@@ -194,6 +200,26 @@ export function MaterialDialog({ children, material, onSuccess }: MaterialDialog
               value={formData.supplier}
               onChange={(e) => setFormData({ ...formData, supplier: e.target.value })}
               placeholder="Название поставщика"
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="purpose">Назначение</Label>
+            <Input
+              id="purpose"
+              value={formData.purpose}
+              onChange={(e) => setFormData({ ...formData, purpose: e.target.value })}
+              placeholder="Например: бордюр, плитка, песок для подсыпки"
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="characteristics">Характеристики</Label>
+            <Input
+              id="characteristics"
+              value={formData.characteristics}
+              onChange={(e) => setFormData({ ...formData, characteristics: e.target.value })}
+              placeholder="Размеры, описание, особенности: например, 1м×20см×8см"
             />
           </div>
 

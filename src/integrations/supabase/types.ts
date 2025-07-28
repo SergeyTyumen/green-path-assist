@@ -193,12 +193,15 @@ export type Database = {
       materials: {
         Row: {
           category: string
+          characteristics: string | null
           created_at: string
           id: string
           last_updated: string
           min_stock: number
           name: string
           price: number
+          properties: Json | null
+          purpose: string | null
           stock: number
           supplier: string | null
           unit: string
@@ -207,12 +210,15 @@ export type Database = {
         }
         Insert: {
           category: string
+          characteristics?: string | null
           created_at?: string
           id?: string
           last_updated?: string
           min_stock?: number
           name: string
           price: number
+          properties?: Json | null
+          purpose?: string | null
           stock?: number
           supplier?: string | null
           unit: string
@@ -221,12 +227,15 @@ export type Database = {
         }
         Update: {
           category?: string
+          characteristics?: string | null
           created_at?: string
           id?: string
           last_updated?: string
           min_stock?: number
           name?: string
           price?: number
+          properties?: Json | null
+          purpose?: string | null
           stock?: number
           supplier?: string | null
           unit?: string
