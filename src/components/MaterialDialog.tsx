@@ -29,7 +29,7 @@ export function MaterialDialog({ children, material, onSuccess }: MaterialDialog
   const { createMaterial, updateMaterial } = useMaterials();
 
   const categories = ["Растения", "Элементы декора", "Сыпучие материалы", "Автополив", "Удобрения", "Инструменты", "Другое"];
-  const units = ["шт", "м.п", "м²", "м³", "кг", "тн", "упак", "л", "рейс"];
+  const units = ["шт", "м.п", "м²", "м³", "кг", "тн", "упак", "л", "рейс", "смена"];
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

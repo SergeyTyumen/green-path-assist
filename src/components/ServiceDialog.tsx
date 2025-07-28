@@ -28,7 +28,7 @@ export function ServiceDialog({ children, service, onSuccess }: ServiceDialogPro
   const { createService, updateService } = useServices();
 
   const categories = ["Проектирование", "Земляные работы", "Посадка", "Укладка", "Монтаж", "Обслуживание", "Консультации", "Техника", "Другое"];
-  const units = ["услуга", "час", "м²", "м.п", "м³", "точка", "компл", "шт", "рейс"];
+  const units = ["услуга", "час", "м²", "м.п", "м³", "точка", "компл", "шт", "рейс", "смена"];
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
