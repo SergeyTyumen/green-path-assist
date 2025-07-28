@@ -21,6 +21,7 @@ interface Supplier {
   rating?: number;
   orders_count?: number;
   delivery_time?: string;
+  tags?: string[];
   created_at: string;
   updated_at: string;
 }
@@ -42,6 +43,7 @@ export function SupplierDialog({ children, supplier, onSuccess }: SupplierDialog
     rating: supplier?.rating || 0,
     delivery_time: supplier?.delivery_time || "",
     categories: supplier?.categories || [],
+    tags: supplier?.tags || [],
   });
 
   const { createSupplier, updateSupplier } = useSuppliers();
@@ -49,6 +51,15 @@ export function SupplierDialog({ children, supplier, onSuccess }: SupplierDialog
   const availableCategories = [
     "Растения", "Элементы декора", "Сыпучие материалы", 
     "Автополив", "Удобрения", "Инструменты", "Техника"
+  ];
+
+  const availableTags = [
+    { name: "Собственное производство", color: "bg-green-500" },
+    { name: "Дилерская скидка", color: "bg-blue-500" },
+    { name: "Удобный склад", color: "bg-purple-500" },
+    { name: "Есть отсрочка", color: "bg-orange-500" },
+    { name: "Быстрая доставка", color: "bg-red-500" },
+    { name: "Эксклюзивный поставщик", color: "bg-indigo-500" },
   ];
 
   const statusOptions = [
@@ -67,6 +78,20 @@ export function SupplierDialog({ children, supplier, onSuccess }: SupplierDialog
       setFormData(prev => ({
         ...prev,
         categories: prev.categories.filter(cat => cat !== category)
+      }));
+    }
+  };
+
+  const handleTagChange = (tag: string, checked: boolean) => {
+    if (checked) {
+      setFormData(prev => ({
+        ...prev,
+        tags: [...prev.tags, tag]
+      }));
+    } else {
+      setFormData(prev => ({
+        ...prev,
+        tags: prev.tags.filter(t => t !== tag)
       }));
     }
   };
@@ -110,6 +135,7 @@ export function SupplierDialog({ children, supplier, onSuccess }: SupplierDialog
           rating: 0,
           delivery_time: "",
           categories: [],
+          tags: [],
         });
       }
     } catch (error) {
@@ -238,6 +264,30 @@ export function SupplierDialog({ children, supplier, onSuccess }: SupplierDialog
                     className="text-sm font-normal cursor-pointer"
                   >
                     {category}
+                  </Label>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label>Метки</Label>
+            <div className="grid grid-cols-2 gap-2 p-4 border rounded-md">
+              {availableTags.map((tag) => (
+                <div key={tag.name} className="flex items-center space-x-2">
+                  <Checkbox
+                    id={`tag-${tag.name}`}
+                    checked={formData.tags.includes(tag.name)}
+                    onCheckedChange={(checked) => 
+                      handleTagChange(tag.name, checked as boolean)
+                    }
+                  />
+                  <Label 
+                    htmlFor={`tag-${tag.name}`}
+                    className="text-sm font-normal cursor-pointer flex items-center space-x-2"
+                  >
+                    <span className={`w-3 h-3 rounded-full ${tag.color}`}></span>
+                    <span>{tag.name}</span>
                   </Label>
                 </div>
               ))}

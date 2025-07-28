@@ -15,6 +15,7 @@ export interface Supplier {
   orders_count?: number;
   status: string;
   delivery_time?: string;
+  tags?: string[];
   created_at: string;
   updated_at: string;
 }

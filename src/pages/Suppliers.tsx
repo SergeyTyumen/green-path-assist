@@ -31,6 +31,7 @@ interface Supplier {
   rating?: number;
   orders_count?: number;
   delivery_time?: string;
+  tags?: string[];
   created_at: string;
   updated_at: string;
 }
@@ -38,6 +39,20 @@ interface Supplier {
 export default function Suppliers() {
   const [searchTerm, setSearchTerm] = useState("");
   const { suppliers, loading } = useSuppliers();
+
+  const availableTags = [
+    { name: "Собственное производство", color: "bg-green-500" },
+    { name: "Дилерская скидка", color: "bg-blue-500" },
+    { name: "Удобный склад", color: "bg-purple-500" },
+    { name: "Есть отсрочка", color: "bg-orange-500" },
+    { name: "Быстрая доставка", color: "bg-red-500" },
+    { name: "Эксклюзивный поставщик", color: "bg-indigo-500" },
+  ];
+
+  const getTagColor = (tagName: string) => {
+    const tag = availableTags.find(t => t.name === tagName);
+    return tag?.color || "bg-gray-500";
+  };
 
   const getStatusBadge = (status: string) => {
     const statusConfig = {
@@ -125,7 +140,7 @@ export default function Suppliers() {
                     {getStatusBadge(supplier.status)}
                   </div>
                   
-                  <div className="space-y-2">
+                    <div className="space-y-2">
                     <div className="flex flex-wrap gap-1">
                       {supplier.categories.map((category, index) => (
                         <Badge key={index} variant="secondary" className="text-xs">
@@ -133,6 +148,19 @@ export default function Suppliers() {
                         </Badge>
                       ))}
                     </div>
+                    
+                    {supplier.tags && supplier.tags.length > 0 && (
+                      <div className="flex flex-wrap gap-1">
+                        {supplier.tags.map((tag, index) => (
+                          <Badge 
+                            key={index} 
+                            className={`text-xs text-white ${getTagColor(tag)}`}
+                          >
+                            {tag}
+                          </Badge>
+                        ))}
+                      </div>
+                    )}
                     
                     <div className="flex items-center gap-4 text-sm text-muted-foreground">
                       {supplier.location && (
