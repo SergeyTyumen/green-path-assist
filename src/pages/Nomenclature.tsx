@@ -28,7 +28,7 @@ export default function Nomenclature() {
   const { materials, loading: materialsLoading } = useMaterials();
   const { services, loading: servicesLoading } = useServices();
 
-  const materialCategories = ["all", "Растения", "Камень", "Песок", "Автополив", "Удобрения"];
+  const materialCategories = ["all", "Растения", "Элементы декора", "Сыпучие материалы", "Автополив", "Удобрения"];
   const serviceCategories = ["all", "Проектирование", "Земляные работы", "Посадка", "Укладка", "Монтаж", "Обслуживание"];
 
   const getStatusBadge = (material: Material) => {
