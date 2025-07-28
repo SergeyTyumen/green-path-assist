@@ -40,21 +40,26 @@ interface ServiceOutput {
 async function calculateMaterialConsumption(services: ServiceInput[], userId: string): Promise<ServiceOutput[]> {
   const results: ServiceOutput[] = [];
 
+  // Получаем все материалы пользователя
+  const { data: allMaterials, error: materialsError } = await supabase
+    .from('materials')
+    .select('*')
+    .eq('user_id', userId);
+
+  if (materialsError) {
+    console.error('Error fetching materials:', materialsError);
+    return results;
+  }
+
+  console.log(`Found ${allMaterials?.length || 0} materials for user`);
+
   for (const service of services) {
     console.log(`Processing service: ${service.service}`);
     
-    // Получаем нормы расхода для данной услуги
+    // Проверяем существующие нормы для данной услуги
     const { data: norms, error: normsError } = await supabase
       .from('norms')
-      .select(`
-        *,
-        materials_norms:material_id (
-          name,
-          unit,
-          bulk_density,
-          notes
-        )
-      `)
+      .select('*')
       .eq('user_id', userId)
       .eq('service_name', service.service)
       .eq('active', true);
@@ -76,91 +81,128 @@ async function calculateMaterialConsumption(services: ServiceInput[], userId: st
       continue;
     }
 
-    if (!norms || norms.length === 0) {
-      console.log(`No norms found for service: ${service.service}`);
-      results.push({
-        service: service.service,
-        quantity: service.quantity,
-        unit: service.unit,
-        materials: [{
-          name: 'Нет данных',
-          unit: '',
-          calculation: '',
-          quantity: 0,
-          error: 'Нормы расхода для данной услуги не найдены'
-        }]
-      });
-      continue;
+    let materialsToUse = [];
+
+    if (norms && norms.length > 0) {
+      // Используем существующие нормы
+      console.log(`Found ${norms.length} norms for service: ${service.service}`);
+      
+      for (const norm of norms) {
+        const material = allMaterials?.find(m => m.id === norm.material_id);
+        if (material) {
+          materialsToUse.push({
+            material,
+            compaction_ratio: norm.compaction_ratio,
+            thickness: norm.thickness,
+            mandatory: norm.mandatory
+          });
+        }
+      }
+    } else {
+      // Автоматически предлагаем материалы на основе названия услуги
+      console.log(`No norms found for service: ${service.service}, suggesting materials`);
+      
+      const serviceLower = service.service.toLowerCase();
+      const suggestedMaterials = allMaterials?.filter(material => {
+        const materialLower = material.name.toLowerCase();
+        
+        // Умное сопоставление материалов по названию услуги
+        if (serviceLower.includes('газон') || serviceLower.includes('трав')) {
+          return materialLower.includes('трав') || materialLower.includes('газон') || 
+                 materialLower.includes('семен') || materialLower.includes('рулон');
+        }
+        
+        if (serviceLower.includes('плитка') || serviceLower.includes('мощение')) {
+          return materialLower.includes('плитка') || materialLower.includes('брусчатка') ||
+                 materialLower.includes('песок') || materialLower.includes('цемент');
+        }
+        
+        if (serviceLower.includes('дренаж')) {
+          return materialLower.includes('щебень') || materialLower.includes('геотекстиль') ||
+                 materialLower.includes('дренаж');
+        }
+        
+        if (serviceLower.includes('подсыпка') || serviceLower.includes('основание')) {
+          return materialLower.includes('песок') || materialLower.includes('щебень');
+        }
+        
+        return false;
+      }) || [];
+
+      materialsToUse = suggestedMaterials.map(material => ({
+        material,
+        compaction_ratio: 1.2, // Стандартный коэффициент уплотнения
+        thickness: 0.1, // Стандартная толщина 10 см
+        mandatory: true
+      }));
     }
 
     const materials: MaterialCalculation[] = [];
 
-    for (const norm of norms) {
-      const material = norm.materials_norms;
-      if (!material) continue;
-
+    for (const { material, compaction_ratio, thickness, mandatory } of materialsToUse) {
       try {
         let calculatedQuantity = 0;
         let calculationFormula = '';
 
+        // Расчёт в зависимости от единиц измерения
         switch (material.unit) {
           case 'м³':
             // м³ = quantity * thickness * compaction_ratio
-            calculatedQuantity = service.quantity * (norm.thickness || 0) * (norm.compaction_ratio || 1);
-            calculationFormula = `${service.quantity} * ${norm.thickness || 0} * ${norm.compaction_ratio || 1}`;
+            calculatedQuantity = service.quantity * (thickness || 0.1) * (compaction_ratio || 1);
+            calculationFormula = `${service.quantity} * ${thickness || 0.1} * ${compaction_ratio || 1}`;
             break;
 
           case 'тн':
-            // тн = quantity * thickness * compaction_ratio * bulk_density
-            if (!material.bulk_density) {
-              materials.push({
-                name: material.name,
-                unit: material.unit,
-                thickness: norm.thickness,
-                compaction_ratio: norm.compaction_ratio,
-                calculation: '',
-                quantity: 0,
-                error: 'Не указана насыпная плотность для расчёта в тоннах'
-              });
-              continue;
-            }
-            calculatedQuantity = service.quantity * (norm.thickness || 0) * (norm.compaction_ratio || 1) * material.bulk_density;
-            calculationFormula = `${service.quantity} * ${norm.thickness || 0} * ${norm.compaction_ratio || 1} * ${material.bulk_density}`;
+            // тн = quantity * thickness * compaction_ratio * density
+            const density = 1.5; // Стандартная плотность 1.5 т/м³
+            calculatedQuantity = service.quantity * (thickness || 0.1) * (compaction_ratio || 1) * density;
+            calculationFormula = `${service.quantity} * ${thickness || 0.1} * ${compaction_ratio || 1} * ${density}`;
             break;
 
           case 'м²':
-            // м² = quantity (просто площадь)
+            // м² = quantity (площадь 1:1)
             calculatedQuantity = service.quantity;
             calculationFormula = `${service.quantity}`;
             break;
 
           case 'шт':
-            // шт = quantity (штуки)
-            calculatedQuantity = service.quantity;
-            calculationFormula = `${service.quantity}`;
+            // шт - зависит от типа материала
+            if (material.name.toLowerCase().includes('плитка') || material.name.toLowerCase().includes('брусчатка')) {
+              // Для плитки: примерно 25 шт/м²
+              calculatedQuantity = Math.ceil(service.quantity * 25);
+              calculationFormula = `${service.quantity} * 25 шт/м²`;
+            } else {
+              // Для других материалов - 1:1
+              calculatedQuantity = service.quantity;
+              calculationFormula = `${service.quantity}`;
+            }
             break;
 
           case 'кг':
             // кг = quantity * норма расхода на единицу
-            calculatedQuantity = service.quantity * (norm.thickness || 1);
-            calculationFormula = `${service.quantity} * ${norm.thickness || 1}`;
+            const normPerUnit = 0.5; // 0.5 кг на единицу по умолчанию
+            calculatedQuantity = service.quantity * normPerUnit;
+            calculationFormula = `${service.quantity} * ${normPerUnit} кг/ед`;
             break;
 
+          case 'м.п':
           case 'п.м':
-            // п.м = quantity (погонные метры)
+            // погонные метры = quantity
             calculatedQuantity = service.quantity;
             calculationFormula = `${service.quantity}`;
             break;
 
+          case 'л':
+            // литры = quantity * норма расхода
+            const normPerSqm = 0.1; // 0.1 л на м²
+            calculatedQuantity = service.quantity * normPerSqm;
+            calculationFormula = `${service.quantity} * ${normPerSqm} л/м²`;
+            break;
+
           default:
-            materials.push({
-              name: material.name,
-              unit: material.unit,
-              calculation: '',
-              quantity: 0,
-              error: `Неподдерживаемая единица измерения: ${material.unit}`
-            });
-            continue;
+            // Неизвестная единица - пропорциональный расчёт
+            calculatedQuantity = service.quantity;
+            calculationFormula = `${service.quantity} (пропорциональный расчёт)`;
         }
 
         // Округляем до 2 знаков после запятой
@@ -169,12 +211,14 @@ async function calculateMaterialConsumption(services: ServiceInput[], userId: st
         materials.push({
           name: material.name,
           unit: material.unit,
-          thickness: norm.thickness,
-          compaction_ratio: norm.compaction_ratio,
-          bulk_density: material.bulk_density,
+          thickness: thickness,
+          compaction_ratio: compaction_ratio,
+          bulk_density: null,
           calculation: calculationFormula,
           quantity: calculatedQuantity
         });
+
+        console.log(`Calculated for ${material.name}: ${calculatedQuantity} ${material.unit}`);
 
       } catch (error) {
         console.error(`Error calculating material ${material.name}:`, error);
@@ -186,6 +230,17 @@ async function calculateMaterialConsumption(services: ServiceInput[], userId: st
           error: `Ошибка расчёта: ${error.message}`
         });
       }
+    }
+
+    // Если материалы не найдены, сообщаем об этом
+    if (materials.length === 0) {
+      materials.push({
+        name: 'Нет данных',
+        unit: '',
+        calculation: '',
+        quantity: 0,
+        error: `Материалы для услуги "${service.service}" не найдены. Добавьте материалы в номенклатуру или создайте нормы расхода.`
+      });
     }
 
     results.push({
