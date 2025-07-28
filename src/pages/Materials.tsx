@@ -15,6 +15,7 @@ import {
   Loader2
 } from "lucide-react";
 import { useMaterials, Material } from "@/hooks/useMaterials";
+import { MaterialDialog } from "@/components/MaterialDialog";
 
 export default function Materials() {
   const [searchTerm, setSearchTerm] = useState("");
@@ -72,10 +73,12 @@ export default function Materials() {
             Номенклатура материалов и управление складскими остатками
           </p>
         </div>
-        <Button className="bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 gap-2">
-          <Plus className="h-4 w-4" />
-          Добавить материал
-        </Button>
+        <MaterialDialog>
+          <Button className="bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 gap-2">
+            <Plus className="h-4 w-4" />
+            Добавить материал
+          </Button>
+        </MaterialDialog>
       </div>
 
       {/* Поиск и фильтры */}
@@ -199,9 +202,11 @@ export default function Materials() {
                     <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
                       <Eye className="h-4 w-4" />
                     </Button>
-                    <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-                      <Edit className="h-4 w-4" />
-                    </Button>
+                    <MaterialDialog material={material}>
+                      <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                        <Edit className="h-4 w-4" />
+                      </Button>
+                    </MaterialDialog>
                   </div>
                 </div>
               </div>
@@ -220,10 +225,12 @@ export default function Materials() {
             <p className="text-muted-foreground mb-4">
               Попробуйте изменить параметры поиска или добавьте новый материал
             </p>
-            <Button>
-              <Plus className="h-4 w-4 mr-2" />
-              Добавить первый материал
-            </Button>
+            <MaterialDialog>
+              <Button>
+                <Plus className="h-4 w-4 mr-2" />
+                Добавить первый материал
+              </Button>
+            </MaterialDialog>
           </CardContent>
         </Card>
       )}
