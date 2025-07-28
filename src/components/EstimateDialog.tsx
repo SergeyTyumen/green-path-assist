@@ -29,6 +29,7 @@ interface EstimateItemInput {
   unit_price: number;
   unit: string;
   total: number;
+  comment?: string; // Для материалов - нормы расхода
 }
 
 export function EstimateDialog({ isOpen, onClose, estimate, onSave }: EstimateDialogProps) {
@@ -137,8 +138,19 @@ export function EstimateDialog({ isOpen, onClose, estimate, onSave }: EstimateDi
     setItems(newItems);
   };
 
+  const getServiceItems = () => items.filter(item => item.type === 'service');
+  const getMaterialItems = () => items.filter(item => item.type === 'material');
+  
+  const getServicesTotal = () => {
+    return getServiceItems().reduce((sum, item) => sum + item.total, 0);
+  };
+  
+  const getMaterialsTotal = () => {
+    return getMaterialItems().reduce((sum, item) => sum + item.total, 0);
+  };
+  
   const getTotalAmount = () => {
-    return items.reduce((sum, item) => sum + item.total, 0);
+    return getServicesTotal() + getMaterialsTotal();
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -230,144 +242,269 @@ export function EstimateDialog({ isOpen, onClose, estimate, onSave }: EstimateDi
             </div>
           </div>
 
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between">
-              <CardTitle>Позиции сметы</CardTitle>
-              <Button type="button" onClick={addItem} size="sm">
-                <Plus className="h-4 w-4 mr-2" />
-                Добавить позицию
-              </Button>
-            </CardHeader>
-            <CardContent>
-              {items.length === 0 ? (
-                <div className="text-center py-8 text-muted-foreground">
-                  Добавьте позиции в смету
-                </div>
-              ) : (
-                <div className="overflow-x-auto">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead className="min-w-[200px]">Наименование</TableHead>
-                        <TableHead>Тип</TableHead>
-                        <TableHead>Объем</TableHead>
-                        <TableHead>Ед. изм</TableHead>
-                        <TableHead>Цена за ед.</TableHead>
-                        <TableHead>Сумма</TableHead>
-                        <TableHead className="w-[50px]"></TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {items.map((item, index) => (
-                        <TableRow key={index}>
-                          <TableCell>
-                            <Select
-                              value={item.material_id || item.service_id || ''}
-                              onValueChange={(value) => {
-                                const field = item.type === 'material' ? 'material_id' : 'service_id';
-                                updateItem(index, field, value);
-                              }}
-                            >
-                              <SelectTrigger className="min-w-[200px]">
-                                <SelectValue placeholder="Выберите позицию" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <div className="p-2">
-                                  <div className="flex gap-2 mb-2">
-                                    <Button
-                                      type="button"
-                                      size="sm"
-                                      variant={item.type === 'material' ? 'default' : 'outline'}
-                                      onClick={() => updateItem(index, 'type', 'material')}
-                                    >
-                                      Материалы
-                                    </Button>
-                                    <Button
-                                      type="button"
-                                      size="sm"
-                                      variant={item.type === 'service' ? 'default' : 'outline'}
-                                      onClick={() => updateItem(index, 'type', 'service')}
-                                    >
-                                      Услуги
-                                    </Button>
-                                  </div>
-                                </div>
-                                {(item.type === 'material' ? materials : services).map((option) => (
-                                  <SelectItem key={option.id} value={option.id}>
-                                    <div className="flex items-center justify-between w-full">
-                                      <span>{option.name}</span>
-                                      <Badge variant="outline" className="ml-2">
-                                        {option.price}₽/{option.unit}
-                                      </Badge>
-                                    </div>
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                          </TableCell>
-                          <TableCell>
-                            <Badge variant={item.type === 'material' ? 'default' : 'secondary'}>
-                              {item.type === 'material' ? 'Материал' : 'Услуга'}
-                            </Badge>
-                          </TableCell>
-                          <TableCell>
-                            <Input
-                              type="number"
-                              value={item.quantity}
-                              onChange={(e) => updateItem(index, 'quantity', Number(e.target.value))}
-                              min="0"
-                              step="0.01"
-                              className="w-20"
-                            />
-                          </TableCell>
-                          <TableCell>
-                            <span className="text-sm text-muted-foreground">{item.unit}</span>
-                          </TableCell>
-                          <TableCell>
-                            <Input
-                              type="number"
-                              value={item.unit_price}
-                              onChange={(e) => updateItem(index, 'unit_price', Number(e.target.value))}
-                              min="0"
-                              step="0.01"
-                              className="w-24"
-                            />
-                          </TableCell>
-                          <TableCell>
-                            <div className="font-medium">
-                              {item.total.toLocaleString('ru-RU')}₽
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => removeItem(index)}
-                              className="h-8 w-8 p-0"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </div>
-              )}
-              
-              {items.length > 0 && (
-                <div className="flex justify-end mt-4 pt-4 border-t">
-                  <div className="flex items-center gap-2">
-                    <Calculator className="h-5 w-5 text-muted-foreground" />
-                    <span className="text-lg font-bold">
-                      Итого: {getTotalAmount().toLocaleString('ru-RU')}₽
-                    </span>
+          <div className="space-y-6">
+            <div className="flex justify-between items-center">
+              <h3 className="text-lg font-semibold">Позиции сметы</h3>
+              <div className="flex gap-2">
+                <Button type="button" onClick={() => setItems([...items, { type: 'service', name: '', quantity: 1, unit_price: 0, unit: 'м²', total: 0 }])} size="sm" variant="outline">
+                  <Plus className="h-4 w-4 mr-2" />
+                  Добавить услугу
+                </Button>
+                <Button type="button" onClick={() => setItems([...items, { type: 'material', name: '', quantity: 1, unit_price: 0, unit: 'м³', total: 0 }])} size="sm" variant="outline">
+                  <Plus className="h-4 w-4 mr-2" />
+                  Добавить материал
+                </Button>
+              </div>
+            </div>
+
+            {/* Блок услуг */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center justify-between">
+                  <span>Услуги</span>
+                  <Badge variant="secondary">{getServiceItems().length} поз.</Badge>
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {getServiceItems().length === 0 ? (
+                  <div className="text-center py-4 text-muted-foreground">
+                    Нет услуг в смете
                   </div>
-                </div>
-              )}
-            </CardContent>
-          </Card>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Наименование</TableHead>
+                          <TableHead>Объем</TableHead>
+                          <TableHead>Ед. изм</TableHead>
+                          <TableHead>Цена за ед.</TableHead>
+                          <TableHead>Сумма</TableHead>
+                          <TableHead className="w-[50px]"></TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {items.map((item, index) => {
+                          if (item.type !== 'service') return null;
+                          return (
+                            <TableRow key={index}>
+                              <TableCell>
+                                <Select
+                                  value={item.service_id || ''}
+                                  onValueChange={(value) => updateItem(index, 'service_id', value)}
+                                >
+                                  <SelectTrigger className="min-w-[200px]">
+                                    <SelectValue placeholder="Выберите услугу" />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    {services.map((service) => (
+                                      <SelectItem key={service.id} value={service.id}>
+                                        <div className="flex items-center justify-between w-full">
+                                          <span>{service.name}</span>
+                                          <Badge variant="outline" className="ml-2">
+                                            {service.price}₽/{service.unit}
+                                          </Badge>
+                                        </div>
+                                      </SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                              </TableCell>
+                              <TableCell>
+                                <Input
+                                  type="number"
+                                  value={item.quantity}
+                                  onChange={(e) => updateItem(index, 'quantity', Number(e.target.value))}
+                                  min="0"
+                                  step="0.01"
+                                  className="w-20"
+                                />
+                              </TableCell>
+                              <TableCell>
+                                <span className="text-sm text-muted-foreground">{item.unit}</span>
+                              </TableCell>
+                              <TableCell>
+                                <Input
+                                  type="number"
+                                  value={item.unit_price}
+                                  onChange={(e) => updateItem(index, 'unit_price', Number(e.target.value))}
+                                  min="0"
+                                  step="0.01"
+                                  className="w-24"
+                                />
+                              </TableCell>
+                              <TableCell>
+                                <div className="font-medium">
+                                  {item.total.toLocaleString('ru-RU')}₽
+                                </div>
+                              </TableCell>
+                              <TableCell>
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => removeItem(index)}
+                                  className="h-8 w-8 p-0"
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </TableCell>
+                            </TableRow>
+                          );
+                        })}
+                      </TableBody>
+                    </Table>
+                    <div className="flex justify-end mt-2 pt-2 border-t">
+                      <span className="font-medium">
+                        Итого по услугам: {getServicesTotal().toLocaleString('ru-RU')}₽
+                      </span>
+                    </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Блок материалов */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center justify-between">
+                  <span>Материалы</span>
+                  <Badge variant="secondary">{getMaterialItems().length} поз.</Badge>
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {getMaterialItems().length === 0 ? (
+                  <div className="text-center py-4 text-muted-foreground">
+                    Нет материалов в смете
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Наименование</TableHead>
+                          <TableHead>Объем</TableHead>
+                          <TableHead>Ед. изм</TableHead>
+                          <TableHead>Цена за ед.</TableHead>
+                          <TableHead>Сумма</TableHead>
+                          <TableHead>Комментарий</TableHead>
+                          <TableHead className="w-[50px]"></TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {items.map((item, index) => {
+                          if (item.type !== 'material') return null;
+                          return (
+                            <TableRow key={index}>
+                              <TableCell>
+                                <Select
+                                  value={item.material_id || ''}
+                                  onValueChange={(value) => updateItem(index, 'material_id', value)}
+                                >
+                                  <SelectTrigger className="min-w-[200px]">
+                                    <SelectValue placeholder="Выберите материал" />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    {materials.map((material) => (
+                                      <SelectItem key={material.id} value={material.id}>
+                                        <div className="flex items-center justify-between w-full">
+                                          <span>{material.name}</span>
+                                          <Badge variant="outline" className="ml-2">
+                                            {material.price}₽/{material.unit}
+                                          </Badge>
+                                        </div>
+                                      </SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                              </TableCell>
+                              <TableCell>
+                                <Input
+                                  type="number"
+                                  value={item.quantity}
+                                  onChange={(e) => updateItem(index, 'quantity', Number(e.target.value))}
+                                  min="0"
+                                  step="0.01"
+                                  className="w-20"
+                                />
+                              </TableCell>
+                              <TableCell>
+                                <span className="text-sm text-muted-foreground">{item.unit}</span>
+                              </TableCell>
+                              <TableCell>
+                                <Input
+                                  type="number"
+                                  value={item.unit_price}
+                                  onChange={(e) => updateItem(index, 'unit_price', Number(e.target.value))}
+                                  min="0"
+                                  step="0.01"
+                                  className="w-24"
+                                />
+                              </TableCell>
+                              <TableCell>
+                                <div className="font-medium">
+                                  {item.total.toLocaleString('ru-RU')}₽
+                                </div>
+                              </TableCell>
+                              <TableCell>
+                                <Input
+                                  value={item.comment || ''}
+                                  onChange={(e) => updateItem(index, 'comment', e.target.value)}
+                                  placeholder="толщина=0.1, плотность=1.4"
+                                  className="w-48"
+                                />
+                              </TableCell>
+                              <TableCell>
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => removeItem(index)}
+                                  className="h-8 w-8 p-0"
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </TableCell>
+                            </TableRow>
+                          );
+                        })}
+                      </TableBody>
+                    </Table>
+                    <div className="flex justify-end mt-2 pt-2 border-t">
+                      <span className="font-medium">
+                        Итого по материалам: {getMaterialsTotal().toLocaleString('ru-RU')}₽
+                      </span>
+                    </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Общий итог */}
+            {items.length > 0 && (
+              <Card>
+                <CardContent className="pt-6">
+                  <div className="space-y-2">
+                    <div className="flex justify-between">
+                      <span>Итого по услугам:</span>
+                      <span className="font-medium">{getServicesTotal().toLocaleString('ru-RU')}₽</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Итого по материалам:</span>
+                      <span className="font-medium">{getMaterialsTotal().toLocaleString('ru-RU')}₽</span>
+                    </div>
+                    <div className="flex justify-between text-lg font-bold border-t pt-2">
+                      <span>Общая сумма:</span>
+                      <span className="flex items-center gap-2">
+                        <Calculator className="h-5 w-5" />
+                        {getTotalAmount().toLocaleString('ru-RU')}₽
+                      </span>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+          </div>
 
           <div className="flex justify-end gap-2">
             <Button type="button" variant="outline" onClick={onClose}>
