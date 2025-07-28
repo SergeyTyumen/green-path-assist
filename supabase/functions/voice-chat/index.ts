@@ -13,7 +13,7 @@ const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
 // Функции для работы с CRM
-async function createClient(data: any, userId: string) {
+async function createCRMClient(data: any, userId: string) {
   console.log('Creating client:', data);
   const { data: result, error } = await supabase
     .from('clients')
@@ -459,7 +459,7 @@ serve(async (req) => {
               break;
               
             case 'create_client':
-              result = await createClient(functionArgs, userId);
+              result = await createCRMClient(functionArgs, userId);
               functionResults.push(`Клиент "${functionArgs.name}" успешно создан с ID: ${result.id}`);
               break;
               
