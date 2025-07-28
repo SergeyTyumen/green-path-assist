@@ -14,6 +14,60 @@ export type Database = {
   }
   public: {
     Tables: {
+      clients: {
+        Row: {
+          address: string | null
+          budget: number | null
+          created_at: string
+          email: string | null
+          id: string
+          last_contact: string | null
+          name: string
+          next_action: string | null
+          notes: string | null
+          phone: string
+          project_area: number | null
+          services: string[]
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          address?: string | null
+          budget?: number | null
+          created_at?: string
+          email?: string | null
+          id?: string
+          last_contact?: string | null
+          name: string
+          next_action?: string | null
+          notes?: string | null
+          phone: string
+          project_area?: number | null
+          services?: string[]
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          address?: string | null
+          budget?: number | null
+          created_at?: string
+          email?: string | null
+          id?: string
+          last_contact?: string | null
+          name?: string
+          next_action?: string | null
+          notes?: string | null
+          phone?: string
+          project_area?: number | null
+          services?: string[]
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       contractor_profiles: {
         Row: {
           company_name: string
@@ -59,6 +113,125 @@ export type Database = {
           updated_at?: string
           user_id?: string
           verified?: boolean | null
+        }
+        Relationships: []
+      }
+      estimate_items: {
+        Row: {
+          created_at: string
+          estimate_id: string
+          id: string
+          material_id: string | null
+          quantity: number
+          total: number
+          unit_price: number
+        }
+        Insert: {
+          created_at?: string
+          estimate_id: string
+          id?: string
+          material_id?: string | null
+          quantity: number
+          total: number
+          unit_price: number
+        }
+        Update: {
+          created_at?: string
+          estimate_id?: string
+          id?: string
+          material_id?: string | null
+          quantity?: number
+          total?: number
+          unit_price?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "estimate_items_estimate_id_fkey"
+            columns: ["estimate_id"]
+            isOneToOne: false
+            referencedRelation: "estimates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      estimates: {
+        Row: {
+          client_id: string | null
+          created_at: string
+          id: string
+          status: string
+          title: string
+          total_amount: number
+          updated_at: string
+          user_id: string
+          valid_until: string | null
+        }
+        Insert: {
+          client_id?: string | null
+          created_at?: string
+          id?: string
+          status?: string
+          title: string
+          total_amount?: number
+          updated_at?: string
+          user_id: string
+          valid_until?: string | null
+        }
+        Update: {
+          client_id?: string | null
+          created_at?: string
+          id?: string
+          status?: string
+          title?: string
+          total_amount?: number
+          updated_at?: string
+          user_id?: string
+          valid_until?: string | null
+        }
+        Relationships: []
+      }
+      materials: {
+        Row: {
+          category: string
+          created_at: string
+          id: string
+          last_updated: string
+          min_stock: number
+          name: string
+          price: number
+          stock: number
+          supplier: string | null
+          unit: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          category: string
+          created_at?: string
+          id?: string
+          last_updated?: string
+          min_stock?: number
+          name: string
+          price: number
+          stock?: number
+          supplier?: string | null
+          unit: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          category?: string
+          created_at?: string
+          id?: string
+          last_updated?: string
+          min_stock?: number
+          name?: string
+          price?: number
+          stock?: number
+          supplier?: string | null
+          unit?: string
+          updated_at?: string
+          user_id?: string
         }
         Relationships: []
       }
@@ -137,6 +310,45 @@ export type Database = {
         }
         Relationships: []
       }
+      proposals: {
+        Row: {
+          amount: number
+          client_id: string | null
+          created_at: string
+          expires_at: string | null
+          id: string
+          sent_at: string | null
+          status: string
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          amount?: number
+          client_id?: string | null
+          created_at?: string
+          expires_at?: string | null
+          id?: string
+          sent_at?: string | null
+          status?: string
+          title: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          client_id?: string | null
+          created_at?: string
+          expires_at?: string | null
+          id?: string
+          sent_at?: string | null
+          status?: string
+          title?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       requests: {
         Row: {
           client_id: string
@@ -180,6 +392,99 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      suppliers: {
+        Row: {
+          categories: string[]
+          created_at: string
+          delivery_time: string | null
+          email: string | null
+          id: string
+          location: string | null
+          name: string
+          orders_count: number | null
+          phone: string | null
+          rating: number | null
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          categories?: string[]
+          created_at?: string
+          delivery_time?: string | null
+          email?: string | null
+          id?: string
+          location?: string | null
+          name: string
+          orders_count?: number | null
+          phone?: string | null
+          rating?: number | null
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          categories?: string[]
+          created_at?: string
+          delivery_time?: string | null
+          email?: string | null
+          id?: string
+          location?: string | null
+          name?: string
+          orders_count?: number | null
+          phone?: string | null
+          rating?: number | null
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      tasks: {
+        Row: {
+          assignee: string | null
+          category: string
+          client_id: string | null
+          created_at: string
+          description: string | null
+          due_date: string | null
+          id: string
+          priority: string
+          status: string
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          assignee?: string | null
+          category?: string
+          client_id?: string | null
+          created_at?: string
+          description?: string | null
+          due_date?: string | null
+          id?: string
+          priority?: string
+          status?: string
+          title: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          assignee?: string | null
+          category?: string
+          client_id?: string | null
+          created_at?: string
+          description?: string | null
+          due_date?: string | null
+          id?: string
+          priority?: string
+          status?: string
+          title?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
       }
       user_roles: {
         Row: {
