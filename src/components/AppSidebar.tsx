@@ -34,7 +34,7 @@ const navigationItems = [
   { title: "Коммерческие предложения", url: "/proposals", icon: FileText },
   { title: "Подрядчики", url: "/contractors", icon: Wrench },
   { title: "Поставщики", url: "/suppliers", icon: Truck },
-  { title: "Материалы", url: "/materials", icon: Package },
+  { title: "Номенклатура", url: "/nomenclature", icon: Package },
   { title: "Задачи", url: "/tasks", icon: CheckSquare },
   { title: "Архив проектов", url: "/archive", icon: Archive },
   { title: "ИИ-помощники", url: "/ai-assistants", icon: Bot },
