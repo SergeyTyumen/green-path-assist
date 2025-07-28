@@ -11,83 +11,17 @@ import {
   MapPin,
   Calendar,
   Filter,
-  Bot
+  Bot,
+  Loader2
 } from "lucide-react";
-import { Client, ClientStatus } from "@/types";
+import { useClients, Client } from "@/hooks/useClients";
 
 export default function Clients() {
   const [searchTerm, setSearchTerm] = useState("");
-  const [statusFilter, setStatusFilter] = useState<ClientStatus | "all">("all");
+  const [statusFilter, setStatusFilter] = useState<string>("all");
+  const { clients, loading } = useClients();
 
-  // Демо-данные клиентов
-  const clients: Client[] = [
-    {
-      id: "1",
-      name: "Анна Петрова",
-      phone: "+7 (495) 123-45-67",
-      email: "anna.petrova@email.com",
-      address: "г. Москва, ул. Садовая, д. 15",
-      services: ["landscape-design", "auto-irrigation"],
-      status: "new",
-      notes: "Хочет благоустроить участок 15 соток. Интересует автополив и ландшафтный дизайн.",
-      createdAt: new Date("2024-01-15"),
-      updatedAt: new Date("2024-01-15"),
-      lastContact: new Date("2024-01-15"),
-      nextAction: "Назначить встречу для обсуждения проекта",
-      projectArea: 1500,
-      budget: 800000
-    },
-    {
-      id: "2", 
-      name: "ООО Стройком",
-      phone: "+7 (495) 987-65-43",
-      email: "info@stroykom.ru",
-      address: "г. Москва, ул. Строительная, д. 25",
-      services: ["hardscape", "planting"],
-      status: "proposal-sent",
-      notes: "Коммерческий объект. Требуется благоустройство территории офисного комплекса.",
-      createdAt: new Date("2024-01-10"),
-      updatedAt: new Date("2024-01-14"),
-      lastContact: new Date("2024-01-14"),
-      nextAction: "Ожидаем ответ по КП",
-      projectArea: 3000,
-      budget: 1500000
-    },
-    {
-      id: "3",
-      name: "Михаил Иванов", 
-      phone: "+7 (495) 555-77-88",
-      email: "m.ivanov@gmail.com",
-      address: "Московская область, д. Заречье",
-      services: ["lawn", "maintenance"],
-      status: "call-scheduled",
-      notes: "Частный дом. Нужен рулонный газон и последующее обслуживание.",
-      createdAt: new Date("2024-01-08"),
-      updatedAt: new Date("2024-01-13"),
-      lastContact: new Date("2024-01-13"),
-      nextAction: "Созвон запланирован на завтра в 14:00",
-      projectArea: 800,
-      budget: 300000
-    },
-    {
-      id: "4",
-      name: "Елена Смирнова",
-      phone: "+7 (495) 444-33-22",
-      email: "elena.smirnova@yandex.ru", 
-      address: "г. Москва, ул. Цветочная, д. 8",
-      services: ["landscape-design", "planting"],
-      status: "in-progress",
-      notes: "Дизайн-проект готов, переходим к этапу посадки растений.",
-      createdAt: new Date("2023-12-20"),
-      updatedAt: new Date("2024-01-12"),
-      lastContact: new Date("2024-01-12"),
-      nextAction: "Начать посадочные работы",
-      projectArea: 600,
-      budget: 450000
-    }
-  ];
-
-  const getStatusConfig = (status: ClientStatus) => {
+  const getStatusConfig = (status: string) => {
     const configs = {
       "new": { label: "Новый", className: "bg-status-new text-white" },
       "in-progress": { label: "В работе", className: "bg-status-in-progress text-white" },
@@ -96,7 +30,7 @@ export default function Clients() {
       "postponed": { label: "Отложено", className: "bg-status-postponed text-white" },
       "closed": { label: "Закрыт", className: "bg-status-closed text-white" }
     };
-    return configs[status];
+    return configs[status as keyof typeof configs] || configs.new;
   };
 
   const getServiceLabel = (service: string) => {
@@ -118,6 +52,15 @@ export default function Clients() {
     const matchesStatus = statusFilter === "all" || client.status === statusFilter;
     return matchesSearch && matchesStatus;
   });
+
+  if (loading) {
+    return (
+      <div className="p-6 flex items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin" />
+        <span className="ml-2">Загрузка клиентов...</span>
+      </div>
+    );
+  }
 
   return (
     <div className="p-6 space-y-6">
@@ -200,7 +143,7 @@ export default function Clients() {
                 </div>
                 <div className="text-right text-sm text-muted-foreground">
                   <div>Бюджет: ₽{client.budget?.toLocaleString()}</div>
-                  <div>Площадь: {client.projectArea}м²</div>
+                  <div>Площадь: {client.project_area}м²</div>
                 </div>
               </div>
             </CardHeader>
@@ -222,10 +165,10 @@ export default function Clients() {
                     <span className="truncate">{client.address}</span>
                   </div>
                 )}
-                {client.lastContact && (
+                 {client.last_contact && (
                   <div className="flex items-center gap-2 text-sm">
                     <Calendar className="h-4 w-4 text-muted-foreground" />
-                    <span>Последний контакт: {client.lastContact.toLocaleDateString()}</span>
+                    <span>Последний контакт: {new Date(client.last_contact).toLocaleDateString()}</span>
                   </div>
                 )}
               </div>
@@ -250,11 +193,11 @@ export default function Clients() {
                 </div>
               )}
 
-              {client.nextAction && (
+              {client.next_action && (
                 <div className="space-y-2">
                   <div className="text-sm font-medium text-foreground">Следующее действие:</div>
                   <div className="text-sm text-primary bg-primary/10 p-3 rounded-lg">
-                    {client.nextAction}
+                    {client.next_action}
                   </div>
                 </div>
               )}

@@ -7,46 +7,52 @@ import {
   TrendingUp,
   Clock,
   AlertCircle,
-  Plus
+  Plus,
+  Loader2
 } from "lucide-react";
+import { useClients } from "@/hooks/useClients";
+import { useTasks } from "@/hooks/useTasks";
+import { useEstimates } from "@/hooks/useEstimates";
+import { useProposals } from "@/hooks/useProposals";
 
 export default function Dashboard() {
+  const { clients, loading: clientsLoading } = useClients();
+  const { tasks, loading: tasksLoading } = useTasks();
+  const { estimates, loading: estimatesLoading } = useEstimates();
+  const { proposals, loading: proposalsLoading } = useProposals();
+
+  const recentClients = clients.slice(0, 4);
+  const todayTasks = tasks.filter(task => task.status === 'pending').slice(0, 3);
+
   const stats = [
     {
       title: "Активные клиенты",
-      value: "24",
+      value: clients.length.toString(),
       change: "+12%",
       icon: Users,
       color: "text-blue-600"
     },
     {
       title: "Сметы в работе",
-      value: "8",
+      value: estimates.filter(e => e.status === 'draft' || e.status === 'sent').length.toString(),
       change: "+3",
       icon: Calculator,
       color: "text-green-600"
     },
     {
       title: "Отправленные КП",
-      value: "12",
+      value: proposals.filter(p => p.status === 'sent').length.toString(),
       change: "+5",
       icon: FileText,
       color: "text-purple-600"
     },
     {
       title: "Общий оборот",
-      value: "₽2.4М",
+      value: `₽${(proposals.filter(p => p.status === 'approved').reduce((sum, p) => sum + p.amount, 0) / 1000000).toFixed(1)}М`,
       change: "+18%",
       icon: TrendingUp,
       color: "text-emerald-600"
     }
-  ];
-
-  const recentClients = [
-    { name: "Анна Петрова", status: "new", lastContact: "Сегодня" },
-    { name: "ООО Стройком", status: "proposal-sent", lastContact: "2 дня назад" },
-    { name: "Михаил Иванов", status: "call-scheduled", lastContact: "3 дня назад" },
-    { name: "Дачный кооператив", status: "in-progress", lastContact: "5 дней назад" }
   ];
 
   const getStatusBadge = (status: string) => {
@@ -65,6 +71,15 @@ export default function Dashboard() {
       </span>
     );
   };
+
+  if (clientsLoading || tasksLoading || estimatesLoading || proposalsLoading) {
+    return (
+      <div className="p-6 flex items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin" />
+        <span className="ml-2">Загрузка дашборда...</span>
+      </div>
+    );
+  }
 
   return (
     <div className="p-6 space-y-6">
@@ -116,7 +131,9 @@ export default function Dashboard() {
                 <div key={index} className="flex items-center justify-between p-3 rounded-lg bg-accent/30 hover:bg-accent/50 transition-colors">
                   <div className="flex flex-col">
                     <span className="font-medium text-foreground">{client.name}</span>
-                    <span className="text-sm text-muted-foreground">{client.lastContact}</span>
+                    <span className="text-sm text-muted-foreground">
+                      {client.last_contact ? new Date(client.last_contact).toLocaleDateString() : 'Недавно'}
+                    </span>
                   </div>
                   {getStatusBadge(client.status)}
                 </div>
@@ -138,41 +155,41 @@ export default function Dashboard() {
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              <div className="flex items-center gap-3 p-3 rounded-lg bg-yellow-50 border border-yellow-200">
-                <AlertCircle className="h-4 w-4 text-yellow-600" />
-                <div className="flex-1">
-                  <p className="text-sm font-medium text-yellow-800">
-                    Связаться с Анной Петровой
-                  </p>
-                  <p className="text-xs text-yellow-600">
-                    Высокий приоритет
-                  </p>
+              {todayTasks.map((task, index) => (
+                <div key={task.id} className={`flex items-center gap-3 p-3 rounded-lg border ${
+                  task.priority === 'high' ? 'bg-red-50 border-red-200' :
+                  task.priority === 'medium' ? 'bg-yellow-50 border-yellow-200' :
+                  'bg-green-50 border-green-200'
+                }`}>
+                  <div className="h-4 w-4">
+                    {task.category === 'call' && <AlertCircle className="h-4 w-4 text-yellow-600" />}
+                    {task.category === 'estimate' && <Calculator className="h-4 w-4 text-blue-600" />}
+                    {task.category === 'proposal' && <FileText className="h-4 w-4 text-green-600" />}
+                    {task.category === 'other' && <Clock className="h-4 w-4 text-gray-600" />}
+                  </div>
+                  <div className="flex-1">
+                    <p className={`text-sm font-medium ${
+                      task.priority === 'high' ? 'text-red-800' :
+                      task.priority === 'medium' ? 'text-yellow-800' :
+                      'text-green-800'
+                    }`}>
+                      {task.title}
+                    </p>
+                    <p className={`text-xs ${
+                      task.priority === 'high' ? 'text-red-600' :
+                      task.priority === 'medium' ? 'text-yellow-600' :
+                      'text-green-600'
+                    }`}>
+                      {task.priority === 'high' ? 'Высокий' : task.priority === 'medium' ? 'Средний' : 'Низкий'} приоритет
+                    </p>
+                  </div>
                 </div>
-              </div>
-              
-              <div className="flex items-center gap-3 p-3 rounded-lg bg-blue-50 border border-blue-200">
-                <Calculator className="h-4 w-4 text-blue-600" />
-                <div className="flex-1">
-                  <p className="text-sm font-medium text-blue-800">
-                    Подготовить смету для ООО Стройком
-                  </p>
-                  <p className="text-xs text-blue-600">
-                    Средний приоритет
-                  </p>
+              ))}
+              {todayTasks.length === 0 && (
+                <div className="text-center text-muted-foreground py-8">
+                  Нет активных задач на сегодня
                 </div>
-              </div>
-
-              <div className="flex items-center gap-3 p-3 rounded-lg bg-green-50 border border-green-200">
-                <FileText className="h-4 w-4 text-green-600" />
-                <div className="flex-1">
-                  <p className="text-sm font-medium text-green-800">
-                    Отправить КП по автополиву
-                  </p>
-                  <p className="text-xs text-green-600">
-                    Низкий приоритет
-                  </p>
-                </div>
-              </div>
+              )}
             </div>
             <Button variant="outline" className="w-full mt-4">
               Посмотреть все задачи

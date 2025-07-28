@@ -13,82 +13,16 @@ import {
   Clock,
   AlertCircle,
   Calendar,
-  User
+  User,
+  Loader2
 } from "lucide-react";
-
-interface Task {
-  id: string;
-  title: string;
-  description: string;
-  client: string;
-  project: string;
-  assignee: string;
-  priority: "low" | "medium" | "high";
-  status: "pending" | "in-progress" | "completed" | "overdue";
-  dueDate: string;
-  createdAt: string;
-  category: "call" | "estimate" | "proposal" | "follow-up" | "other";
-}
+import { useTasks, Task } from "@/hooks/useTasks";
 
 export default function Tasks() {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedStatus, setSelectedStatus] = useState("all");
   const [selectedPriority, setSelectedPriority] = useState("all");
-
-  const tasks: Task[] = [
-    {
-      id: "TSK-001",
-      title: "Связаться с Анной Петровой",
-      description: "Обсудить детали ландшафтного проекта и уточнить бюджет",
-      client: "Анна Петрова",
-      project: "Ландшафтное проектирование участка",
-      assignee: "Администратор",
-      priority: "high",
-      status: "pending",
-      dueDate: "2024-07-25",
-      createdAt: "2024-07-22",
-      category: "call"
-    },
-    {
-      id: "TSK-002", 
-      title: "Подготовить смету для ООО Стройком",
-      description: "Расчет стоимости системы автополива на 500 кв.м",
-      client: "ООО Стройком",
-      project: "Система автополива",
-      assignee: "Администратор",
-      priority: "medium",
-      status: "in-progress",
-      dueDate: "2024-07-26",
-      createdAt: "2024-07-20",
-      category: "estimate"
-    },
-    {
-      id: "TSK-003",
-      title: "Отправить КП по автополиву",
-      description: "Отправить коммерческое предложение на email клиента",
-      client: "Михаил Иванов",
-      project: "Укладка газона",
-      assignee: "Администратор",
-      priority: "low",
-      status: "completed",
-      dueDate: "2024-07-23",
-      createdAt: "2024-07-18",
-      category: "proposal"
-    },
-    {
-      id: "TSK-004",
-      title: "Повторный звонок клиенту",
-      description: "Клиент не отвечает уже 3 дня, нужно повторно связаться",
-      client: "Дачный кооператив",
-      project: "Благоустройство территории",
-      assignee: "Администратор", 
-      priority: "medium",
-      status: "overdue",
-      dueDate: "2024-07-22",
-      createdAt: "2024-07-15",
-      category: "follow-up"
-    }
-  ];
+  const { tasks, loading } = useTasks();
 
   const getStatusBadge = (status: Task["status"]) => {
     const statusConfig = {
@@ -134,12 +68,20 @@ export default function Tasks() {
 
   const filteredTasks = tasks.filter(task => {
     const matchesSearch = task.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         task.client.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         task.project.toLowerCase().includes(searchTerm.toLowerCase());
+                         (task.description && task.description.toLowerCase().includes(searchTerm.toLowerCase()));
     const matchesStatus = selectedStatus === "all" || task.status === selectedStatus;
     const matchesPriority = selectedPriority === "all" || task.priority === selectedPriority;
     return matchesSearch && matchesStatus && matchesPriority;
   });
+
+  if (loading) {
+    return (
+      <div className="p-6 flex items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin" />
+        <span className="ml-2">Загрузка задач...</span>
+      </div>
+    );
+  }
 
   return (
     <div className="p-6 space-y-6">
@@ -242,8 +184,7 @@ export default function Tasks() {
                   
                   <div className="space-y-1">
                     <div className="flex items-center gap-4 text-sm">
-                      <span className="font-medium text-foreground">{task.client}</span>
-                      <span className="text-muted-foreground">• {task.project}</span>
+                      <span className="font-medium text-foreground">ID: {task.id}</span>
                     </div>
                     
                     <div className="flex items-center gap-4 text-xs text-muted-foreground">
@@ -253,9 +194,9 @@ export default function Tasks() {
                       </div>
                       <div className="flex items-center gap-1">
                         <Calendar className="h-3 w-3" />
-                        Срок: {new Date(task.dueDate).toLocaleDateString('ru-RU')}
+                        Срок: {task.due_date ? new Date(task.due_date).toLocaleDateString('ru-RU') : 'Не установлен'}
                       </div>
-                      <span>Создана: {new Date(task.createdAt).toLocaleDateString('ru-RU')}</span>
+                      <span>Создана: {new Date(task.created_at).toLocaleDateString('ru-RU')}</span>
                     </div>
                   </div>
                 </div>

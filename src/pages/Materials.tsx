@@ -11,80 +11,28 @@ import {
   Edit, 
   Eye, 
   Truck,
-  AlertTriangle
+  AlertTriangle,
+  Loader2
 } from "lucide-react";
-
-interface Material {
-  id: string;
-  name: string;
-  category: string;
-  unit: string;
-  price: number;
-  stock: number;
-  minStock: number;
-  supplier: string;
-  lastUpdated: string;
-  status: "in-stock" | "low-stock" | "out-of-stock";
-}
+import { useMaterials, Material } from "@/hooks/useMaterials";
 
 export default function Materials() {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("all");
-
-  const materials: Material[] = [
-    {
-      id: "MAT-001",
-      name: "Газонная трава премиум",
-      category: "Растения",
-      unit: "кг",
-      price: 450,
-      stock: 25,
-      minStock: 10,
-      supplier: "Зеленый мир",
-      lastUpdated: "2024-07-22",
-      status: "in-stock"
-    },
-    {
-      id: "MAT-002", 
-      name: "Щебень гранитный 20-40мм",
-      category: "Камень",
-      unit: "м³",
-      price: 2800,
-      stock: 3,
-      minStock: 5,
-      supplier: "СтройМатериалы+",
-      lastUpdated: "2024-07-20",
-      status: "low-stock"
-    },
-    {
-      id: "MAT-003",
-      name: "Дренажная труба ПВХ 110мм",
-      category: "Автополив",
-      unit: "м",
-      price: 320,
-      stock: 0,
-      minStock: 20,
-      supplier: "АквaСистемы",
-      lastUpdated: "2024-07-18",
-      status: "out-of-stock"
-    },
-    {
-      id: "MAT-004",
-      name: "Песок речной крупнозернистый",
-      category: "Песок",
-      unit: "м³",
-      price: 1200,
-      stock: 15,
-      minStock: 8,
-      supplier: "СтройМатериалы+",
-      lastUpdated: "2024-07-21",
-      status: "in-stock"
-    }
-  ];
+  const { materials, loading } = useMaterials();
 
   const categories = ["all", "Растения", "Камень", "Песок", "Автополив", "Удобрения"];
 
-  const getStatusBadge = (status: Material["status"]) => {
+  const getStatusBadge = (material: Material) => {
+    let status: "in-stock" | "low-stock" | "out-of-stock";
+    if (material.stock === 0) {
+      status = "out-of-stock";
+    } else if (material.stock <= material.min_stock) {
+      status = "low-stock";
+    } else {
+      status = "in-stock";
+    }
+
     const statusConfig = {
       "in-stock": { label: "В наличии", className: "bg-green-100 text-green-700" },
       "low-stock": { label: "Мало", className: "bg-yellow-100 text-yellow-700" },
@@ -101,10 +49,19 @@ export default function Materials() {
 
   const filteredMaterials = materials.filter(material => {
     const matchesSearch = material.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         material.supplier.toLowerCase().includes(searchTerm.toLowerCase());
+                         (material.supplier && material.supplier.toLowerCase().includes(searchTerm.toLowerCase()));
     const matchesCategory = selectedCategory === "all" || material.category === selectedCategory;
     return matchesSearch && matchesCategory;
   });
+
+  if (loading) {
+    return (
+      <div className="p-6 flex items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin" />
+        <span className="ml-2">Загрузка материалов...</span>
+      </div>
+    );
+  }
 
   return (
     <div className="p-6 space-y-6">
@@ -159,7 +116,7 @@ export default function Materials() {
               <Package className="h-5 w-5 text-green-600" />
               <div>
                 <div className="text-2xl font-bold text-foreground">
-                  {materials.filter(m => m.status === "in-stock").length}
+                  {materials.filter(m => m.stock > m.min_stock).length}
                 </div>
                 <div className="text-sm text-muted-foreground">В наличии</div>
               </div>
@@ -173,7 +130,7 @@ export default function Materials() {
               <AlertTriangle className="h-5 w-5 text-yellow-600" />
               <div>
                 <div className="text-2xl font-bold text-foreground">
-                  {materials.filter(m => m.status === "low-stock").length}
+                  {materials.filter(m => m.stock > 0 && m.stock <= m.min_stock).length}
                 </div>
                 <div className="text-sm text-muted-foreground">Заканчивается</div>
               </div>
@@ -187,7 +144,7 @@ export default function Materials() {
               <Package className="h-5 w-5 text-red-600" />
               <div>
                 <div className="text-2xl font-bold text-foreground">
-                  {materials.filter(m => m.status === "out-of-stock").length}
+                  {materials.filter(m => m.stock === 0).length}
                 </div>
                 <div className="text-sm text-muted-foreground">Нет в наличии</div>
               </div>
@@ -207,7 +164,7 @@ export default function Materials() {
                     <h3 className="text-lg font-semibold text-foreground">
                       {material.name}
                     </h3>
-                    {getStatusBadge(material.status)}
+                    {getStatusBadge(material)}
                     <Badge variant="outline" className="text-xs">
                       {material.category}
                     </Badge>
@@ -217,21 +174,21 @@ export default function Materials() {
                     <div className="flex items-center gap-4 text-sm text-muted-foreground">
                       <span>Цена: ₽{material.price.toLocaleString('ru-RU')} за {material.unit}</span>
                       <span>Остаток: {material.stock} {material.unit}</span>
-                      <span>Мин. остаток: {material.minStock} {material.unit}</span>
+                      <span>Мин. остаток: {material.min_stock} {material.unit}</span>
                     </div>
                     
                     <div className="flex items-center gap-4 text-xs text-muted-foreground">
                       <div className="flex items-center gap-1">
                         <Truck className="h-3 w-3" />
-                        {material.supplier}
+                        {material.supplier || 'Не указан'}
                       </div>
-                      <span>Обновлено: {new Date(material.lastUpdated).toLocaleDateString('ru-RU')}</span>
+                      <span>Обновлено: {new Date(material.last_updated).toLocaleDateString('ru-RU')}</span>
                     </div>
                   </div>
                 </div>
 
                 <div className="flex items-center gap-4">
-                  {material.status === "low-stock" || material.status === "out-of-stock" ? (
+                  {(material.stock === 0 || material.stock <= material.min_stock) ? (
                     <Button variant="outline" size="sm" className="gap-2">
                       <Truck className="h-4 w-4" />
                       Заказать
