@@ -16,6 +16,7 @@ import Tasks from "./pages/Tasks";
 import Archive from "./pages/Archive";
 import AIAssistants from "./pages/AIAssistants";
 import VoiceAssistant from "./pages/VoiceAssistant";
+import VoiceChatAssistant from "./pages/VoiceChatAssistant";
 import NotFound from "./pages/NotFound";
 import { Auth } from "./pages/Auth";
 
@@ -42,6 +43,7 @@ const App = () => (
               <Route path="archive" element={<Archive />} />
               <Route path="ai-assistants" element={<AIAssistants />} />
               <Route path="voice-assistant" element={<VoiceAssistant />} />
+              <Route path="voice-chat" element={<VoiceChatAssistant />} />
             </Route>
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />

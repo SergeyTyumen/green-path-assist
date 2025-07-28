@@ -9,7 +9,8 @@ import {
   Archive, 
   Bot,
   LayoutDashboard,
-  Mic
+  Mic,
+  MessageCircle
 } from "lucide-react";
 import { NavLink, useLocation } from "react-router-dom";
 
@@ -38,6 +39,7 @@ const navigationItems = [
   { title: "Архив проектов", url: "/archive", icon: Archive },
   { title: "ИИ-помощники", url: "/ai-assistants", icon: Bot },
   { title: "Голосовой помощник", url: "/voice-assistant", icon: Mic },
+  { title: "Чат с ИИ-помощником", url: "/voice-chat", icon: MessageCircle },
 ];
 
 export function AppSidebar() {
