@@ -12,72 +12,41 @@ import {
   Phone,
   MapPin,
   Star,
-  Bot
+  Bot,
+  Loader2,
+  Mail
 } from "lucide-react";
+import { useSuppliers } from "@/hooks/useSuppliers";
+import { SupplierDialog } from "@/components/SupplierDialog";
 
 interface Supplier {
   id: string;
+  user_id: string;
   name: string;
   categories: string[];
-  location: string;
-  phone: string;
-  rating: number;
-  ordersCount: number;
-  status: "active" | "on-hold" | "inactive";
-  lastOrder?: string;
-  deliveryTime: string;
+  location?: string;
+  phone?: string;
+  email?: string;
+  status: string;
+  rating?: number;
+  orders_count?: number;
+  delivery_time?: string;
+  created_at: string;
+  updated_at: string;
 }
 
 export default function Suppliers() {
   const [searchTerm, setSearchTerm] = useState("");
+  const { suppliers, loading } = useSuppliers();
 
-  const suppliers: Supplier[] = [
-    {
-      id: "SUP-001",
-      name: "СтройМатериалы+",
-      categories: ["Камень", "Песок", "Щебень", "Дренаж"],
-      location: "Москва",
-      phone: "+7 (495) 123-45-67",
-      rating: 4.7,
-      ordersCount: 45,
-      status: "active",
-      lastOrder: "2024-07-22",
-      deliveryTime: "1-2 дня"
-    },
-    {
-      id: "SUP-002", 
-      name: "Зеленый мир",
-      categories: ["Растения", "Саженцы", "Семена", "Удобрения"],
-      location: "Московская область",
-      phone: "+7 (499) 234-56-78",
-      rating: 4.9,
-      ordersCount: 67,
-      status: "active",
-      lastOrder: "2024-07-20",
-      deliveryTime: "2-3 дня"
-    },
-    {
-      id: "SUP-003",
-      name: "АквaСистемы",
-      categories: ["Автополив", "Трубы", "Форсунки", "Контроллеры"],
-      location: "Москва",
-      phone: "+7 (495) 345-67-89",
-      rating: 4.6,
-      ordersCount: 28,
-      status: "on-hold",
-      lastOrder: "2024-07-15",
-      deliveryTime: "3-5 дней"
-    }
-  ];
-
-  const getStatusBadge = (status: Supplier["status"]) => {
+  const getStatusBadge = (status: string) => {
     const statusConfig = {
       "active": { label: "Активен", className: "bg-green-100 text-green-700" },
       "on-hold": { label: "Приостановлен", className: "bg-yellow-100 text-yellow-700" },
       "inactive": { label: "Неактивен", className: "bg-gray-100 text-gray-700" }
     };
     
-    const config = statusConfig[status];
+    const config = statusConfig[status as keyof typeof statusConfig] || statusConfig.active;
     return (
       <Badge className={config.className}>
         {config.label}
@@ -90,8 +59,17 @@ export default function Suppliers() {
     supplier.categories.some(cat => 
       cat.toLowerCase().includes(searchTerm.toLowerCase())
     ) ||
-    supplier.location.toLowerCase().includes(searchTerm.toLowerCase())
+    (supplier.location && supplier.location.toLowerCase().includes(searchTerm.toLowerCase()))
   );
+
+  if (loading) {
+    return (
+      <div className="p-6 flex items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin" />
+        <span className="ml-2">Загрузка поставщиков...</span>
+      </div>
+    );
+  }
 
   return (
     <div className="p-6 space-y-6">
@@ -107,10 +85,12 @@ export default function Suppliers() {
             <Bot className="h-4 w-4" />
             ИИ-заявка
           </Button>
-          <Button className="bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 gap-2">
-            <Plus className="h-4 w-4" />
-            Добавить поставщика
-          </Button>
+          <SupplierDialog>
+            <Button className="bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 gap-2">
+              <Plus className="h-4 w-4" />
+              Добавить поставщика
+            </Button>
+          </SupplierDialog>
         </div>
       </div>
 
@@ -155,29 +135,43 @@ export default function Suppliers() {
                     </div>
                     
                     <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                      <div className="flex items-center gap-1">
-                        <MapPin className="h-4 w-4" />
-                        {supplier.location}
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <Phone className="h-4 w-4" />
-                        {supplier.phone}
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
-                        {supplier.rating}
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <Truck className="h-4 w-4" />
-                        {supplier.deliveryTime}
-                      </div>
+                      {supplier.location && (
+                        <div className="flex items-center gap-1">
+                          <MapPin className="h-4 w-4" />
+                          {supplier.location}
+                        </div>
+                      )}
+                      {supplier.phone && (
+                        <div className="flex items-center gap-1">
+                          <Phone className="h-4 w-4" />
+                          {supplier.phone}
+                        </div>
+                      )}
+                      {supplier.email && (
+                        <div className="flex items-center gap-1">
+                          <Mail className="h-4 w-4" />
+                          {supplier.email}
+                        </div>
+                      )}
+                      {supplier.rating && supplier.rating > 0 && (
+                        <div className="flex items-center gap-1">
+                          <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
+                          {supplier.rating}
+                        </div>
+                      )}
+                      {supplier.delivery_time && (
+                        <div className="flex items-center gap-1">
+                          <Truck className="h-4 w-4" />
+                          {supplier.delivery_time}
+                        </div>
+                      )}
                     </div>
                     
                     <div className="text-xs text-muted-foreground">
-                      Заказов выполнено: {supplier.ordersCount}
-                      {supplier.lastOrder && (
-                        <span> • Последний заказ: {new Date(supplier.lastOrder).toLocaleDateString('ru-RU')}</span>
+                      {supplier.orders_count !== undefined && (
+                        <span>Заказов выполнено: {supplier.orders_count}</span>
                       )}
+                      <span> • Обновлено: {new Date(supplier.updated_at).toLocaleDateString('ru-RU')}</span>
                     </div>
                   </div>
                 </div>
@@ -186,12 +180,21 @@ export default function Suppliers() {
                   <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
                     <Eye className="h-4 w-4" />
                   </Button>
-                  <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-                    <Edit className="h-4 w-4" />
-                  </Button>
-                  <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-                    <Phone className="h-4 w-4" />
-                  </Button>
+                  <SupplierDialog supplier={supplier}>
+                    <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                      <Edit className="h-4 w-4" />
+                    </Button>
+                  </SupplierDialog>
+                  {supplier.phone && (
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      className="h-8 w-8 p-0"
+                      onClick={() => window.open(`tel:${supplier.phone}`)}
+                    >
+                      <Phone className="h-4 w-4" />
+                    </Button>
+                  )}
                 </div>
               </div>
             </CardContent>
@@ -209,10 +212,12 @@ export default function Suppliers() {
             <p className="text-muted-foreground mb-4">
               Попробуйте изменить параметры поиска или добавьте нового поставщика
             </p>
-            <Button>
-              <Plus className="h-4 w-4 mr-2" />
-              Добавить первого поставщика
-            </Button>
+            <SupplierDialog>
+              <Button>
+                <Plus className="h-4 w-4 mr-2" />
+                Добавить первого поставщика
+              </Button>
+            </SupplierDialog>
           </CardContent>
         </Card>
       )}
