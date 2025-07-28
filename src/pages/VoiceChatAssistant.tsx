@@ -19,6 +19,7 @@ import {
   MoreVertical
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { supabase } from '@/integrations/supabase/client';
 
 interface Message {
   id: string;
@@ -98,50 +99,39 @@ const VoiceChatAssistant = () => {
     };
     setMessages(prev => [...prev, thinkingMessage]);
 
-    // Simulate AI processing
-    setTimeout(() => {
+    // Get AI response
+    try {
+      const response = await generateResponse(userMessage);
       setMessages(prev => prev.filter(m => m.id !== 'thinking'));
-      
-      // Generate response based on user message
-      let response = generateResponse(userMessage);
       addMessage('assistant', response);
       
       // If voice mode is enabled, speak the response
       if (isVoiceMode) {
         speakText(response);
       }
-    }, 1500);
+    } catch (error) {
+      setMessages(prev => prev.filter(m => m.id !== 'thinking'));
+      addMessage('assistant', 'Извините, произошла ошибка. Попробуйте еще раз.');
+    }
   }, [inputValue, addMessage, isVoiceMode]);
 
-  // Generate contextual response
-  const generateResponse = (userMessage: string): string => {
-    const message = userMessage.toLowerCase();
-    
-    if (message.includes('клиент') || message.includes('заявк')) {
-      return 'Анализирую данные по клиентам... У вас 23 активные заявки, 7 новых за последние 3 дня. Хотите посмотреть детали по конкретному клиенту или нужна общая статистика?';
+  // Generate AI response using Supabase edge function
+  const generateResponse = async (userMessage: string): Promise<string> => {
+    try {
+      const { data, error } = await supabase.functions.invoke('voice-chat', {
+        body: { message: userMessage, context: 'general' }
+      });
+
+      if (error) {
+        console.error('Error calling voice-chat function:', error);
+        return 'Извините, произошла ошибка. Попробуйте еще раз.';
+      }
+
+      return data.reply || 'Не удалось получить ответ от ИИ-помощника.';
+    } catch (error) {
+      console.error('Error in generateResponse:', error);
+      return 'Произошла ошибка при обращении к ИИ-помощнику.';
     }
-    
-    if (message.includes('смет') || message.includes('цен')) {
-      return 'По сметам: средний чек 150,000₽, самая дорогая смета на 500,000₽ для проекта "Парк Победы". Рентабельность по материалам 35%. Нужно проанализировать конкретную смету?';
-    }
-    
-    if (message.includes('задач') || message.includes('план')) {
-      return 'Сейчас 12 активных задач: 4 высокого приоритета, 6 средних, 2 низких. Просрочена 1 задача от Петрова. Хотите назначить новую задачу или изменить приоритеты?';
-    }
-    
-    if (message.includes('поставщик') || message.includes('материал')) {
-      return 'Анализирую поставщиков... "СтройДом" - лучшие цены на кирпич, "ГазонПрофи" - качественный рулонный газон. Нужны рекомендации по новым закупкам?';
-    }
-    
-    if (message.includes('помощник') || message.includes('ии') || message.includes('задать')) {
-      return 'Передаю задачу ИИ-аналитику. Он подготовит детальный отчет за 5 минут. Нужен анализ по источникам лидов или эффективности рекламы?';
-    }
-    
-    if (message.includes('отчет') || message.includes('статистик')) {
-      return 'Формирую отчет... За месяц: +23% продаж, лучший источник - Яндекс.Директ (40% лидов), слабое место - Instagram (2% конверсия). Рекомендую увеличить бюджет на Директ.';
-    }
-    
-    return 'Понял ваш запрос. Анализирую данные CRM... Какую конкретную информацию вам нужна? Могу показать статистику, создать отчет или поручить задачу другим ИИ-помощникам.';
   };
 
   // Voice recording functions
@@ -161,12 +151,16 @@ const VoiceChatAssistant = () => {
         const voiceMessage = 'Покажи статистику по клиентам за неделю';
         addMessage('user', voiceMessage, true);
         
-        // Process voice message
-        setTimeout(() => {
-          const response = generateResponse(voiceMessage);
-          addMessage('assistant', response);
-          speakText(response);
-        }, 1000);
+        // Process voice message  
+        setTimeout(async () => {
+          try {
+            const response = await generateResponse(voiceMessage);
+            addMessage('assistant', response);
+            speakText(response);
+          } catch (error) {
+            addMessage('assistant', 'Извините, произошла ошибка при обработке голосового сообщения.');
+          }
+        }, 100);
       }, 3000);
       
     } catch (error) {

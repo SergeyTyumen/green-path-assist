@@ -19,6 +19,8 @@ import VoiceAssistant from "./pages/VoiceAssistant";
 import VoiceChatAssistant from "./pages/VoiceChatAssistant";
 import NotFound from "./pages/NotFound";
 import { Auth } from "./pages/Auth";
+import AIAnalystPage from "./pages/AIAnalystPage";
+import CompetitorAnalysisPage from "./pages/CompetitorAnalysisPage";
 
 const queryClient = new QueryClient();
 
@@ -44,6 +46,8 @@ const App = () => (
               <Route path="ai-assistants" element={<AIAssistants />} />
               <Route path="voice-assistant" element={<VoiceAssistant />} />
               <Route path="voice-chat" element={<VoiceChatAssistant />} />
+              <Route path="ai-analyst" element={<AIAnalystPage />} />
+              <Route path="competitor-analysis" element={<CompetitorAnalysisPage />} />
             </Route>
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
