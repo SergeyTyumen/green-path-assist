@@ -41,6 +41,7 @@ export function TaskDialog({ task, trigger, onClose }: TaskDialogProps) {
     const taskData = {
       ...formData,
       due_date: formData.due_date?.toISOString().split('T')[0],
+      client_id: formData.client_id === "none" ? null : formData.client_id,
     };
 
     if (task) {
@@ -119,7 +120,7 @@ export function TaskDialog({ task, trigger, onClose }: TaskDialogProps) {
                   <SelectValue placeholder="Выберите клиента" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Без клиента</SelectItem>
+                  <SelectItem value="none">Без клиента</SelectItem>
                   {clients.map((client) => (
                     <SelectItem key={client.id} value={client.id}>
                       {client.name}
