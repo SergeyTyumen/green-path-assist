@@ -113,6 +113,56 @@ async function createSupplier(data: any, userId: string) {
   return result;
 }
 
+// Поиск клиента по имени или телефону
+async function findClient(query: any, userId: string) {
+  console.log('Searching for client:', query);
+  const { data, error } = await supabase
+    .from('clients')
+    .select('*')
+    .eq('user_id', userId)
+    .or(`name.ilike.%${query.name || ''}%,phone.ilike.%${query.phone || ''}%`);
+  
+  if (error) throw error;
+  return data[0]; // возвращаем первое совпадение
+}
+
+// Обновление клиента с добавлением комментария
+async function updateClientWithComment(clientId: string, comment: string, userId: string) {
+  console.log('Updating client with comment:', { clientId, comment });
+  
+  // Получаем текущие заметки
+  const { data: client, error: fetchError } = await supabase
+    .from('clients')
+    .select('notes')
+    .eq('id', clientId)
+    .eq('user_id', userId)
+    .single();
+  
+  if (fetchError) throw fetchError;
+  
+  // Добавляем новый комментарий с датой
+  const timestamp = new Date().toLocaleString('ru-RU');
+  const newNote = `[${timestamp}] ${comment}`;
+  const updatedNotes = client.notes 
+    ? `${client.notes}\n\n${newNote}` 
+    : newNote;
+  
+  const { data, error } = await supabase
+    .from('clients')
+    .update({ 
+      notes: updatedNotes,
+      last_contact: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    })
+    .eq('id', clientId)
+    .eq('user_id', userId)
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data;
+}
+
 // Получение данных для аналитики
 async function getClientsData(userId: string) {
   const { data, error } = await supabase
@@ -197,6 +247,35 @@ serve(async (req) => {
               notes: { type: "string", description: "Дополнительные заметки" }
             },
             required: ["name", "phone"]
+          }
+        }
+      },
+      {
+        type: "function",
+        function: {
+          name: "find_client",
+          description: "Найти существующего клиента по имени или телефону",
+          parameters: {
+            type: "object",
+            properties: {
+              name: { type: "string", description: "Имя клиента для поиска" },
+              phone: { type: "string", description: "Телефон клиента для поиска" }
+            }
+          }
+        }
+      },
+      {
+        type: "function",
+        function: {
+          name: "update_client_with_comment",
+          description: "Обновить клиента с добавлением комментария/заметки",
+          parameters: {
+            type: "object",
+            properties: {
+              client_id: { type: "string", description: "ID клиента" },
+              comment: { type: "string", description: "Комментарий для добавления" }
+            },
+            required: ["client_id", "comment"]
           }
         }
       },
@@ -293,19 +372,38 @@ serve(async (req) => {
 
     const systemPrompt = `Ты - умный голосовой помощник руководителя ландшафтной компании. 
     
-    Ты можешь выполнять реальные действия в CRM системе:
-    - Создавать клиентов, задачи, материалы, поставщиков
-    - Получать аналитику и статистику
-    - Анализировать данные
+    АВТОМАТИЧЕСКОЕ ВЫПОЛНЕНИЕ КОМАНД:
+    Ты ВСЕГДА автоматически выполняешь команды руководителя БЕЗ подтверждения. Анализируй структуру фраз и извлекай:
+    - Имена людей (клиенты, сотрудники)  
+    - Телефоны, адреса, даты
+    - Действия (создать, найти, обновить, добавить задачу)
+    - Временные рамки (четверг, пятница, до обеда)
     
-    ВАЖНО: 
-    - Всегда используй доступные функции для выполнения действий
-    - Отвечай кратко и по делу на русском языке
-    - После выполнения действия сообщи о результате
-    - Если нужна дополнительная информация - запроси её
+    АЛГОРИТМ РАБОТЫ:
+    1. НАЙТИ КЛИЕНТА (если упоминается существующий)
+    2. СОЗДАТЬ КЛИЕНТА (если новый)
+    3. ДОБАВИТЬ КОММЕНТАРИЙ (если есть информация о разговоре/договоренности)
+    4. СОЗДАТЬ ЗАДАЧИ (с правильными датами и исполнителями)
     
-    Примеры услуг: благоустройство, ландшафтный дизайн, газоны, дренаж, мощение, озеленение
-    Примеры категорий материалов: растения, инструменты, удобрения, строительные материалы`;
+    РАСПОЗНАВАНИЕ ДАТ:
+    - "к четвергу" = ближайший четверг
+    - "в пятницу до обеда" = пятница + 12:00
+    - "завтра" = следующий день
+    - "на следующей неделе" = +7 дней
+    
+    ДЕЛЕГИРОВАНИЕ ЗАДАЧ:
+    - "ИИ-помощник по поставкам" = assignee: "AI-Поставки"
+    - "ИИ-помощник по подрядчикам" = assignee: "AI-Подрядчики"  
+    - "найти поставщиков" = category: "sales"
+    - "рассчитать смету" = category: "design"
+    - "позвонить клиенту" = category: "sales"
+    
+    ПРИМЕРЫ КОМАНД:
+    "Завести клиента Иванов..." → create_client
+    "Говорил с клиентом Петров..." → find_client → update_client_with_comment → create_task
+    "Поставь задачу найти..." → create_task
+    
+    Выполняй ВСЕ действия автоматически и сообщай о результате.`;
 
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
@@ -346,6 +444,20 @@ serve(async (req) => {
         try {
           let result;
           switch (functionName) {
+            case 'find_client':
+              result = await findClient(functionArgs, userId);
+              if (result) {
+                functionResults.push(`Клиент найден: ${result.name} (ID: ${result.id})`);
+              } else {
+                functionResults.push(`Клиент не найден по запросу: ${JSON.stringify(functionArgs)}`);
+              }
+              break;
+              
+            case 'update_client_with_comment':
+              result = await updateClientWithComment(functionArgs.client_id, functionArgs.comment, userId);
+              functionResults.push(`Комментарий добавлен к клиенту "${result.name}"`);
+              break;
+              
             case 'create_client':
               result = await createClient(functionArgs, userId);
               functionResults.push(`Клиент "${functionArgs.name}" успешно создан с ID: ${result.id}`);
