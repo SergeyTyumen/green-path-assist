@@ -541,8 +541,7 @@ serve(async (req) => {
             required: ["transcript"]
           }
         }
-      }
-    ],
+      },
       {
         type: "function",
         function: {
