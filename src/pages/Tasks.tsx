@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { 
   CheckSquare, 
   Plus, 
@@ -14,15 +15,27 @@ import {
   AlertCircle,
   Calendar,
   User,
-  Loader2
+  Loader2,
+  Trash2
 } from "lucide-react";
 import { useTasks, Task } from "@/hooks/useTasks";
+import { TaskDialog } from "@/components/TaskDialog";
+import { toast } from "sonner";
 
 export default function Tasks() {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedStatus, setSelectedStatus] = useState("all");
   const [selectedPriority, setSelectedPriority] = useState("all");
-  const { tasks, loading } = useTasks();
+  const { tasks, loading, updateTask, deleteTask } = useTasks();
+
+  const handleCompleteTask = async (task: Task) => {
+    await updateTask(task.id, { status: "completed" });
+    toast.success("Задача помечена как выполненная");
+  };
+
+  const handleDeleteTask = async (taskId: string) => {
+    await deleteTask(taskId);
+  };
 
   const getStatusBadge = (status: Task["status"]) => {
     const statusConfig = {
@@ -92,10 +105,7 @@ export default function Tasks() {
             Управление задачами и контроль выполнения
           </p>
         </div>
-        <Button className="bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 gap-2">
-          <Plus className="h-4 w-4" />
-          Создать задачу
-        </Button>
+        <TaskDialog />
       </div>
 
       {/* Поиск и фильтры */}
@@ -202,17 +212,45 @@ export default function Tasks() {
                 </div>
 
                 <div className="flex gap-1">
-                  <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-                    <Eye className="h-4 w-4" />
-                  </Button>
-                  <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-                    <Edit className="h-4 w-4" />
-                  </Button>
+                  <TaskDialog
+                    task={task}
+                    trigger={
+                      <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                        <Edit className="h-4 w-4" />
+                      </Button>
+                    }
+                  />
                   {task.status !== "completed" && (
-                    <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      className="h-8 w-8 p-0"
+                      onClick={() => handleCompleteTask(task)}
+                    >
                       <CheckSquare className="h-4 w-4" />
                     </Button>
                   )}
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-destructive hover:text-destructive">
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Удалить задачу?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          Это действие нельзя отменить. Задача будет удалена безвозвратно.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Отмена</AlertDialogCancel>
+                        <AlertDialogAction onClick={() => handleDeleteTask(task.id)}>
+                          Удалить
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
                 </div>
               </div>
             </CardContent>
@@ -230,10 +268,14 @@ export default function Tasks() {
             <p className="text-muted-foreground mb-4">
               Попробуйте изменить параметры поиска или создайте новую задачу
             </p>
-            <Button>
-              <Plus className="h-4 w-4 mr-2" />
-              Создать первую задачу
-            </Button>
+            <TaskDialog
+              trigger={
+                <Button>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Создать первую задачу
+                </Button>
+              }
+            />
           </CardContent>
         </Card>
       )}
