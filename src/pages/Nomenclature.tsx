@@ -29,7 +29,7 @@ export default function Nomenclature() {
   const { services, loading: servicesLoading } = useServices();
 
   const materialCategories = ["all", "Растения", "Элементы декора", "Сыпучие материалы", "Автополив", "Удобрения"];
-  const serviceCategories = ["all", "Проектирование", "Земляные работы", "Посадка", "Укладка", "Монтаж", "Обслуживание"];
+  const serviceCategories = ["all", "Проектирование", "Земляные работы", "Посадка", "Укладка", "Монтаж", "Обслуживание", "Техника"];
 
   const getStatusBadge = (material: Material) => {
     let status: "in-stock" | "low-stock" | "out-of-stock";
