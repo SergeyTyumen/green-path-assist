@@ -58,7 +58,7 @@ export function SupplierDialog({ children, supplier, onSuccess }: SupplierDialog
 
   const availableCategories = [
     "Растения", "Элементы декора", "Сыпучие материалы", 
-    "Автополив", "Удобрения", "Инструменты", "Техника"
+    "Автополив", "Удобрения", "Инструменты", "Техника", "Брусчатка"
   ];
 
   const availableTags = [
