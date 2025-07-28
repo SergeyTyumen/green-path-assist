@@ -491,6 +491,7 @@ export type Database = {
       }
       tasks: {
         Row: {
+          ai_agent: string | null
           assignee: string | null
           category: string
           client_id: string | null
@@ -505,6 +506,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          ai_agent?: string | null
           assignee?: string | null
           category?: string
           client_id?: string | null
@@ -519,6 +521,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          ai_agent?: string | null
           assignee?: string | null
           category?: string
           client_id?: string | null
@@ -552,6 +555,45 @@ export type Database = {
           id?: string
           role?: Database["public"]["Enums"]["app_role"]
           user_id?: string
+        }
+        Relationships: []
+      }
+      voice_command_history: {
+        Row: {
+          actions: Json
+          created_at: string
+          execution_result: Json | null
+          id: string
+          parsed_entities: Json | null
+          status: string
+          transcript: string
+          updated_at: string
+          user_id: string
+          voice_text: string | null
+        }
+        Insert: {
+          actions?: Json
+          created_at?: string
+          execution_result?: Json | null
+          id?: string
+          parsed_entities?: Json | null
+          status?: string
+          transcript: string
+          updated_at?: string
+          user_id: string
+          voice_text?: string | null
+        }
+        Update: {
+          actions?: Json
+          created_at?: string
+          execution_result?: Json | null
+          id?: string
+          parsed_entities?: Json | null
+          status?: string
+          transcript?: string
+          updated_at?: string
+          user_id?: string
+          voice_text?: string | null
         }
         Relationships: []
       }

@@ -47,7 +47,8 @@ async function createTask(data: any, userId: string) {
       user_id: userId,
       title: data.title,
       description: data.description || null,
-      assignee: data.assignee || null,
+              assignee: data.assignee || null,
+              ai_agent: data.ai_agent || null,
       status: 'pending',
       priority: data.priority || 'medium',
       category: data.category || 'other',
@@ -194,6 +195,121 @@ async function getMaterialsData(userId: string) {
   return data;
 }
 
+// Функции для работы с историей голосовых команд
+async function createCommandHistory(data: any, userId: string) {
+  console.log('Creating command history:', data);
+  const { data: result, error } = await supabase
+    .from('voice_command_history')
+    .insert({
+      user_id: userId,
+      voice_text: data.voice_text || null,
+      transcript: data.transcript,
+      actions: data.actions || [],
+      parsed_entities: data.parsed_entities || {},
+      execution_result: data.execution_result || {},
+      status: data.status || 'success'
+    })
+    .select()
+    .single();
+
+  if (error) {
+    console.error('Error creating command history:', error);
+    throw error;
+  }
+  return result;
+}
+
+async function updateCommandHistory(historyId: string, updates: any, userId: string) {
+  console.log('Updating command history:', { historyId, updates });
+  const { data: result, error } = await supabase
+    .from('voice_command_history')
+    .update({
+      ...updates,
+      updated_at: new Date().toISOString()
+    })
+    .eq('id', historyId)
+    .eq('user_id', userId)
+    .select()
+    .single();
+
+  if (error) {
+    console.error('Error updating command history:', error);
+    throw error;
+  }
+  return result;
+}
+
+async function getCommandHistory(userId: string, limit = 10) {
+  const { data, error } = await supabase
+    .from('voice_command_history')
+    .select('*')
+    .eq('user_id', userId)
+    .order('created_at', { ascending: false })
+    .limit(limit);
+  
+  if (error) throw error;
+  return data;
+}
+
+// Функция для парсинга сложных команд
+function parseComplexCommand(message: string) {
+  const entities = {
+    names: [],
+    phones: [],
+    addresses: [],
+    services: [],
+    deadlines: [],
+    ai_agents: []
+  };
+
+  // Парсим имена (простой подход)
+  const nameMatches = message.match(/(?:клиент[а-я]*\s+|завед[а-я]*\s+)([А-Я][а-я]+(?:\s+[А-Я][а-я]+)?)/gi);
+  if (nameMatches) {
+    entities.names = nameMatches.map(m => m.replace(/^.*?\s+/, '').trim());
+  }
+
+  // Парсим телефоны
+  const phoneMatches = message.match(/(?:\+?7|8)[\s\-\(\)]?\d{3}[\s\-\(\)]?\d{3}[\s\-]?\d{2}[\s\-]?\d{2}/g);
+  if (phoneMatches) {
+    entities.phones = phoneMatches.map(p => p.replace(/[\s\-\(\)]/g, ''));
+  }
+
+  // Парсим адреса (ключевые слова)
+  const addressMatches = message.match(/(?:участок|адрес|улиц[а-я]*|проспект|переулок)\s+([А-Я][а-я]+(?:\s+\d+)?)/gi);
+  if (addressMatches) {
+    entities.addresses = addressMatches.map(m => m.replace(/^.*?\s+/, '').trim());
+  }
+
+  // Парсим услуги
+  const serviceKeywords = ['футбольное поле', 'газон', 'автополив', 'ландшафт', 'дизайн', 'озеленение'];
+  entities.services = serviceKeywords.filter(service => 
+    message.toLowerCase().includes(service)
+  );
+
+  // Парсим дедлайны
+  const deadlineMatches = message.match(/(?:до|к)\s+(понедельник|вторник|среда|четверг|пятница|суббота|воскресенье|завтра|послезавтра)/gi);
+  if (deadlineMatches) {
+    entities.deadlines = deadlineMatches.map(m => m.toLowerCase());
+  }
+
+  // Парсим упоминания ИИ-агентов
+  const agentKeywords = {
+    'поставщик': 'AI-Поставки',
+    'подрядчик': 'AI-Подрядчик', 
+    'смет': 'AI-Сметчик',
+    'кп': 'AI-КП-менеджер',
+    'консультация': 'AI-Консультант'
+  };
+
+  Object.entries(agentKeywords).forEach(([keyword, agent]) => {
+    if (message.toLowerCase().includes(keyword)) {
+      entities.ai_agents.push(agent);
+    }
+  });
+
+  return entities;
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -201,6 +317,26 @@ serve(async (req) => {
 
   try {
     const { message, context = "general" } = await req.json();
+    
+    // Handle simple history request
+    if (message === 'get_command_history') {
+      const authHeader = req.headers.get('authorization');
+      if (!authHeader) {
+        throw new Error('Authorization header missing');
+      }
+      
+      const token = authHeader.replace('Bearer ', '');
+      const { data: { user }, error: userError } = await supabase.auth.getUser(token);
+      
+      if (userError || !user) {
+        throw new Error('Invalid token or user not found');
+      }
+      
+      const history = await getCommandHistory(user.id, 10);
+      return new Response(JSON.stringify({ history }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
     const openaiApiKey = Deno.env.get('OPENAI_API_KEY');
 
     if (!openaiApiKey) {
@@ -290,6 +426,11 @@ serve(async (req) => {
               title: { type: "string", description: "Название задачи" },
               description: { type: "string", description: "Описание задачи" },
               assignee: { type: "string", description: "Исполнитель задачи" },
+              ai_agent: { 
+                type: "string", 
+                enum: ["AI-Сметчик", "AI-Поставки", "AI-Подрядчик", "AI-КП-менеджер", "AI-Консультант"],
+                description: "ИИ-агент ответственный за задачу" 
+              },
               priority: { 
                 type: "string", 
                 enum: ["low", "medium", "high"],
@@ -300,7 +441,8 @@ serve(async (req) => {
                 enum: ["design", "installation", "maintenance", "sales", "other"],
                 description: "Категория задачи" 
               },
-              due_date: { type: "string", description: "Срок выполнения (YYYY-MM-DD)" }
+              due_date: { type: "string", description: "Срок выполнения (YYYY-MM-DD)" },
+              client_id: { type: "string", description: "ID клиента (если известен)" }
             },
             required: ["title"]
           }
@@ -367,43 +509,80 @@ serve(async (req) => {
             required: ["type"]
           }
         }
+      },
+      {
+        type: "function",
+        function: {
+          name: "parse_complex_command",
+          description: "Парсить сложную голосовую команду и извлечь сущности",
+          parameters: {
+            type: "object",
+            properties: {
+              command_text: { type: "string", description: "Текст команды для парсинга" }
+            },
+            required: ["command_text"]
+          }
+        }
+      },
+      {
+        type: "function", 
+        function: {
+          name: "create_command_history",
+          description: "Создать запись в истории голосовых команд",
+          parameters: {
+            type: "object",
+            properties: {
+              voice_text: { type: "string", description: "Оригинальный голосовой текст" },
+              transcript: { type: "string", description: "Расшифрованный текст" },
+              actions: { type: "array", description: "Список выполненных действий" },
+              parsed_entities: { type: "object", description: "Извлеченные сущности" },
+              execution_result: { type: "object", description: "Результат выполнения" }
+            },
+            required: ["transcript"]
+          }
+        }
       }
     ];
 
-    const systemPrompt = `Ты - умный голосовой помощник руководителя ландшафтной компании. 
-    
-    АВТОМАТИЧЕСКОЕ ВЫПОЛНЕНИЕ КОМАНД:
-    Ты ВСЕГДА автоматически выполняешь команды руководителя БЕЗ подтверждения. Анализируй структуру фраз и извлекай:
-    - Имена людей (клиенты, сотрудники)  
-    - Телефоны, адреса, даты
-    - Действия (создать, найти, обновить, добавить задачу)
-    - Временные рамки (четверг, пятница, до обеда)
-    
-    АЛГОРИТМ РАБОТЫ:
-    1. НАЙТИ КЛИЕНТА (если упоминается существующий)
-    2. СОЗДАТЬ КЛИЕНТА (если новый)
-    3. ДОБАВИТЬ КОММЕНТАРИЙ (если есть информация о разговоре/договоренности)
-    4. СОЗДАТЬ ЗАДАЧИ (с правильными датами и исполнителями)
-    
-    РАСПОЗНАВАНИЕ ДАТ:
-    - "к четвергу" = ближайший четверг
-    - "в пятницу до обеда" = пятница + 12:00
-    - "завтра" = следующий день
-    - "на следующей неделе" = +7 дней
-    
-    ДЕЛЕГИРОВАНИЕ ЗАДАЧ:
-    - "ИИ-помощник по поставкам" = assignee: "AI-Поставки"
-    - "ИИ-помощник по подрядчикам" = assignee: "AI-Подрядчики"  
-    - "найти поставщиков" = category: "sales"
-    - "рассчитать смету" = category: "design"
-    - "позвонить клиенту" = category: "sales"
-    
-    ПРИМЕРЫ КОМАНД:
-    "Завести клиента Иванов..." → create_client
-    "Говорил с клиентом Петров..." → find_client → update_client_with_comment → create_task
-    "Поставь задачу найти..." → create_task
-    
-    Выполняй ВСЕ действия автоматически и сообщай о результате.`;
+const systemPrompt = `Ты — голосовой ассистент руководителя ландшафтной CRM-системы. Твоя задача: анализировать голосовые команды, извлекать намерения и сущности (имя, номер, услуга, срок, адрес) и запускать нужные Edge Functions. Ты не задаёшь вопросов. Ты сразу действуешь:
+
+АЛГОРИТМ:
+1. Распознать и извлечь данные (имя клиента, номер, что нужно)
+2. Если клиента нет — создать (create_client)
+3. Сформировать заявку (create_task или create_project)
+4. Разбить на подзадачи
+5. Делегировать их нужным ИИ-агентам (через ai_agent: "AI-Сметчик", "AI-Поставки", "AI-КП")
+6. Если сказано "позвонить", "отправить", "сделай до пятницы" — учти дедлайн и способ связи
+7. Возвращай детальный лог выполненных действий
+
+ПАРСИНГ СУЩНОСТЕЙ:
+- Имена: Сергей, Иванов, клиент с Малькова
+- Телефоны: 89393709999, +7-930-123-45-67  
+- Адреса: Решетникова, Малькова, Березняки
+- Услуги: футбольное поле, газон, автополив
+- Сроки: до пятницы, завтра, к четвергу
+- Материалы: щебень, песок, рулонный газон
+
+ДЕЛЕГИРОВАНИЕ ИИ-АГЕНТАМ:
+- "найти поставщиков" → ai_agent: "AI-Поставки"
+- "подобрать подрядчиков" → ai_agent: "AI-Подрядчик"  
+- "рассчитать смету" → ai_agent: "AI-Сметчик"
+- "отправить КП" → ai_agent: "AI-КП-менеджер"
+- "консультация клиента" → ai_agent: "AI-Консультант"
+
+ОБРАБОТКА СЛОЖНЫХ КОМАНД:
+Если команда содержит несколько действий, выполняй их последовательно:
+1. Создай/найди клиента
+2. Создай основную задачу/проект
+3. Создай подзадачи для ИИ-агентов
+4. Ответь на аналитические вопросы
+
+АНАЛИТИКА:
+- "что с клиентом X" → find_client + статус
+- "сколько заявок в работе" → get_analytics
+- "статистика за неделю" → get_analytics с фильтрами
+
+Выполняй ВСЕ действия автоматически и возвращай подробный отчёт о выполнении.`;
 
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
@@ -478,6 +657,21 @@ serve(async (req) => {
               functionResults.push(`Поставщик "${functionArgs.name}" успешно добавлен с ID: ${result.id}`);
               break;
               
+            case 'parse_complex_command':
+              result = parseComplexCommand(functionArgs.command_text);
+              functionResults.push(`Извлеченные сущности: ${JSON.stringify(result, null, 2)}`);
+              break;
+
+            case 'create_command_history':
+              result = await createCommandHistory(functionArgs, userId);
+              functionResults.push(`Команда сохранена в историю с ID: ${result.id}`);
+              break;
+
+            case 'get_command_history':
+              result = await getCommandHistory(userId, 10);
+              functionResults.push(`История команд загружена: ${result.length} записей`);
+              break;
+
             case 'get_analytics':
               switch (functionArgs.type) {
                 case 'clients':
