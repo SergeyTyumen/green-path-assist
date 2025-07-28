@@ -71,9 +71,22 @@ export function AppSidebar() {
         <div className="p-4 border-b">
           {!collapsed && (
             <h2 className="text-lg font-semibold text-primary flex items-center gap-2">
-              <Package className="h-5 w-5" />
+              <img 
+                src="/lovable-uploads/900f396b-e7ec-4d42-b47f-de8d106ffd9b.png" 
+                alt="ParkConstructionCRM" 
+                className="h-6 w-6" 
+              />
               ParkConstructionCRM
             </h2>
+          )}
+          {collapsed && (
+            <div className="flex justify-center">
+              <img 
+                src="/lovable-uploads/900f396b-e7ec-4d42-b47f-de8d106ffd9b.png" 
+                alt="ParkConstructionCRM" 
+                className="h-6 w-6" 
+              />
+            </div>
           )}
         </div>
 
