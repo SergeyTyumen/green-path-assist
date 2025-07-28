@@ -72,7 +72,7 @@ export function AppSidebar() {
           {!collapsed && (
             <h2 className="text-lg font-semibold text-primary flex items-center gap-2">
               <Package className="h-5 w-5" />
-              LandscapeCRM
+              ParkConstructionCRM
             </h2>
           )}
         </div>
