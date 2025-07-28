@@ -10,56 +10,26 @@ import {
   Edit, 
   Eye, 
   Copy,
-  Bot
+  Bot,
+  Trash2
 } from "lucide-react";
-
-interface Estimate {
-  id: string;
-  client: string;
-  project: string;
-  total: number;
-  status: "draft" | "calculated" | "approved" | "rejected";
-  createdAt: string;
-  items: number;
-}
+import { useEstimates, Estimate } from "@/hooks/useEstimates";
+import { EstimateDialog } from "@/components/EstimateDialog";
+import { useClients } from "@/hooks/useClients";
+import { toast } from "sonner";
 
 export default function Estimates() {
   const [searchTerm, setSearchTerm] = useState("");
+  const [selectedEstimate, setSelectedEstimate] = useState<Estimate | undefined>();
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
 
-  const estimates: Estimate[] = [
-    {
-      id: "EST-001",
-      client: "Анна Петрова",
-      project: "Ландшафтное проектирование участка",
-      total: 450000,
-      status: "calculated",
-      createdAt: "2024-07-20",
-      items: 12
-    },
-    {
-      id: "EST-002", 
-      client: "ООО Стройком",
-      project: "Система автополива",
-      total: 280000,
-      status: "draft",
-      createdAt: "2024-07-22",
-      items: 8
-    },
-    {
-      id: "EST-003",
-      client: "Михаил Иванов", 
-      project: "Укладка газона",
-      total: 150000,
-      status: "approved",
-      createdAt: "2024-07-18",
-      items: 5
-    }
-  ];
+  const { estimates, loading, createEstimate, updateEstimate, deleteEstimate } = useEstimates();
+  const { clients } = useClients();
 
   const getStatusBadge = (status: Estimate["status"]) => {
     const statusConfig = {
       "draft": { label: "Черновик", className: "bg-gray-100 text-gray-700" },
-      "calculated": { label: "Рассчитана", className: "bg-blue-100 text-blue-700" },
+      "sent": { label: "Отправлена", className: "bg-blue-100 text-blue-700" },
       "approved": { label: "Утверждена", className: "bg-green-100 text-green-700" },
       "rejected": { label: "Отклонена", className: "bg-red-100 text-red-700" }
     };
@@ -72,11 +42,54 @@ export default function Estimates() {
     );
   };
 
-  const filteredEstimates = estimates.filter(estimate =>
-    estimate.client.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    estimate.project.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    estimate.id.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const handleCreateEstimate = () => {
+    setSelectedEstimate(undefined);
+    setIsDialogOpen(true);
+  };
+
+  const handleEditEstimate = (estimate: Estimate) => {
+    setSelectedEstimate(estimate);
+    setIsDialogOpen(true);
+  };
+
+  const handleSaveEstimate = async (estimateData: any, items: any[]) => {
+    try {
+      if (selectedEstimate) {
+        // Обновление сметы
+        await updateEstimate(selectedEstimate.id, estimateData);
+        toast.success("Смета успешно обновлена");
+      } else {
+        // Создание новой сметы
+        const newEstimate = await createEstimate(estimateData);
+        if (newEstimate && items.length > 0) {
+          // Здесь можно добавить логику создания элементов сметы
+          // Пока что просто показываем успешное сообщение
+        }
+        toast.success("Смета успешно создана");
+      }
+    } catch (error) {
+      toast.error("Произошла ошибка при сохранении сметы");
+    }
+  };
+
+  const handleDeleteEstimate = async (id: string) => {
+    if (confirm("Вы уверены, что хотите удалить эту смету?")) {
+      await deleteEstimate(id);
+    }
+  };
+
+  const getClientName = (clientId?: string) => {
+    if (!clientId) return "Без клиента";
+    const client = clients.find(c => c.id === clientId);
+    return client?.name || "Неизвестный клиент";
+  };
+
+  const filteredEstimates = estimates.filter(estimate => {
+    const clientName = getClientName(estimate.client_id);
+    return clientName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+           estimate.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+           estimate.id.toLowerCase().includes(searchTerm.toLowerCase());
+  });
 
   return (
     <div className="p-6 space-y-6">
@@ -92,7 +105,10 @@ export default function Estimates() {
             <Bot className="h-4 w-4" />
             ИИ-расчет
           </Button>
-          <Button className="bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 gap-2">
+          <Button 
+            onClick={handleCreateEstimate}
+            className="bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 gap-2"
+          >
             <Plus className="h-4 w-4" />
             Создать смету
           </Button>
@@ -117,60 +133,77 @@ export default function Estimates() {
       </Card>
 
       {/* Список смет */}
-      <div className="grid gap-4">
-        {filteredEstimates.map((estimate) => (
-          <Card key={estimate.id} className="hover:shadow-md transition-shadow">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-3 mb-2">
-                    <h3 className="text-lg font-semibold text-foreground">
-                      {estimate.id}
-                    </h3>
-                    {getStatusBadge(estimate.status)}
-                  </div>
-                  
-                  <div className="space-y-1">
-                    <p className="text-sm font-medium text-foreground">
-                      {estimate.client}
-                    </p>
-                    <p className="text-sm text-muted-foreground">
-                      {estimate.project}
-                    </p>
-                    <div className="flex items-center gap-4 text-xs text-muted-foreground">
-                      <span>Создана: {new Date(estimate.createdAt).toLocaleDateString('ru-RU')}</span>
-                      <span>Позиций: {estimate.items}</span>
+      {loading ? (
+        <div className="text-center py-8">Загрузка...</div>
+      ) : (
+        <div className="grid gap-4">
+          {filteredEstimates.map((estimate) => (
+            <Card key={estimate.id} className="hover:shadow-md transition-shadow">
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-3 mb-2">
+                      <h3 className="text-lg font-semibold text-foreground">
+                        {estimate.title}
+                      </h3>
+                      {getStatusBadge(estimate.status)}
                     </div>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-4">
-                  <div className="text-right">
-                    <div className="text-2xl font-bold text-foreground">
-                      ₽{estimate.total.toLocaleString('ru-RU')}
-                    </div>
-                    <div className="text-xs text-muted-foreground">
-                      Общая сумма
+                    
+                    <div className="space-y-1">
+                      <p className="text-sm font-medium text-foreground">
+                        {getClientName(estimate.client_id)}
+                      </p>
+                      <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                        <span>Создана: {new Date(estimate.created_at).toLocaleDateString('ru-RU')}</span>
+                        <span>Позиций: {estimate.items?.length || 0}</span>
+                        {estimate.valid_until && (
+                          <span>Действительна до: {new Date(estimate.valid_until).toLocaleDateString('ru-RU')}</span>
+                        )}
+                      </div>
                     </div>
                   </div>
 
-                  <div className="flex gap-1">
-                    <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-                      <Eye className="h-4 w-4" />
-                    </Button>
-                    <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-                      <Edit className="h-4 w-4" />
-                    </Button>
-                    <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-                      <Copy className="h-4 w-4" />
-                    </Button>
+                  <div className="flex items-center gap-4">
+                    <div className="text-right">
+                      <div className="text-2xl font-bold text-foreground">
+                        {estimate.total_amount.toLocaleString('ru-RU')}₽
+                      </div>
+                      <div className="text-xs text-muted-foreground">
+                        Общая сумма
+                      </div>
+                    </div>
+
+                    <div className="flex gap-1">
+                      <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                        <Eye className="h-4 w-4" />
+                      </Button>
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        className="h-8 w-8 p-0"
+                        onClick={() => handleEditEstimate(estimate)}
+                      >
+                        <Edit className="h-4 w-4" />
+                      </Button>
+                      <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                        <Copy className="h-4 w-4" />
+                      </Button>
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        className="h-8 w-8 p-0 text-destructive hover:text-destructive"
+                        onClick={() => handleDeleteEstimate(estimate.id)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
                   </div>
                 </div>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
 
       {filteredEstimates.length === 0 && (
         <Card>
@@ -182,13 +215,20 @@ export default function Estimates() {
             <p className="text-muted-foreground mb-4">
               Попробуйте изменить параметры поиска или создайте новую смету
             </p>
-            <Button>
+            <Button onClick={handleCreateEstimate}>
               <Plus className="h-4 w-4 mr-2" />
               Создать первую смету
             </Button>
           </CardContent>
         </Card>
       )}
+
+      <EstimateDialog
+        isOpen={isDialogOpen}
+        onClose={() => setIsDialogOpen(false)}
+        estimate={selectedEstimate}
+        onSave={handleSaveEstimate}
+      />
     </div>
   );
 }
