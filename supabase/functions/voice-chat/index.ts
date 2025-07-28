@@ -542,7 +542,86 @@ serve(async (req) => {
           }
         }
       }
+    ],
+      {
+        type: "function",
+        function: {
+          name: "calculate_estimate",
+          description: "Рассчитать расход материалов через AI-Сметчик",
+          parameters: {
+            type: "object",
+            properties: {
+              services: {
+                type: "array",
+                items: {
+                  type: "object",
+                  properties: {
+                    service: { type: "string", description: "Название услуги" },
+                    quantity: { type: "number", description: "Количество" },
+                    unit: { type: "string", description: "Единица измерения" }
+                  },
+                  required: ["service", "quantity", "unit"]
+                },
+                description: "Массив услуг для расчёта"
+              },
+              task_id: { type: "string", description: "ID задачи для сохранения результата" }
+            },
+            required: ["services"]
+          }
+        }
+      }
     ];
+
+  // Функция расчёта материалов через AI-Сметчик
+  async function calculateEstimate(services: any[], userId: string, taskId?: string) {
+    console.log('Calling AI-Estimator for services:', services);
+    
+    try {
+      const { data, error } = await supabase.functions.invoke('ai-estimator', {
+        body: {
+          action: 'calculate_materials',
+          services,
+          taskId
+        }
+      });
+
+      if (error) throw error;
+      
+      return data;
+    } catch (error) {
+      console.error('Error calling AI-Estimator:', error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  // Делегирование задачи ИИ-агенту
+  async function delegateToAgent(task: string, assignee: string, userId: string, clientId?: string) {
+    console.log(`Delegating to ${assignee}: ${task}`);
+    
+    try {
+      const { data: newTask, error } = await supabase
+        .from('tasks')
+        .insert({
+          user_id: userId,
+          title: task,
+          description: `Задача делегирована голосовым ассистентом`,
+          category: 'delegation',
+          priority: 'medium',
+          status: 'pending',
+          client_id: clientId,
+          ai_agent: assignee
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+      
+      return { success: true, task: newTask };
+    } catch (error) {
+      console.error('Error delegating task:', error);
+      return { success: false, error: error.message };
+    }
+  }
 
 const systemPrompt = `Ты — голосовой ассистент руководителя ландшафтной CRM-системы. Твоя задача: анализировать голосовые команды, извлекать намерения и сущности (имя, номер, услуга, срок, адрес) и запускать нужные Edge Functions. Ты не задаёшь вопросов. Ты сразу действуешь:
 
@@ -706,6 +785,30 @@ const systemPrompt = `Ты — голосовой ассистент руков�
                   result = { message: "Общая аналитика пока не реализована" };
               }
               functionResults.push(`Аналитика получена: ${JSON.stringify(result, null, 2)}`);
+              break;
+
+            case 'calculate_estimate':
+              result = await calculateEstimate(functionArgs.services, userId, functionArgs.task_id);
+              if (result.success) {
+                const calculations = result.calculations || [];
+                let summary = `✅ Расчёт материалов завершён для ${calculations.length} услуг:\n\n`;
+                
+                calculations.forEach((calc: any) => {
+                  summary += `🔹 ${calc.service} (${calc.quantity} ${calc.unit}):\n`;
+                  calc.materials.forEach((mat: any) => {
+                    if (mat.error) {
+                      summary += `   ❌ ${mat.name}: ${mat.error}\n`;
+                    } else {
+                      summary += `   • ${mat.name}: ${mat.quantity} ${mat.unit}\n`;
+                    }
+                  });
+                  summary += '\n';
+                });
+                
+                functionResults.push(summary.trim());
+              } else {
+                functionResults.push(`❌ Ошибка расчёта материалов: ${result.error}`);
+              }
               break;
               
             default:

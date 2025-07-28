@@ -235,6 +235,89 @@ export type Database = {
         }
         Relationships: []
       }
+      materials_norms: {
+        Row: {
+          active: boolean
+          bulk_density: number | null
+          created_at: string
+          id: string
+          name: string
+          notes: string | null
+          unit: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          active?: boolean
+          bulk_density?: number | null
+          created_at?: string
+          id?: string
+          name: string
+          notes?: string | null
+          unit: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          active?: boolean
+          bulk_density?: number | null
+          created_at?: string
+          id?: string
+          name?: string
+          notes?: string | null
+          unit?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      norms: {
+        Row: {
+          active: boolean
+          compaction_ratio: number
+          created_at: string
+          id: string
+          mandatory: boolean
+          material_id: string
+          service_name: string
+          thickness: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          active?: boolean
+          compaction_ratio?: number
+          created_at?: string
+          id?: string
+          mandatory?: boolean
+          material_id: string
+          service_name: string
+          thickness?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          active?: boolean
+          compaction_ratio?: number
+          created_at?: string
+          id?: string
+          mandatory?: boolean
+          material_id?: string
+          service_name?: string
+          thickness?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "norms_material_id_fkey"
+            columns: ["material_id"]
+            isOneToOne: false
+            referencedRelation: "materials_norms"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           company_name: string | null
@@ -431,6 +514,65 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      smeta_items: {
+        Row: {
+          bulk_density: number | null
+          calculated_quantity: number
+          calculation_formula: string | null
+          compaction_ratio: number | null
+          created_at: string
+          id: string
+          material_name: string
+          material_unit: string
+          service_name: string
+          service_quantity: number
+          service_unit: string
+          task_id: string | null
+          thickness: number | null
+          user_id: string
+        }
+        Insert: {
+          bulk_density?: number | null
+          calculated_quantity: number
+          calculation_formula?: string | null
+          compaction_ratio?: number | null
+          created_at?: string
+          id?: string
+          material_name: string
+          material_unit: string
+          service_name: string
+          service_quantity: number
+          service_unit: string
+          task_id?: string | null
+          thickness?: number | null
+          user_id: string
+        }
+        Update: {
+          bulk_density?: number | null
+          calculated_quantity?: number
+          calculation_formula?: string | null
+          compaction_ratio?: number | null
+          created_at?: string
+          id?: string
+          material_name?: string
+          material_unit?: string
+          service_name?: string
+          service_quantity?: number
+          service_unit?: string
+          task_id?: string | null
+          thickness?: number | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "smeta_items_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "tasks"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       suppliers: {
         Row: {
