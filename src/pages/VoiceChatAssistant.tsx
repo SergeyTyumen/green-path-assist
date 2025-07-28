@@ -107,18 +107,7 @@ const VoiceChatAssistant = () => {
       
       // If voice mode is enabled, speak the response
       if (isVoiceMode) {
-        const utterance = new SpeechSynthesisUtterance(response);
-        utterance.rate = 0.9;
-        utterance.pitch = 1;
-        utterance.volume = voiceState.volume;
-        utterance.lang = 'ru-RU';
-        
-        utterance.onend = () => {
-          setVoiceState(prev => ({ ...prev, isSpeaking: false }));
-        };
-        
-        setVoiceState(prev => ({ ...prev, isSpeaking: true }));
-        speechSynthesis.speak(utterance);
+        speakResponse(response);
       }
     } catch (error) {
       setMessages(prev => prev.filter(m => m.id !== 'thinking'));
@@ -145,13 +134,10 @@ const VoiceChatAssistant = () => {
     }
   };
 
-  // Text-to-speech function
-  const speakText = useCallback((text: string) => {
+  // Text-to-speech helper function
+  const speakResponse = (text: string) => {
     if (!isVoiceMode) return;
     
-    setVoiceState(prev => ({ ...prev, isSpeaking: true }));
-    
-    // Use Web Speech API for TTS (fallback implementation)
     const utterance = new SpeechSynthesisUtterance(text);
     utterance.rate = 0.9;
     utterance.pitch = 1;
@@ -162,8 +148,9 @@ const VoiceChatAssistant = () => {
       setVoiceState(prev => ({ ...prev, isSpeaking: false }));
     };
     
+    setVoiceState(prev => ({ ...prev, isSpeaking: true }));
     speechSynthesis.speak(utterance);
-  }, [isVoiceMode, voiceState.volume]);
+  };
 
   // Real voice recording with MediaRecorder
   const startVoiceRecording = useCallback(async () => {
@@ -278,19 +265,7 @@ const VoiceChatAssistant = () => {
             });
             
             if (isVoiceMode) {
-              // Use Web Speech API for TTS
-              const utterance = new SpeechSynthesisUtterance(response);
-              utterance.rate = 0.9;
-              utterance.pitch = 1;
-              utterance.volume = voiceState.volume;
-              utterance.lang = 'ru-RU';
-              
-              utterance.onend = () => {
-                setVoiceState(prev => ({ ...prev, isSpeaking: false }));
-              };
-              
-              setVoiceState(prev => ({ ...prev, isSpeaking: true }));
-              speechSynthesis.speak(utterance);
+              speakResponse(response);
             }
           } catch (error) {
             console.error('Error processing voice message:', error);
