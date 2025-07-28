@@ -21,23 +21,83 @@ const AIAssistants = () => {
   
   const assistants = [
     {
-      id: 'voice-chat',
-      name: 'Голосовой мульти-помощник',
-      description: 'Главный помощник руководителя с голосовым управлением',
+      id: 'voice-dispatcher',
+      name: 'Голосовой ИИ-ассистент',
+      description: 'Главный помощник руководителя с голосовым управлением и диспетчеризацией',
       icon: Mic,
       status: 'active',
-      features: ['Голосовые команды', 'Управление другими ИИ', 'Быстрые запросы'],
+      features: ['Голосовые команды', 'Управление другими ИИ', 'Диспетчеризация задач', 'Аналитика CRM'],
       color: 'bg-blue-500',
       route: '/voice-chat'
     },
     {
+      id: 'ai-consultant',
+      name: 'ИИ-консультант',
+      description: 'Отвечает на вопросы клиентов по услугам, ценам и материалам',
+      icon: MessageSquare,
+      status: 'development',
+      features: ['База услуг и материалов', 'Консультации клиентов', 'Сбор информации'],
+      color: 'bg-purple-500',
+      route: '/ai-consultant'
+    },
+    {
+      id: 'ai-estimator',
+      name: 'ИИ-сметчик',
+      description: 'Формирует предварительные и точные сметы по техзаданию',
+      icon: FileText,
+      status: 'development',
+      features: ['Автоматический расчёт объёмов', 'Нормы и коэффициенты', 'Экспорт в PDF/Word'],
+      color: 'bg-green-500',
+      route: '/ai-estimator'
+    },
+    {
+      id: 'ai-proposal-manager',
+      name: 'ИИ-КП-менеджер',
+      description: 'Оформляет и отправляет коммерческие предложения заказчикам',
+      icon: FileText,
+      status: 'development',
+      features: ['Оформление КП', 'Автоотправка клиентам', 'Отслеживание статусов'],
+      color: 'bg-indigo-500',
+      route: '/ai-proposal-manager'
+    },
+    {
+      id: 'ai-sales-manager',
+      name: 'ИИ-продажник',
+      description: 'Ведение клиентов от заявки до заключения договора',
+      icon: Users,
+      status: 'development',
+      features: ['Определение потребностей', 'Ведение воронки продаж', 'Автоматические напоминания'],
+      color: 'bg-orange-500',
+      route: '/ai-sales-manager'
+    },
+    {
+      id: 'ai-supplier-manager',
+      name: 'ИИ-поставщик-менеджер',
+      description: 'Находит поставщиков и запрашивает цены по категориям',
+      icon: Settings,
+      status: 'development',
+      features: ['Поиск поставщиков', 'Запрос цен', 'Анализ предложений'],
+      color: 'bg-teal-500',
+      route: '/ai-supplier-manager'
+    },
+    {
+      id: 'ai-contractor-manager',
+      name: 'ИИ-подрядчик-менеджер',
+      description: 'Находит исполнителей по видам работ и формирует задания',
+      icon: Settings,
+      status: 'development',
+      features: ['Поиск подрядчиков', 'Формирование заданий', 'Контроль сроков'],
+      color: 'bg-cyan-500',
+      route: '/ai-contractor-manager'
+    },
+    {
       id: 'ai-analyst',
-      name: 'ИИ-Аналитик',
+      name: 'ИИ-аналитик',
       description: 'Глубокая аналитика бизнеса и прогнозы',
       icon: BarChart3,
       status: 'active',
       features: ['Автоматические отчеты', 'Анализ источников', 'Рекомендации по бюджету'],
-      color: 'bg-green-500',
+      color: 'bg-emerald-500',
       route: '/ai-analyst'
     },
     {
@@ -49,16 +109,6 @@ const AIAssistants = () => {
       features: ['Сравнение КП', 'Анализ цен', 'Поиск акций конкурентов'],
       color: 'bg-red-500',
       route: '/competitor-analysis'
-    },
-    {
-      id: 'voice-assistant',
-      name: 'Простой голосовой помощник',
-      description: 'Базовый голосовой интерфейс (демо)',
-      icon: MessageSquare,
-      status: 'demo',
-      features: ['Голосовые команды', 'Быстрые запросы', 'Демо-режим'],
-      color: 'bg-gray-500',
-      route: '/voice-assistant'
     }
   ];
 
