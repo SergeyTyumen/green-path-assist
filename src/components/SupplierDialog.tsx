@@ -9,18 +9,25 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { useSuppliers } from "@/hooks/useSuppliers";
 import { toast } from "sonner";
 
+interface SupplierPhone {
+  number: string;
+  type: 'mobile' | 'landline';
+  messenger?: 'whatsapp' | 'telegram' | 'viber' | '';
+}
+
 interface Supplier {
   id: string;
   user_id: string;
   name: string;
   categories: string[];
   location?: string;
-  phone?: string;
   email?: string;
   status: string;
   rating?: number;
   orders_count?: number;
-  delivery_time?: string;
+  entity_type: string;
+  phones: SupplierPhone[];
+  contact_person?: string;
   tags?: string[];
   created_at: string;
   updated_at: string;
@@ -37,11 +44,12 @@ export function SupplierDialog({ children, supplier, onSuccess }: SupplierDialog
   const [formData, setFormData] = useState({
     name: supplier?.name || "",
     location: supplier?.location || "",
-    phone: supplier?.phone || "",
     email: supplier?.email || "",
     status: supplier?.status || "active",
     rating: supplier?.rating || 0,
-    delivery_time: supplier?.delivery_time || "",
+    entity_type: supplier?.entity_type || "ООО",
+    phones: supplier?.phones || [],
+    contact_person: supplier?.contact_person || "",
     categories: supplier?.categories || [],
     tags: supplier?.tags || [],
   });
@@ -66,6 +74,20 @@ export function SupplierDialog({ children, supplier, onSuccess }: SupplierDialog
     { value: "active", label: "Активен" },
     { value: "on-hold", label: "Приостановлен" },
     { value: "inactive", label: "Неактивен" }
+  ];
+
+  const entityTypeOptions = [
+    { value: "physical", label: "Частное лицо" },
+    { value: "self-employed", label: "Самозанятый" },
+    { value: "ip", label: "ИП" },
+    { value: "ooo", label: "ООО" }
+  ];
+
+  const messengerOptions = [
+    { value: "", label: "Нет" },
+    { value: "whatsapp", label: "WhatsApp" },
+    { value: "telegram", label: "Telegram" },
+    { value: "viber", label: "Viber" }
   ];
 
   const handleCategoryChange = (category: string, checked: boolean) => {
@@ -94,6 +116,29 @@ export function SupplierDialog({ children, supplier, onSuccess }: SupplierDialog
         tags: prev.tags.filter(t => t !== tag)
       }));
     }
+  };
+
+  const addPhone = () => {
+    setFormData(prev => ({
+      ...prev,
+      phones: [...prev.phones, { number: "", type: "mobile", messenger: "" }]
+    }));
+  };
+
+  const updatePhone = (index: number, field: keyof SupplierPhone, value: string) => {
+    setFormData(prev => ({
+      ...prev,
+      phones: prev.phones.map((phone, i) => 
+        i === index ? { ...phone, [field]: value } : phone
+      )
+    }));
+  };
+
+  const removePhone = (index: number) => {
+    setFormData(prev => ({
+      ...prev,
+      phones: prev.phones.filter((_, i) => i !== index)
+    }));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -129,11 +174,12 @@ export function SupplierDialog({ children, supplier, onSuccess }: SupplierDialog
         setFormData({
           name: "",
           location: "",
-          phone: "",
           email: "",
           status: "active",
           rating: 0,
-          delivery_time: "",
+          entity_type: "ООО",
+          phones: [],
+          contact_person: "",
           categories: [],
           tags: [],
         });
@@ -190,25 +236,44 @@ export function SupplierDialog({ children, supplier, onSuccess }: SupplierDialog
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="phone">Телефон</Label>
-              <Input
-                id="phone"
-                value={formData.phone}
-                onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                placeholder="+7 (xxx) xxx-xx-xx"
-              />
+              <Label htmlFor="entity_type">Тип организации</Label>
+              <Select 
+                value={formData.entity_type} 
+                onValueChange={(value) => setFormData({ ...formData, entity_type: value })}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Выберите тип" />
+                </SelectTrigger>
+                <SelectContent>
+                  {entityTypeOptions.map((type) => (
+                    <SelectItem key={type.value} value={type.value}>
+                      {type.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             
             <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
+              <Label htmlFor="contact_person">Контактное лицо</Label>
               <Input
-                id="email"
-                type="email"
-                value={formData.email}
-                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                placeholder="supplier@example.com"
+                id="contact_person"
+                value={formData.contact_person}
+                onChange={(e) => setFormData({ ...formData, contact_person: e.target.value })}
+                placeholder="ФИО контактного лица"
               />
             </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="email">Email</Label>
+            <Input
+              id="email"
+              type="email"
+              value={formData.email}
+              onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+              placeholder="supplier@example.com"
+            />
           </div>
 
           <div className="space-y-2">
@@ -221,30 +286,71 @@ export function SupplierDialog({ children, supplier, onSuccess }: SupplierDialog
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="delivery_time">Время доставки</Label>
-              <Input
-                id="delivery_time"
-                value={formData.delivery_time}
-                onChange={(e) => setFormData({ ...formData, delivery_time: e.target.value })}
-                placeholder="1-2 дня"
-              />
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <Label>Телефоны</Label>
+              <Button type="button" variant="outline" size="sm" onClick={addPhone}>
+                Добавить телефон
+              </Button>
             </div>
-            
-            <div className="space-y-2">
-              <Label htmlFor="rating">Рейтинг (0-5)</Label>
-              <Input
-                id="rating"
-                type="number"
-                step="0.1"
-                min="0"
-                max="5"
-                value={formData.rating}
-                onChange={(e) => setFormData({ ...formData, rating: Number(e.target.value) })}
-                placeholder="4.5"
-              />
-            </div>
+            {formData.phones.map((phone, index) => (
+              <div key={index} className="grid grid-cols-4 gap-2 p-3 border rounded-md">
+                <Input
+                  placeholder="+7 (xxx) xxx-xx-xx"
+                  value={phone.number}
+                  onChange={(e) => updatePhone(index, 'number', e.target.value)}
+                />
+                <Select 
+                  value={phone.type} 
+                  onValueChange={(value) => updatePhone(index, 'type', value as 'mobile' | 'landline')}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="mobile">Мобильный</SelectItem>
+                    <SelectItem value="landline">Городской</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Select 
+                  value={phone.messenger || ""} 
+                  onValueChange={(value) => updatePhone(index, 'messenger', value)}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Мессенджер" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {messengerOptions.map((messenger) => (
+                      <SelectItem key={messenger.value} value={messenger.value}>
+                        {messenger.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Button 
+                  type="button" 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={() => removePhone(index)}
+                >
+                  Удалить
+                </Button>
+              </div>
+            ))}
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="rating">Рейтинг (0-5)</Label>
+            <Input
+              id="rating"
+              type="number"
+              step="0.1"
+              min="0"
+              max="5"
+              value={formData.rating}
+              onChange={(e) => setFormData({ ...formData, rating: Number(e.target.value) })}
+              placeholder="4.5"
+            />
           </div>
 
           <div className="space-y-2">

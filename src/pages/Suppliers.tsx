@@ -19,18 +19,25 @@ import {
 import { useSuppliers } from "@/hooks/useSuppliers";
 import { SupplierDialog } from "@/components/SupplierDialog";
 
+interface SupplierPhone {
+  number: string;
+  type: 'mobile' | 'landline';
+  messenger?: 'whatsapp' | 'telegram' | 'viber' | '';
+}
+
 interface Supplier {
   id: string;
   user_id: string;
   name: string;
   categories: string[];
   location?: string;
-  phone?: string;
   email?: string;
   status: string;
   rating?: number;
   orders_count?: number;
-  delivery_time?: string;
+  entity_type: string;
+  phones: SupplierPhone[];
+  contact_person?: string;
   tags?: string[];
   created_at: string;
   updated_at: string;
@@ -169,10 +176,30 @@ export default function Suppliers() {
                           {supplier.location}
                         </div>
                       )}
-                      {supplier.phone && (
+                      <div className="flex items-center gap-1">
+                        <span className="font-medium">🏢 {supplier.entity_type}</span>
+                      </div>
+                      {supplier.contact_person && (
                         <div className="flex items-center gap-1">
-                          <Phone className="h-4 w-4" />
-                          {supplier.phone}
+                          <span>👤 {supplier.contact_person}</span>
+                        </div>
+                      )}
+                      {supplier.phones && supplier.phones.length > 0 && (
+                        <div className="space-y-1">
+                          {supplier.phones.map((phone, index) => (
+                            <div key={index} className="flex items-center gap-2">
+                              <Phone className="h-4 w-4" />
+                              <span>{phone.number}</span>
+                              <Badge variant="outline" className="text-xs">
+                                {phone.type === 'mobile' ? 'Мобильный' : 'Городской'}
+                              </Badge>
+                              {phone.messenger && (
+                                <Badge variant="secondary" className="text-xs">
+                                  {phone.messenger}
+                                </Badge>
+                              )}
+                            </div>
+                          ))}
                         </div>
                       )}
                       {supplier.email && (
@@ -185,12 +212,6 @@ export default function Suppliers() {
                         <div className="flex items-center gap-1">
                           <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
                           {supplier.rating}
-                        </div>
-                      )}
-                      {supplier.delivery_time && (
-                        <div className="flex items-center gap-1">
-                          <Truck className="h-4 w-4" />
-                          {supplier.delivery_time}
                         </div>
                       )}
                     </div>
@@ -213,12 +234,12 @@ export default function Suppliers() {
                       <Edit className="h-4 w-4" />
                     </Button>
                   </SupplierDialog>
-                  {supplier.phone && (
+                  {supplier.phones && supplier.phones.length > 0 && (
                     <Button 
                       variant="ghost" 
                       size="sm" 
                       className="h-8 w-8 p-0"
-                      onClick={() => window.open(`tel:${supplier.phone}`)}
+                      onClick={() => window.open(`tel:${supplier.phones[0].number}`)}
                     >
                       <Phone className="h-4 w-4" />
                     </Button>

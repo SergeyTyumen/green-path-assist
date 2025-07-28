@@ -435,14 +435,16 @@ export type Database = {
       suppliers: {
         Row: {
           categories: string[]
+          contact_person: string | null
           created_at: string
-          delivery_time: string | null
           email: string | null
+          entity_type: string
           id: string
           location: string | null
           name: string
           orders_count: number | null
           phone: string | null
+          phones: Json | null
           rating: number | null
           status: string
           tags: string[] | null
@@ -451,14 +453,16 @@ export type Database = {
         }
         Insert: {
           categories?: string[]
+          contact_person?: string | null
           created_at?: string
-          delivery_time?: string | null
           email?: string | null
+          entity_type?: string
           id?: string
           location?: string | null
           name: string
           orders_count?: number | null
           phone?: string | null
+          phones?: Json | null
           rating?: number | null
           status?: string
           tags?: string[] | null
@@ -467,14 +471,16 @@ export type Database = {
         }
         Update: {
           categories?: string[]
+          contact_person?: string | null
           created_at?: string
-          delivery_time?: string | null
           email?: string | null
+          entity_type?: string
           id?: string
           location?: string | null
           name?: string
           orders_count?: number | null
           phone?: string | null
+          phones?: Json | null
           rating?: number | null
           status?: string
           tags?: string[] | null

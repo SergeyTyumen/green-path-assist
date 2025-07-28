@@ -3,18 +3,25 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
 import { toast } from 'sonner';
 
+export interface SupplierPhone {
+  number: string;
+  type: 'mobile' | 'landline';
+  messenger?: 'whatsapp' | 'telegram' | 'viber' | '';
+}
+
 export interface Supplier {
   id: string;
   user_id: string;
   name: string;
   categories: string[];
   location?: string;
-  phone?: string;
   email?: string;
   rating?: number;
   orders_count?: number;
   status: string;
-  delivery_time?: string;
+  entity_type: string;
+  phones: SupplierPhone[];
+  contact_person?: string;
   tags?: string[];
   created_at: string;
   updated_at: string;
@@ -36,7 +43,10 @@ export function useSuppliers() {
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      setSuppliers(data || []);
+      setSuppliers(data?.map(supplier => ({
+        ...supplier,
+        phones: Array.isArray(supplier.phones) ? supplier.phones as unknown as SupplierPhone[] : []
+      })) || []);
     } catch (error) {
       console.error('Error fetching suppliers:', error);
       toast.error('Ошибка при загрузке поставщиков');
@@ -53,13 +63,18 @@ export function useSuppliers() {
         .from('suppliers')
         .insert({
           ...supplierData,
+          phones: supplierData.phones as any,
           user_id: user.id
         })
         .select()
         .single();
 
       if (error) throw error;
-      setSuppliers(prev => [data, ...prev]);
+      const formattedData = {
+        ...data,
+        phones: Array.isArray(data.phones) ? data.phones as unknown as SupplierPhone[] : []
+      };
+      setSuppliers(prev => [formattedData, ...prev]);
       toast.success('Поставщик добавлен');
       return data;
     } catch (error) {
@@ -72,13 +87,20 @@ export function useSuppliers() {
     try {
       const { data, error } = await supabase
         .from('suppliers')
-        .update(updates)
+        .update({
+          ...updates,
+          phones: updates.phones as any
+        })
         .eq('id', id)
         .select()
         .single();
 
       if (error) throw error;
-      setSuppliers(prev => prev.map(supplier => supplier.id === id ? data : supplier));
+      const formattedData = {
+        ...data,
+        phones: Array.isArray(data.phones) ? data.phones as unknown as SupplierPhone[] : []
+      };
+      setSuppliers(prev => prev.map(supplier => supplier.id === id ? formattedData : supplier));
       toast.success('Поставщик обновлен');
       return data;
     } catch (error) {
