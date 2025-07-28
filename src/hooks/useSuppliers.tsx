@@ -6,7 +6,7 @@ import { toast } from 'sonner';
 export interface SupplierPhone {
   number: string;
   type: 'mobile' | 'landline';
-  messenger?: 'whatsapp' | 'telegram' | 'viber' | '';
+  messenger?: 'whatsapp' | 'telegram' | 'viber' | 'none' | '';
 }
 
 export interface Supplier {

@@ -12,7 +12,7 @@ import { toast } from "sonner";
 interface SupplierPhone {
   number: string;
   type: 'mobile' | 'landline';
-  messenger?: 'whatsapp' | 'telegram' | 'viber' | '';
+  messenger?: 'whatsapp' | 'telegram' | 'viber' | 'none' | '';
 }
 
 interface Supplier {
@@ -84,7 +84,7 @@ export function SupplierDialog({ children, supplier, onSuccess }: SupplierDialog
   ];
 
   const messengerOptions = [
-    { value: "", label: "Нет" },
+    { value: "none", label: "Нет" },
     { value: "whatsapp", label: "WhatsApp" },
     { value: "telegram", label: "Telegram" },
     { value: "viber", label: "Viber" }
@@ -121,7 +121,7 @@ export function SupplierDialog({ children, supplier, onSuccess }: SupplierDialog
   const addPhone = () => {
     setFormData(prev => ({
       ...prev,
-      phones: [...prev.phones, { number: "", type: "mobile", messenger: "" }]
+      phones: [...prev.phones, { number: "", type: "mobile", messenger: "none" }]
     }));
   };
 
@@ -313,8 +313,8 @@ export function SupplierDialog({ children, supplier, onSuccess }: SupplierDialog
                   </SelectContent>
                 </Select>
                 <Select 
-                  value={phone.messenger || ""} 
-                  onValueChange={(value) => updatePhone(index, 'messenger', value)}
+                  value={phone.messenger || "none"} 
+                  onValueChange={(value) => updatePhone(index, 'messenger', value === "none" ? "" : value)}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Мессенджер" />

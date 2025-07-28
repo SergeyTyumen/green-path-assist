@@ -22,7 +22,7 @@ import { SupplierDialog } from "@/components/SupplierDialog";
 interface SupplierPhone {
   number: string;
   type: 'mobile' | 'landline';
-  messenger?: 'whatsapp' | 'telegram' | 'viber' | '';
+  messenger?: 'whatsapp' | 'telegram' | 'viber' | 'none' | '';
 }
 
 interface Supplier {
@@ -193,7 +193,7 @@ export default function Suppliers() {
                               <Badge variant="outline" className="text-xs">
                                 {phone.type === 'mobile' ? 'Мобильный' : 'Городской'}
                               </Badge>
-                              {phone.messenger && (
+                              {phone.messenger && !["none", ""].includes(phone.messenger) && (
                                 <Badge variant="secondary" className="text-xs">
                                   {phone.messenger}
                                 </Badge>
