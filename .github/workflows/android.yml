@@ -14,7 +14,7 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v3
         with:
-          node-version: '20.x'        # LTS, нужен Capacitor
+          node-version: '20.x'        # LTS для Capacitor
 
       - name: Install dependencies & build web
         run: |
@@ -25,7 +25,7 @@ jobs:
         uses: actions/setup-java@v3
         with:
           distribution: 'temurin'
-          java-version: '21'          # требуется Gradle (--release 21)
+          java-version: '21'          # Gradle/--release 21
 
       - name: Set up Android SDK
         uses: android-actions/setup-android@v2
@@ -36,6 +36,16 @@ jobs:
       - name: Add Android platform
         run: |
           npx cap add android
+
+      # 👉 ПАТЧИМ AndroidManifest для прав микрофона
+      - name: Add microphone permissions to AndroidManifest
+        run: |
+          MANIFEST="android/app/src/main/AndroidManifest.xml"
+          echo "Patching $MANIFEST with RECORD_AUDIO permission"
+          # Вставим перед </manifest> необходимые разрешения/фичу
+          sed -i '/<\/manifest>/i \  <uses-permission android:name="android.permission.RECORD_AUDIO" />\n  <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />\n  <uses-feature android:name="android.hardware.microphone" android:required="false" />' "$MANIFEST"
+          echo "----- AndroidManifest.xml after patch -----"
+          tail -n +1 "$MANIFEST"
 
       - name: Initialize Capacitor Android
         run: |
@@ -51,4 +61,3 @@ jobs:
         with:
           name: app-debug.apk
           path: android/app/build/outputs/apk/debug/app-debug.apk
-
