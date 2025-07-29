@@ -5,13 +5,13 @@ const config: CapacitorConfig = {
   appName: 'ParkConstructionCRM',
   webDir: 'dist',
   server: {
-    url: 'https://767c6d43-3165-4cde-8b7e-e09c311e0d68.lovableproject.com?forceHideBadge=true',
+    url: 'https://green-path-assist.lovable.app/?forceHideBadge=true', // слэш перед ? обязателен
     cleartext: true
   },
   plugins: {
     SplashScreen: {
       launchShowDuration: 2000,
-      backgroundColor: "#ffffff",
+      backgroundColor: '#ffffff',
       showSpinner: false
     }
   }
