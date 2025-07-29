@@ -3,6 +3,7 @@ name: Build and Publish APK
 on:
   push:
     branches: [ main ]
+  workflow_dispatch: {}
 
 jobs:
   build-android:
@@ -36,62 +37,68 @@ jobs:
       - name: Add Android platform
         run: npx cap add android
 
-      # Права микрофона (на всякий случай до sync, чтобы sync не затёр)
+      # Права микрофона
       - name: Add microphone permissions to AndroidManifest
         run: |
           MANIFEST="android/app/src/main/AndroidManifest.xml"
-          echo "Patching $MANIFEST with RECORD_AUDIO permission"
           sed -i '/<\/manifest>/i \  <uses-permission android:name="android.permission.RECORD_AUDIO" />\n  <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />\n  <uses-feature android:name="android.hardware.microphone" android:required="false" />' "$MANIFEST"
+          echo "----- AndroidManifest.xml -----"
           tail -n +1 "$MANIFEST"
 
       - name: Initialize Capacitor Android
         run: npx cap sync android
 
-      # === ГЕНЕРАЦИЯ ИКОНКИ ПОСЛЕ SYNC ===
-      - name: Install Capacitor Assets CLI
-        run: npm i -D @capacitor/assets
-
-      - name: Create assets.config.json for Android icons
+      # === ДЕТЕРМИНИРОВАННАЯ ПОДМЕНА ИКОНКИ ===
+      # Берём ваш resources/icon-foreground.png (1024x1024)
+      # и явно прописываем адаптивную иконку, чтобы лаунчер Samsung
+      # брал именно её.
+      - name: Force app icon (adaptive, foreground + background)
         run: |
-          if [ -f resources/icon-background.png ]; then
-            cat > assets.config.json << 'EOF'
-          {
-            "platforms": {
-              "android": {
-                "icon": {
-                  "foregroundImage": "resources/icon-foreground.png",
-                  "backgroundImage": "resources/icon-background.png"
-                }
-              }
-            }
-          }
-          EOF
-          else
-            cat > assets.config.json << 'EOF'
-          {
-            "platforms": {
-              "android": {
-                "icon": {
-                  "foregroundImage": "resources/icon-foreground.png",
-                  "backgroundColor": "#FFFFFF"
-                }
-              }
-            }
-          }
-          EOF
-          fi
-          echo "----- assets.config.json -----" && cat assets.config.json
+          set -e
+          test -f resources/icon-foreground.png || { echo "icon-foreground.png not found"; exit 1; }
 
-      - name: Generate Android app icons (adaptive)
-        run: npx @capacitor/assets generate
+          mkdir -p android/app/src/main/res/drawable
+          mkdir -p android/app/src/main/res/values
+          mkdir -p android/app/src/main/res/mipmap-anydpi-v26
 
-      - name: Show generated mipmaps
+          # foreground-слой
+          cp resources/icon-foreground.png android/app/src/main/res/drawable/ic_launcher_foreground.png
+
+          # белый фон
+          cat > android/app/src/main/res/values/ic_launcher_colors.xml << 'EOF'
+          <resources>
+            <color name="ic_launcher_background">#FFFFFFFF</color>
+          </resources>
+          EOF
+
+          # адаптивная иконка
+          cat > android/app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml << 'EOF'
+          <?xml version="1.0" encoding="utf-8"?>
+          <adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
+            <background android:drawable="@color/ic_launcher_background"/>
+            <foreground android:drawable="@drawable/ic_launcher_foreground"/>
+          </adaptive-icon>
+          EOF
+
+          # (необязательно) круглая иконка для старых лаунчеров — используем ту же
+          cat > android/app/src/main/res/mipmap-anydpi-v26/ic_launcher_round.xml << 'EOF'
+          <?xml version="1.0" encoding="utf-8"?>
+          <adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
+            <background android:drawable="@color/ic_launcher_background"/>
+            <foreground android:drawable="@drawable/ic_launcher_foreground"/>
+          </adaptive-icon>
+          EOF
+
+          echo "----- ic_launcher.xml -----"
+          cat android/app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml
+
+      # (Опционально) покажем содержимое mipmap-ресурсов — полезно для проверки
+      - name: Show res (mipmap/drawable)
         run: |
-          ls -al android/app/src/main/res/ | cat
-          for d in android/app/src/main/res/mipmap*; do echo "\n# DIR: $d"; ls -al "$d"; done
-          echo "\n# ic_launcher.xml:" && cat android/app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml || true
+          for d in android/app/src/main/res/mipmap* android/app/src/main/res/drawable android/app/src/main/res/values; do
+            echo -e "\n# DIR: $d"; ls -al "$d" || true
+          done
 
-      # Сборка APK
       - name: Build debug APK
         run: |
           cd android
@@ -102,3 +109,4 @@ jobs:
         with:
           name: app-debug.apk
           path: android/app/build/outputs/apk/debug/app-debug.apk
+
