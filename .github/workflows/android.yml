@@ -14,7 +14,7 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v3
         with:
-          node-version: '20.x'        # LTS для Capacitor
+          node-version: '20.x'
 
       - name: Install dependencies & build web
         run: |
@@ -25,7 +25,7 @@ jobs:
         uses: actions/setup-java@v3
         with:
           distribution: 'temurin'
-          java-version: '21'          # совместимо с Gradle и --release 21
+          java-version: '21'
 
       - name: Set up Android SDK
         uses: android-actions/setup-android@v2
@@ -34,14 +34,23 @@ jobs:
           build-tools: 33.0.0
 
       - name: Add Android platform
-        run: |
-          npx cap add android
+        run: npx cap add android
 
-      # Устанавливаем официальный генератор ассетов Capacitor
+      # Права микрофона (на всякий случай до sync, чтобы sync не затёр)
+      - name: Add microphone permissions to AndroidManifest
+        run: |
+          MANIFEST="android/app/src/main/AndroidManifest.xml"
+          echo "Patching $MANIFEST with RECORD_AUDIO permission"
+          sed -i '/<\/manifest>/i \  <uses-permission android:name="android.permission.RECORD_AUDIO" />\n  <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />\n  <uses-feature android:name="android.hardware.microphone" android:required="false" />' "$MANIFEST"
+          tail -n +1 "$MANIFEST"
+
+      - name: Initialize Capacitor Android
+        run: npx cap sync android
+
+      # === ГЕНЕРАЦИЯ ИКОНКИ ПОСЛЕ SYNC ===
       - name: Install Capacitor Assets CLI
         run: npm i -D @capacitor/assets
 
-      # Генерируем конфиг ассетов (либо фоновая картинка, либо цвет)
       - name: Create assets.config.json for Android icons
         run: |
           if [ -f resources/icon-background.png ]; then
@@ -71,30 +80,18 @@ jobs:
           }
           EOF
           fi
-          echo "----- assets.config.json -----"
-          cat assets.config.json
-
-      # 👉 Критично: для вашей версии CLI — без флагов. Сгенерит для всех подключенных платформ.
-      - name: Print Capacitor Assets version
-        run: npx @capacitor/assets --version
+          echo "----- assets.config.json -----" && cat assets.config.json
 
       - name: Generate Android app icons (adaptive)
         run: npx @capacitor/assets generate
-        # Альтернатива, если вдруг потребуется: `npx @capacitor/assets generate android`
 
-      # Патчим AndroidManifest для прав микрофона
-      - name: Add microphone permissions to AndroidManifest
+      - name: Show generated mipmaps
         run: |
-          MANIFEST="android/app/src/main/AndroidManifest.xml"
-          echo "Patching $MANIFEST with RECORD_AUDIO permission"
-          sed -i '/<\/manifest>/i \  <uses-permission android:name="android.permission.RECORD_AUDIO" />\n  <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />\n  <uses-feature android:name="android.hardware.microphone" android:required="false" />' "$MANIFEST"
-          echo "----- AndroidManifest.xml after patch -----"
-          tail -n +1 "$MANIFEST"
+          ls -al android/app/src/main/res/ | cat
+          for d in android/app/src/main/res/mipmap*; do echo "\n# DIR: $d"; ls -al "$d"; done
+          echo "\n# ic_launcher.xml:" && cat android/app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml || true
 
-      - name: Initialize Capacitor Android
-        run: |
-          npx cap sync android
-
+      # Сборка APK
       - name: Build debug APK
         run: |
           cd android
