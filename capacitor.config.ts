@@ -1,7 +1,7 @@
 import { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
-  appId: 'app.lovable.767c6d4331654cde8b7ee09c311e0d68',
+  appId: 'com.sergeytyumen.greenpathassist',
   appName: 'ParkConstructionCRM',
   webDir: 'dist',
   server: {
