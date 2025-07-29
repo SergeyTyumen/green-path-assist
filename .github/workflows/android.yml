@@ -25,7 +25,7 @@ jobs:
         uses: actions/setup-java@v3
         with:
           distribution: 'temurin'
-          java-version: '21'          # Gradle/--release 21
+          java-version: '21'          # совместимо с Gradle и --release 21
 
       - name: Set up Android SDK
         uses: android-actions/setup-android@v2
@@ -37,12 +37,28 @@ jobs:
         run: |
           npx cap add android
 
-      # 👉 ПАТЧИМ AndroidManifest для прав микрофона
+      # Устанавливаем официальный генератор ассетов Capacitor
+      - name: Install Capacitor Assets CLI
+        run: npm i -D @capacitor/assets
+
+      # Генерируем адаптивные иконки Android из ресурсов в /resources
+      - name: Generate Android app icons (adaptive)
+        run: |
+          if [ -f resources/icon-background.png ]; then
+            npx @capacitor/assets generate --android \
+              --iconForegroundPath resources/icon-foreground.png \
+              --iconBackgroundPath resources/icon-background.png
+          else
+            npx @capacitor/assets generate --android \
+              --iconForegroundPath resources/icon-foreground.png \
+              --iconBackgroundColor "#FFFFFF"
+          fi
+
+      # 👉 Патчим AndroidManifest для прав микрофона (нужно для WebRTC/MediaRecorder)
       - name: Add microphone permissions to AndroidManifest
         run: |
           MANIFEST="android/app/src/main/AndroidManifest.xml"
           echo "Patching $MANIFEST with RECORD_AUDIO permission"
-          # Вставим перед </manifest> необходимые разрешения/фичу
           sed -i '/<\/manifest>/i \  <uses-permission android:name="android.permission.RECORD_AUDIO" />\n  <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />\n  <uses-feature android:name="android.hardware.microphone" android:required="false" />' "$MANIFEST"
           echo "----- AndroidManifest.xml after patch -----"
           tail -n +1 "$MANIFEST"
