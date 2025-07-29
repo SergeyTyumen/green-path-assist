@@ -1,3 +1,4 @@
+
 name: Build and Publish APK
 
 on:
@@ -25,7 +26,7 @@ jobs:
         uses: actions/setup-java@v3
         with:
           distribution: 'temurin'
-          java-version: '17'
+          java-version: '21'        # подняли до Java 21, чтобы соответствовать уровню релиза 21
 
       - name: Set up Android SDK
         uses: android-actions/setup-android@v2
