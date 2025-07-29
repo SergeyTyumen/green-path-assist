@@ -27,9 +27,11 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
 
-      - name: Install Android SDK tools
-        run: |
-          sdkmanager "platform-tools" "platforms;android-33" "build-tools;33.0.0"
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v2
+        with:
+          api-level: 33
+          build-tools: 33.0.0
 
       - name: Initialize Capacitor Android
         run: |
@@ -45,4 +47,3 @@ jobs:
         with:
           name: app-debug.apk
           path: android/app/build/outputs/apk/debug/app-debug.apk
-
