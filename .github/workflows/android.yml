@@ -37,75 +37,63 @@ jobs:
       - name: Add Android platform
         run: npx cap add android
 
-      # Права на микрофон
+      # Права на микрофон (оставляем)
       - name: Add microphone permissions to AndroidManifest
         run: |
           MANIFEST="android/app/src/main/AndroidManifest.xml"
           sed -i '/<\/manifest>/i \  <uses-permission android:name="android.permission.RECORD_AUDIO" />\n  <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />\n  <uses-feature android:name="android.hardware.microphone" android:required="false" />' "$MANIFEST" || true
-          echo "----- AndroidManifest.xml -----"
-          tail -n +1 "$MANIFEST" || true
 
       - name: Initialize Capacitor Android
         run: npx cap sync android
 
-      # === ЖЁСТКАЯ ПОДМЕНА ИКОНКИ БЕЗ ДУБЛЕЙ ===
-      - name: Force app icon (adaptive, foreground + background)
+      # --- ЧИСТИМ возможные старые ресурсы иконок ---
+      - name: Clean old launcher icon resources
         run: |
-          set -e
-          test -f resources/icon-foreground.png || { echo "icon-foreground.png not found in resources/"; ls -al resources || true; exit 1; }
-
-          # 1) Удаляем всё, что может конфликтовать
           rm -f android/app/src/main/res/values/ic_launcher_background.xml \
                 android/app/src/main/res/values/ic_launcher_colors.xml \
                 android/app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml \
                 android/app/src/main/res/mipmap-anydpi-v26/ic_launcher_round.xml \
+                android/app/src/main/res/drawable/ic_launcher_foreground.png \
                 android/app/src/main/res/drawable/ic_launcher_foreground.xml || true
+          for d in android/app/src/main/res/mipmap-*/ ; do
+            rm -f "$d/ic_launcher.png" "$d/ic_launcher_round.png" || true
+          done
 
-          # 2) Создаём каталоги
-          mkdir -p android/app/src/main/res/drawable
-          mkdir -p android/app/src/main/res/values
-          mkdir -p android/app/src/main/res/mipmap-anydpi-v26
-
-          # 3) Кладём foreground PNG
-          cp resources/icon-foreground.png android/app/src/main/res/drawable/ic_launcher_foreground.png
-
-          # 4) Один-единственный файл с цветом фона (без дублей)
-          cat > android/app/src/main/res/values/ic_launcher_background.xml << 'EOF'
-          <resources>
-            <color name="ic_launcher_background">#FFFFFFFF</color>
-          </resources>
-          EOF
-
-          # 5) Адаптивные иконки (основная и «круглая»)
-          cat > android/app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml << 'EOF'
-          <?xml version="1.0" encoding="utf-8"?>
-          <adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
-            <background android:drawable="@color/ic_launcher_background"/>
-            <foreground android:drawable="@drawable/ic_launcher_foreground"/>
-          </adaptive-icon>
-          EOF
-
-          cat > android/app/src/main/res/mipmap-anydpi-v26/ic_launcher_round.xml << 'EOF'
-          <?xml version="1.0" encoding="utf-8"?>
-          <adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
-            <background android:drawable="@color/ic_launcher_background"/>
-            <foreground android:drawable="@drawable/ic_launcher_foreground"/>
-          </adaptive-icon>
-          EOF
-
-          echo "----- ic_launcher.xml -----"
-          cat android/app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml
-
-      - name: Show res (mipmap/drawable)
+      # --- ГОТОВИМ assets.config.json и запускаем генератор ---
+      - name: Prepare assets.config.json
         run: |
-          for d in android/app/src/main/res/mipmap* android/app/src/main/res/drawable android/app/src/main/res/values; do
-            echo -e "\n# DIR: $d"; ls -al "$d" || true
+          # Если нет базового icon.png, используем твой foreground как базовый
+          if [ ! -f resources/icon.png ]; then
+            cp resources/icon-foreground.png resources/icon.png
+          fi
+
+          cat > assets.config.json << 'EOF'
+          {
+            "platforms": {
+              "android": {
+                "icon": {
+                  "foregroundImage": "resources/icon-foreground.png",
+                  "backgroundColor": "#FFFFFFFF"
+                }
+              }
+            }
+          }
+          EOF
+          echo "---- assets.config.json ----"
+          cat assets.config.json
+
+      - name: Generate all Android icons via @capacitor/assets
+        run: |
+          npm i -D @capacitor/assets@latest
+          npx @capacitor/assets@latest generate
+          echo "---- generated res/mipmap* ----"
+          for d in android/app/src/main/res/mipmap-* ; do
+            echo "# $d" ; ls -al "$d" | sed 's/^/  /'
           done
 
       - name: Build debug APK (clean + stacktrace)
         run: |
           cd android
-          ./gradlew --version
           ./gradlew clean
           ./gradlew assembleDebug --stacktrace --info --warning-mode=all
 
@@ -116,8 +104,8 @@ jobs:
           name: app-debug.apk
           path: android/app/build/outputs/apk/debug/app-debug.apk
 
-      - name: Upload Gradle reports (always)
-        if: always()
+      - name: Upload Gradle reports (on failure)
+        if: failure()
         uses: actions/upload-artifact@v4
         with:
           name: gradle-reports
@@ -126,5 +114,3 @@ jobs:
             android/app/build/outputs/**/logs/**
             android/app/build/outputs/logs/**
           if-no-files-found: ignore
-
-
