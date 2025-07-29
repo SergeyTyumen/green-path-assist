@@ -41,18 +41,43 @@ jobs:
       - name: Install Capacitor Assets CLI
         run: npm i -D @capacitor/assets
 
-      # Генерируем адаптивные иконки Android из ресурсов в /resources
-      - name: Generate Android app icons (adaptive)
+      # Готовим assets.config.json в зависимости от наличия фоновой картинки
+      - name: Create assets.config.json for Android icons
         run: |
           if [ -f resources/icon-background.png ]; then
-            npx @capacitor/assets generate --android \
-              --iconForegroundPath resources/icon-foreground.png \
-              --iconBackgroundPath resources/icon-background.png
+            cat > assets.config.json << 'EOF'
+          {
+            "platforms": {
+              "android": {
+                "icon": {
+                  "foregroundImage": "resources/icon-foreground.png",
+                  "backgroundImage": "resources/icon-background.png"
+                }
+              }
+            }
+          }
+          EOF
           else
-            npx @capacitor/assets generate --android \
-              --iconForegroundPath resources/icon-foreground.png \
-              --iconBackgroundColor "#FFFFFF"
+            cat > assets.config.json << 'EOF'
+          {
+            "platforms": {
+              "android": {
+                "icon": {
+                  "foregroundImage": "resources/icon-foreground.png",
+                  "backgroundColor": "#FFFFFF"
+                }
+              }
+            }
+          }
+          EOF
           fi
+          echo "----- assets.config.json -----"
+          cat assets.config.json
+
+      # Генерируем адаптивные иконки Android (без устаревших флагов путей)
+      - name: Generate Android app icons (adaptive)
+        run: |
+          npx @capacitor/assets generate --platform android
 
       # 👉 Патчим AndroidManifest для прав микрофона (нужно для WebRTC/MediaRecorder)
       - name: Add microphone permissions to AndroidManifest
