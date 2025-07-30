@@ -24,6 +24,13 @@ interface UserSettings {
   ai_settings: any;
 }
 
+// Global variable to store current user ID
+let currentUserId: string = '';
+
+function getUserIdFromContext(): string {
+  return currentUserId;
+}
+
 async function callOpenAI(messages: AIMessage[], settings: UserSettings): Promise<string> {
   const openAIApiKey = Deno.env.get('OPENAI_API_KEY');
   if (!openAIApiKey) {
@@ -46,6 +53,30 @@ async function callOpenAI(messages: AIMessage[], settings: UserSettings): Promis
       temperature,
       max_tokens,
       tools: [
+        {
+          type: "function",
+          function: {
+            name: "getClientsData",
+            description: "Получить список всех клиентов пользователя",
+            parameters: {
+              type: "object",
+              properties: {},
+              required: []
+            }
+          }
+        },
+        {
+          type: "function",
+          function: {
+            name: "getTasksData", 
+            description: "Получить список всех задач пользователя",
+            parameters: {
+              type: "object",
+              properties: {},
+              required: []
+            }
+          }
+        },
         {
           type: "function",
           function: {
@@ -93,7 +124,47 @@ async function callOpenAI(messages: AIMessage[], settings: UserSettings): Promis
   }
 
   const data = await response.json();
-  return data.choices[0].message.content || 'Ошибка получения ответа от OpenAI';
+  const message = data.choices[0].message;
+
+  // Если есть вызовы функций, выполняем их
+  if (message.tool_calls && message.tool_calls.length > 0) {
+    let functionResults = [];
+    
+    for (const toolCall of message.tool_calls) {
+      const functionName = toolCall.function.name;
+      const functionArgs = JSON.parse(toolCall.function.arguments || '{}');
+      
+      let result = '';
+      
+      switch (functionName) {
+        case 'getClientsData':
+          result = await getClientsData(getUserIdFromContext());
+          break;
+        case 'getTasksData':
+          result = await getTasksData(getUserIdFromContext());
+          break;
+        case 'createCRMClient':
+          result = await createCRMClient(functionArgs, getUserIdFromContext());
+          break;
+        case 'delegateToAssistant':
+          result = await delegateToAssistant(
+            functionArgs.assistant_name, 
+            functionArgs.task_description, 
+            functionArgs.additional_data || {}, 
+            getUserIdFromContext()
+          );
+          break;
+        default:
+          result = `Функция ${functionName} не найдена`;
+      }
+      
+      functionResults.push(result);
+    }
+    
+    return functionResults.join('\n\n');
+  }
+  
+  return message.content || 'Ошибка получения ответа от OpenAI';
 }
 
 async function callYandexGPT(messages: AIMessage[], settings: UserSettings): Promise<string> {
@@ -138,6 +209,57 @@ async function callYandexGPT(messages: AIMessage[], settings: UserSettings): Pro
 
   const data = await response.json();
   return data.result?.alternatives?.[0]?.message?.text || 'Ошибка получения ответа от YandexGPT';
+}
+
+// CRM Data Retrieval Functions
+async function getClientsData(userId: string): Promise<string> {
+  try {
+    const { data: clients, error } = await supabase
+      .from('clients')
+      .select('id, name, phone, email, status, services, notes')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+
+    if (!clients || clients.length === 0) {
+      return 'У вас пока нет клиентов в системе.';
+    }
+
+    const clientsList = clients.map(client => 
+      `• ${client.name} (${client.phone}) - статус: ${client.status}${client.services?.length ? ', услуги: ' + client.services.join(', ') : ''}`
+    ).join('\n');
+
+    return `Ваши клиенты (${clients.length}):\n${clientsList}`;
+  } catch (error) {
+    console.error('Error fetching clients:', error);
+    return 'Произошла ошибка при получении данных о клиентах.';
+  }
+}
+
+async function getTasksData(userId: string): Promise<string> {
+  try {
+    const { data: tasks, error } = await supabase
+      .from('tasks')
+      .select('id, title, status, priority, due_date, category, assignee')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+
+    if (!tasks || tasks.length === 0) {
+      return 'У вас пока нет задач в системе.';
+    }
+
+    const tasksList = tasks.map(task => 
+      `• ${task.title} - статус: ${task.status}, приоритет: ${task.priority}${task.due_date ? ', срок: ' + task.due_date : ''}${task.assignee ? ', исполнитель: ' + task.assignee : ''}`
+    ).join('\n');
+
+    return `Ваши задачи (${tasks.length}):\n${tasksList}`;
+  } catch (error) {
+    console.error('Error fetching tasks:', error);
+    return 'Произошла ошибка при получении данных о задачах.';
+  }
 }
 
 async function delegateToAssistant(assistantName: string, taskDescription: string, additionalData: any, userId: string): Promise<string> {
@@ -254,6 +376,9 @@ serve(async (req) => {
     if (!message) {
       throw new Error('Message is required');
     }
+
+    // Устанавливаем пользователя в контекст
+    currentUserId = user.id;
 
     // Получаем настройки пользователя
     const userSettings = await getUserSettings(user.id);
