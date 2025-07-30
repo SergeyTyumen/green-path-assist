@@ -10,7 +10,8 @@ import {
   Bot,
   LayoutDashboard,
   Mic,
-  MessageCircle
+  MessageCircle,
+  Settings
 } from "lucide-react";
 import { NavLink, useLocation } from "react-router-dom";
 
@@ -40,6 +41,7 @@ const navigationItems = [
   { title: "ИИ-помощники", url: "/ai-assistants", icon: Bot },
   { title: "Голосовой помощник", url: "/voice-assistant", icon: Mic },
   { title: "Чат с ИИ-помощником", url: "/voice-chat", icon: MessageCircle },
+  { title: "Настройки голоса", url: "/voice-settings", icon: Settings },
 ];
 
 export function AppSidebar() {

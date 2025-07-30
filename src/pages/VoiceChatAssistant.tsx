@@ -115,19 +115,25 @@ const VoiceChatAssistant = () => {
     }
   }, [inputValue, addMessage, isVoiceMode, voiceState.volume]);
 
-  // Generate AI response using Supabase edge function
+  // Generate AI response using enhanced voice chat system
   const generateResponse = async (userMessage: string): Promise<string> => {
     try {
-      const { data, error } = await supabase.functions.invoke('voice-chat', {
-        body: { message: userMessage, context: 'general' }
+      const { data, error } = await supabase.functions.invoke('enhanced-voice-chat', {
+        body: { 
+          message: userMessage, 
+          conversation_history: messages.slice(-10).map(m => ({
+            type: m.type,
+            content: m.content
+          }))
+        }
       });
 
       if (error) {
-        console.error('Error calling voice-chat function:', error);
+        console.error('Error calling enhanced-voice-chat function:', error);
         return 'Извините, произошла ошибка. Попробуйте еще раз.';
       }
 
-      return data.reply || 'Не удалось получить ответ от ИИ-помощника.';
+      return data.response || 'Не удалось получить ответ от ИИ-помощника.';
     } catch (error) {
       console.error('Error in generateResponse:', error);
       return 'Произошла ошибка при обращении к ИИ-помощнику.';

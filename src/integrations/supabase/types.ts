@@ -329,34 +329,46 @@ export type Database = {
       }
       profiles: {
         Row: {
+          ai_settings: Json | null
           company_name: string | null
           created_at: string
           full_name: string | null
           id: string
+          interaction_mode: string | null
           phone: string | null
+          preferred_ai_model: string | null
           updated_at: string
           user_id: string
           user_type: string | null
+          voice_settings: Json | null
         }
         Insert: {
+          ai_settings?: Json | null
           company_name?: string | null
           created_at?: string
           full_name?: string | null
           id?: string
+          interaction_mode?: string | null
           phone?: string | null
+          preferred_ai_model?: string | null
           updated_at?: string
           user_id: string
           user_type?: string | null
+          voice_settings?: Json | null
         }
         Update: {
+          ai_settings?: Json | null
           company_name?: string | null
           created_at?: string
           full_name?: string | null
           id?: string
+          interaction_mode?: string | null
           phone?: string | null
+          preferred_ai_model?: string | null
           updated_at?: string
           user_id?: string
           user_type?: string | null
+          voice_settings?: Json | null
         }
         Relationships: []
       }
