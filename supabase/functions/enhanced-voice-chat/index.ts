@@ -48,34 +48,38 @@ async function callOpenAI(messages: AIMessage[], settings: UserSettings): Promis
       tools: [
         {
           type: "function",
-          name: "createCRMClient",
-          description: "Создать нового клиента в CRM системе",
-          parameters: {
-            type: "object",
-            properties: {
-              name: { type: "string", description: "Имя клиента" },
-              phone: { type: "string", description: "Телефон клиента" },
-              email: { type: "string", description: "Email клиента" },
-              address: { type: "string", description: "Адрес клиента" },
-              services: { type: "array", items: { type: "string" }, description: "Список услуг" },
-              budget: { type: "number", description: "Бюджет" },
-              notes: { type: "string", description: "Заметки о клиенте" }
-            },
-            required: ["name", "phone"]
+          function: {
+            name: "createCRMClient",
+            description: "Создать нового клиента в CRM системе",
+            parameters: {
+              type: "object",
+              properties: {
+                name: { type: "string", description: "Имя клиента" },
+                phone: { type: "string", description: "Телефон клиента" },
+                email: { type: "string", description: "Email клиента" },
+                address: { type: "string", description: "Адрес клиента" },
+                services: { type: "array", items: { type: "string" }, description: "Список услуг" },
+                budget: { type: "number", description: "Бюджет" },
+                notes: { type: "string", description: "Заметки о клиенте" }
+              },
+              required: ["name", "phone"]
+            }
           }
         },
         {
           type: "function",
-          name: "delegateToAssistant",
-          description: "Делегировать задачу другому ИИ-ассистенту",
-          parameters: {
-            type: "object",
-            properties: {
-              assistant_name: { type: "string", description: "Имя ассистента (сметчик, аналитик, конкурентный-анализ)" },
-              task_description: { type: "string", description: "Описание задачи для ассистента" },
-              additional_data: { type: "object", description: "Дополнительные данные для ассистента" }
-            },
-            required: ["assistant_name", "task_description"]
+          function: {
+            name: "delegateToAssistant",
+            description: "Делегировать задачу другому ИИ-ассистенту",
+            parameters: {
+              type: "object",
+              properties: {
+                assistant_name: { type: "string", description: "Имя ассистента (сметчик, аналитик, конкурентный-анализ)" },
+                task_description: { type: "string", description: "Описание задачи для ассистента" },
+                additional_data: { type: "object", description: "Дополнительные данные для ассистента" }
+              },
+              required: ["assistant_name", "task_description"]
+            }
           }
         }
       ],
