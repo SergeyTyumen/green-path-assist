@@ -14,6 +14,7 @@ import { useClients } from "@/hooks/useClients";
 import { useTasks } from "@/hooks/useTasks";
 import { useEstimates } from "@/hooks/useEstimates";
 import { useProposals } from "@/hooks/useProposals";
+import { ClientDialog } from "@/components/ClientDialog";
 
 export default function Dashboard() {
   const { clients, loading: clientsLoading } = useClients();
@@ -90,10 +91,12 @@ export default function Dashboard() {
             Обзор активности и ключевые метрики
           </p>
         </div>
-        <Button className="bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70">
-          <Plus className="h-4 w-4 mr-2" />
-          Добавить клиента
-        </Button>
+        <ClientDialog onSuccess={() => window.location.reload()}>
+          <Button className="bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70">
+            <Plus className="h-4 w-4 mr-2" />
+            Добавить клиента
+          </Button>
+        </ClientDialog>
       </div>
 
       {/* Статистика */}
