@@ -41,8 +41,10 @@ export function Layout() {
               </div>
             </header>
 
-            <main className="flex-1 overflow-auto">
-              <Outlet />
+            <main className="flex-1 overflow-auto max-w-full overflow-x-hidden">
+              <div className="w-full max-w-full">
+                <Outlet />
+              </div>
             </main>
           </div>
         </div>
