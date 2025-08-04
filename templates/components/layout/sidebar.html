@@ -1,0 +1,50 @@
+{% set navigation_items = [
+    {"title": "Дашборд", "url": "/", "icon": "layout-dashboard"},
+    {"title": "Клиенты и заявки", "url": "/clients", "icon": "users"},
+    {"title": "Сметы", "url": "/estimates", "icon": "calculator"},
+    {"title": "Коммерческие предложения", "url": "/proposals", "icon": "file-text"},
+    {"title": "Подрядчики", "url": "/contractors", "icon": "wrench"},
+    {"title": "Поставщики", "url": "/suppliers", "icon": "truck"},
+    {"title": "Номенклатура", "url": "/nomenclature", "icon": "package"},
+    {"title": "Задачи", "url": "/tasks", "icon": "check-square"},
+    {"title": "Архив проектов", "url": "/archive", "icon": "archive"},
+    {"title": "ИИ-помощники", "url": "/ai-assistants", "icon": "bot"},
+    {"title": "Голосовой помощник", "url": "/voice-assistant", "icon": "mic"},
+    {"title": "Чат с ИИ-помощником", "url": "/voice-chat", "icon": "message-circle"},
+    {"title": "Настройки голоса", "url": "/voice-settings", "icon": "settings"}
+] %}
+
+<aside id="sidebar" class="w-64 transition-all duration-300 border-r bg-gradient-to-b from-card to-muted/30">
+    <div class="p-4 border-b">
+        <h2 class="text-lg font-semibold text-primary flex items-center gap-2">
+            <img src="{{ url_for('static', filename='images/logo.png') }}" alt="ParkConstructionCRM" class="h-6 w-6">
+            ParkConstructionCRM
+        </h2>
+    </div>
+
+    <div class="px-2">
+        <div class="px-2 text-xs font-medium text-muted-foreground uppercase tracking-wider">
+            Навигация
+        </div>
+        <nav class="mt-2">
+            {% for item in navigation_items %}
+                <a href="{{ item.url }}" 
+                   class="flex items-center gap-2 h-10 px-2 rounded-md {% if request.path == item.url or (item.url != '/' and request.path.startswith(item.url)) %}bg-primary text-primary-foreground font-medium{% else %}hover:bg-accent hover:text-accent-foreground transition-colors{% endif %}">
+                    {% include 'components/icons/' + item.icon + '.html' %}
+                    <span class="truncate">{{ item.title }}</span>
+                </a>
+            {% endfor %}
+        </nav>
+    </div>
+</aside>
+
+<script>
+document.getElementById('sidebar-trigger').addEventListener('click', function() {
+    const sidebar = document.getElementById('sidebar');
+    sidebar.classList.toggle('w-64');
+    sidebar.classList.toggle('w-14');
+    
+    const sidebarTexts = sidebar.querySelectorAll('span, h2');
+    sidebarTexts.forEach(text => text.classList.toggle('hidden'));
+});
+</script>

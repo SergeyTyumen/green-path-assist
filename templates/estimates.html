@@ -1,0 +1,146 @@
+{% extends "layout.html" %}
+
+{% block title %}Сметы - CRM{% endblock %}
+
+{% block content %}
+<div class="p-6 space-y-6">
+    <div class="flex justify-between items-center">
+        <div>
+            <h1 class="text-3xl font-bold text-foreground">Сметы</h1>
+            <p class="text-muted-foreground mt-1">
+                Управление сметами и расчетами проектов
+            </p>
+        </div>
+        <div class="flex gap-2">
+            <a href="{{ url_for('estimates') }}" class="inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border border-input bg-background hover:bg-accent hover:text-accent-foreground h-10 px-4 py-2 gap-2">
+                {% include 'components/icons/bot.html' %}
+                ИИ-расчет
+            </a>
+            <a href="{{ url_for('estimate_new') }}" class="inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 text-primary-foreground h-10 px-4 py-2 gap-2">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4">
+                    <line x1="12" y1="5" x2="12" y2="19"></line>
+                    <line x1="5" y1="12" x2="19" y2="12"></line>
+                </svg>
+                Создать смету
+            </a>
+        </div>
+    </div>
+
+    <!-- Поиск и фильтры -->
+    <div class="rounded-lg border bg-card text-card-foreground">
+        <div class="p-4">
+            <form method="get" class="flex gap-4">
+                <div class="relative flex-1">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground">
+                        <circle cx="11" cy="11" r="8"></circle>
+                        <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                    </svg>
+                    <input
+                        type="text"
+                        name="search"
+                        placeholder="Поиск по клиенту, проекту или номеру сметы..."
+                        value="{{ request.args.get('search', '') }}"
+                        class="flex h-10 w-full rounded-md border border-input bg-background pl-9 pr-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                    />
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Список смет -->
+    <div class="grid gap-4">
+        {% for estimate in estimates %}
+        <div class="rounded-lg border bg-card text-card-foreground hover:shadow-md transition-shadow">
+            <div class="p-6">
+                <div class="flex items-center justify-between">
+                    <div class="flex-1 min-w-0">
+                        <div class="flex items-center gap-3 mb-2">
+                            <h3 class="text-lg font-semibold text-foreground">
+                                {{ estimate.title }}
+                            </h3>
+                            <span class="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold {{ estimate.status_class }}">
+                                {{ estimate.status_label }}
+                            </span>
+                        </div>
+                        
+                        <div class="space-y-1">
+                            <p class="text-sm font-medium text-foreground">
+                                {{ estimate.client_name }}
+                            </p>
+                            <div class="flex items-center gap-4 text-xs text-muted-foreground">
+                                <span>Создана: {{ estimate.created_at|format_date }}</span>
+                                <span>Позиций: {{ estimate.items|length }}</span>
+                                {% if estimate.valid_until %}
+                                <span>Действительна до: {{ estimate.valid_until|format_date }}</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="flex items-center gap-4">
+                        <div class="text-right">
+                            <div class="text-2xl font-bold text-foreground">
+                                {{ "{:,.0f}".format(estimate.total_amount) }}₽
+                            </div>
+                            <div class="text-xs text-muted-foreground">
+                                Общая сумма
+                            </div>
+                        </div>
+
+                        <div class="flex gap-1">
+                            <a href="{{ url_for('estimate_view', estimate_id=estimate.id) }}" class="inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-8 w-8 p-0">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4">
+                                    <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/>
+                                    <circle cx="12" cy="12" r="3"/>
+                                </svg>
+                            </a>
+                            <a href="{{ url_for('estimate_edit', estimate_id=estimate.id) }}" class="inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-8 w-8 p-0">
+                                {% include 'components/icons/edit.html' %}
+                            </a>
+                            <a href="{{ url_for('estimate_copy', estimate_id=estimate.id) }}" class="inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-8 w-8 p-0">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4">
+                                    <rect width="14" height="14" x="8" y="8" rx="2" ry="2"/>
+                                    <path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/>
+                                </svg>
+                            </a>
+                            <form method="post" action="{{ url_for('estimate_delete', estimate_id=estimate.id) }}" class="inline" onsubmit="return confirm('Вы уверены, что хотите удалить эту смету?');">
+                                <button type="submit" class="inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-8 w-8 p-0 text-destructive hover:text-destructive">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4">
+                                        <path d="M3 6h18"/>
+                                        <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/>
+                                        <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/>
+                                        <line x1="10" x2="10" y1="11" y2="17"/>
+                                        <line x1="14" x2="14" y1="11" y2="17"/>
+                                    </svg>
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    {% if not estimates %}
+    <div class="rounded-lg border bg-card text-card-foreground">
+        <div class="p-12 text-center">
+            {% include 'components/icons/calculator.html' %}
+            <h3 class="text-lg font-medium text-foreground mb-2">
+                Сметы не найдены
+            </h3>
+            <p class="text-muted-foreground mb-4">
+                Попробуйте изменить параметры поиска или создайте новую смету
+            </p>
+            <a href="{{ url_for('estimate_new') }}" class="inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 bg-primary text-primary-foreground hover:bg-primary/90 h-10 px-4 py-2">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4 mr-2">
+                    <line x1="12" y1="5" x2="12" y2="19"></line>
+                    <line x1="5" y1="12" x2="19" y2="12"></line>
+                </svg>
+                Создать первую смету
+            </a>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

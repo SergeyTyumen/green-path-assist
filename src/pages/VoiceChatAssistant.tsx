@@ -55,6 +55,7 @@ const VoiceChatAssistant = () => {
     volume: 0.8
   });
   const [isVoiceMode, setIsVoiceMode] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
@@ -163,8 +164,8 @@ const VoiceChatAssistant = () => {
     console.log('Starting speech synthesis for:', text.substring(0, 100) + '...');
     
     const utterance = new SpeechSynthesisUtterance(text);
-    utterance.rate = 0.9;
-    utterance.pitch = 1;
+    utterance.rate = 0.85; // Немного медленнее для естественности
+    utterance.pitch = 0.9; // Немного ниже
     utterance.volume = voiceState.volume;
     utterance.lang = 'ru-RU';
     
@@ -188,24 +189,49 @@ const VoiceChatAssistant = () => {
       });
     };
     
+    // Find the best Russian voice
+    const selectBestRussianVoice = (voices: SpeechSynthesisVoice[]) => {
+      // Priority order for better quality voices
+      const preferredVoices = [
+        'Microsoft Elena - Russian (Russia)',
+        'Microsoft Irina - Russian (Russia)', 
+        'Google русский',
+        'Yandex Russian',
+        'ru-RU-Standard-A',
+        'ru-RU-Standard-B',
+        'ru-RU-Standard-C',
+        'ru-RU-Standard-D'
+      ];
+      
+      // Try to find preferred voice
+      for (const preferred of preferredVoices) {
+        const voice = voices.find(v => v.name.includes(preferred.split(' - ')[0]));
+        if (voice) {
+          return voice;
+        }
+      }
+      
+      // Fallback to any Russian voice
+      return voices.find(voice => 
+        voice.lang.startsWith('ru') || voice.lang.includes('RU')
+      );
+    };
+
     // Ensure voices are loaded
     const voices = speechSynthesis.getVoices();
     if (voices.length === 0) {
       // Wait for voices to load
       speechSynthesis.addEventListener('voiceschanged', () => {
-        const russianVoice = speechSynthesis.getVoices().find(voice => 
-          voice.lang.startsWith('ru') || voice.lang.includes('RU')
-        );
+        const russianVoice = selectBestRussianVoice(speechSynthesis.getVoices());
         if (russianVoice) {
           utterance.voice = russianVoice;
+          console.log('Using Russian voice:', russianVoice.name);
         }
         speechSynthesis.speak(utterance);
       }, { once: true });
     } else {
-      // Find Russian voice
-      const russianVoice = voices.find(voice => 
-        voice.lang.startsWith('ru') || voice.lang.includes('RU')
-      );
+      // Find best Russian voice
+      const russianVoice = selectBestRussianVoice(voices);
       if (russianVoice) {
         utterance.voice = russianVoice;
         console.log('Using Russian voice:', russianVoice.name);
@@ -219,6 +245,12 @@ const VoiceChatAssistant = () => {
 
   // Cleanup function for stopping recording and releasing resources
   const cleanupRecording = useCallback(() => {
+    // Clear auto-stop timer
+    if (autoStopTimerRef.current) {
+      clearTimeout(autoStopTimerRef.current);
+      autoStopTimerRef.current = null;
+    }
+    
     if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
       mediaRecorderRef.current.stop();
     }
@@ -243,6 +275,7 @@ const VoiceChatAssistant = () => {
     
     if (audioChunksRef.current.length === 0) {
       console.warn('No audio data recorded');
+      setIsProcessing(false);
       cleanupRecording();
       return;
     }
@@ -274,11 +307,12 @@ const VoiceChatAssistant = () => {
       
       if (transcriptionError) {
         console.error('Transcription error:', transcriptionError);
-        const errorMessage = transcriptionError.message.includes('OpenAI') 
-          ? 'Сервис распознавания речи временно недоступен. Попробуйте позже.'
-          : 'Не удалось распознать речь. Проверьте качество записи и попробуйте еще раз.';
-        addMessage('assistant', errorMessage);
-        return;
+              const errorMessage = transcriptionError.message.includes('OpenAI') 
+        ? 'Сервис распознавания речи временно недоступен. Попробуйте позже.'
+        : 'Не удалось распознать речь. Проверьте качество записи и попробуйте еще раз.';
+      addMessage('assistant', errorMessage);
+      setIsProcessing(false);
+      return;
       }
       
       const transcript = transcriptionData.text || '';
@@ -286,6 +320,7 @@ const VoiceChatAssistant = () => {
       
       if (!transcript.trim()) {
         addMessage('assistant', 'Не удалось распознать речь. Попробуйте говорить громче и четче.');
+        setIsProcessing(false);
         return;
       }
       
@@ -307,21 +342,41 @@ const VoiceChatAssistant = () => {
         setMessages(prev => prev.filter(m => m.id !== 'thinking'));
         addMessage('assistant', response);
         
-        // Save to command history
-        await supabase.functions.invoke('voice-chat', {
-          body: { 
-            message: `create_command_history: ${JSON.stringify({
-              voice_text: transcript,
-              transcript: transcript,
-              actions: ['voice_processing'],
-              execution_result: { response }
-            })}` 
+        // Save to command history (local storage as fallback)
+        try {
+          await supabase.functions.invoke('voice-chat', {
+            body: { 
+              message: `create_command_history: ${JSON.stringify({
+                voice_text: transcript,
+                transcript: transcript,
+                actions: ['voice_processing'],
+                execution_result: { response }
+              })}` 
+            }
+          });
+        } catch (historyError) {
+          console.warn('Failed to save command history:', historyError);
+          // Fallback to local storage
+          const history = JSON.parse(localStorage.getItem('voice_command_history') || '[]');
+          history.push({
+            id: Date.now(),
+            transcript,
+            response,
+            created_at: new Date().toISOString(),
+            status: 'completed'
+          });
+          // Keep only last 10 commands
+          if (history.length > 10) {
+            history.splice(0, history.length - 10);
           }
-        });
+          localStorage.setItem('voice_command_history', JSON.stringify(history));
+        }
         
         if (isVoiceMode) {
           speakResponse(response);
         }
+        
+        setIsProcessing(false);
       } catch (error) {
         console.error('Error processing voice message:', error);
         setMessages(prev => prev.filter(m => m.id !== 'thinking'));
@@ -333,6 +388,7 @@ const VoiceChatAssistant = () => {
           : 'Извините, произошла ошибка при обработке команды. Попробуйте еще раз.';
         
         addMessage('assistant', errorMessage);
+        setIsProcessing(false);
       }
       
     } catch (error) {
@@ -347,8 +403,12 @@ const VoiceChatAssistant = () => {
         : 'Ошибка при обработке аудио. Попробуйте еще раз.';
       
       addMessage('assistant', errorMessage);
+      setIsProcessing(false);
     }
   }, [addMessage, cleanupRecording, generateResponse, isVoiceMode]);
+
+  // Auto-stop timer ref
+  const autoStopTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   // Start voice recording
   const startVoiceRecording = useCallback(async () => {
@@ -402,6 +462,14 @@ const VoiceChatAssistant = () => {
       mediaRecorder.start(1000); // Record in 1 second chunks
       console.log('MediaRecorder started');
       
+      // Auto-stop after 8 seconds if not manually stopped
+      autoStopTimerRef.current = setTimeout(() => {
+        console.log('Auto-stopping recording after 8 seconds');
+        if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
+          stopVoiceRecording();
+        }
+      }, 8000);
+      
     } catch (error) {
       console.error('Error starting voice recording:', error);
       cleanupRecording();
@@ -416,10 +484,26 @@ const VoiceChatAssistant = () => {
   // Stop voice recording
   const stopVoiceRecording = useCallback(() => {
     console.log('Stopping voice recording...');
-    if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
-      mediaRecorderRef.current.stop();
+    
+    // Prevent multiple stop calls
+    if (isProcessing) {
+      console.log('Already processing, ignoring stop request');
+      return;
     }
-  }, []);
+    
+    // Clear auto-stop timer
+    if (autoStopTimerRef.current) {
+      clearTimeout(autoStopTimerRef.current);
+      autoStopTimerRef.current = null;
+    }
+    
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
+      setIsProcessing(true);
+      mediaRecorderRef.current.stop();
+    } else {
+      console.log('MediaRecorder not in recording state:', mediaRecorderRef.current?.state);
+    }
+  }, [isProcessing]);
 
   // Cleanup on unmount
   useEffect(() => {
@@ -475,21 +559,30 @@ const VoiceChatAssistant = () => {
   
   const loadCommandHistory = useCallback(async () => {
     try {
+      // Try to load from Supabase first
       const { data, error } = await supabase.functions.invoke('voice-chat', {
         body: { message: 'get_command_history' }
       });
       
       if (!error && data) {
         setCommandHistory(data.history || []);
+      } else {
+        throw new Error('Supabase history not available');
       }
     } catch (error) {
-      console.error('Error loading command history:', error);
+      console.warn('Loading history from localStorage:', error);
+      // Fallback to local storage
+      const localHistory = JSON.parse(localStorage.getItem('voice_command_history') || '[]');
+      setCommandHistory(localHistory);
     }
   }, []);
 
   useEffect(() => {
     loadCommandHistory();
-  }, [loadCommandHistory]);
+    // Reload history when messages change (to show new commands)
+    const timer = setTimeout(loadCommandHistory, 1000);
+    return () => clearTimeout(timer);
+  }, [loadCommandHistory, messages]);
 
   return (
     <div className="h-full flex flex-col bg-gradient-to-br from-background to-muted/20">
@@ -645,9 +738,12 @@ const VoiceChatAssistant = () => {
                 voiceState.isListening && "animate-pulse"
               )}
               onClick={voiceState.isListening ? stopVoiceRecording : startVoiceRecording}
+              disabled={isProcessing}
             >
               {voiceState.isListening ? (
                 <MicOff className="h-5 w-5" />
+              ) : isProcessing ? (
+                <div className="h-5 w-5 border-2 border-current border-t-transparent rounded-full animate-spin" />
               ) : (
                 <Mic className="h-5 w-5" />
               )}
@@ -658,7 +754,12 @@ const VoiceChatAssistant = () => {
           </div>
           
           <p className="text-xs text-muted-foreground mt-2 text-center">
-            Нажмите кнопку микрофона для начала/остановки записи голоса
+            {isProcessing 
+              ? 'Обрабатываю запись...' 
+              : voiceState.isListening 
+              ? 'Говорите! Автоостановка через 8 сек или нажмите красный микрофон'
+              : 'Нажмите зеленый микрофон для начала записи голоса'
+            }
           </p>
           
           {/* Command History */}

@@ -1,0 +1,134 @@
+{% extends "base.html" %}
+
+{% block title %}Настройки - ParkConstructionCRM{% endblock %}
+{% block page_title %}Настройки{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <div>
+        <h1 class="text-3xl font-bold tracking-tight">Настройки системы</h1>
+        <p class="text-muted-foreground">Конфигурация и управление системой</p>
+    </div>
+    
+    <div class="grid gap-6 md:grid-cols-2">
+        <!-- Статус системы -->
+        <div class="card p-6">
+            <h3 class="text-lg font-semibold mb-4">Статус системы</h3>
+            <div class="space-y-3">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center space-x-2">
+                        <div class="w-2 h-2 bg-green-500 rounded-full"></div>
+                        <span class="text-sm">Сервер Python Flask</span>
+                    </div>
+                    <span class="text-sm text-muted-foreground">Работает</span>
+                </div>
+                
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center space-x-2">
+                        <div class="w-2 h-2 bg-green-500 rounded-full"></div>
+                        <span class="text-sm">База данных SQLite</span>
+                    </div>
+                    <span class="text-sm text-muted-foreground">Подключена</span>
+                </div>
+                
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center space-x-2">
+                        <div class="w-2 h-2 bg-yellow-500 rounded-full"></div>
+                        <span class="text-sm">Голосовой помощник</span>
+                    </div>
+                    <span class="text-sm text-muted-foreground">Демо режим</span>
+                </div>
+                
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center space-x-2">
+                        <div class="w-2 h-2 bg-green-500 rounded-full"></div>
+                        <span class="text-sm">Интерфейс</span>
+                    </div>
+                    <span class="text-sm text-muted-foreground">Оригинальный дизайн</span>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Информация о версии -->
+        <div class="card p-6">
+            <h3 class="text-lg font-semibold mb-4">Информация о версии</h3>
+            <div class="space-y-3">
+                <div class="flex justify-between">
+                    <span class="text-sm text-muted-foreground">Версия:</span>
+                    <span class="text-sm font-medium">Python 1.0.0</span>
+                </div>
+                <div class="flex justify-between">
+                    <span class="text-sm text-muted-foreground">Фреймворк:</span>
+                    <span class="text-sm font-medium">Flask 2.3.3</span>
+                </div>
+                <div class="flex justify-between">
+                    <span class="text-sm text-muted-foreground">База данных:</span>
+                    <span class="text-sm font-medium">SQLite 3</span>
+                </div>
+                <div class="flex justify-between">
+                    <span class="text-sm text-muted-foreground">Дизайн:</span>
+                    <span class="text-sm font-medium">Копия React версии</span>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Преимущества Python версии -->
+        <div class="card p-6 md:col-span-2">
+            <h3 class="text-lg font-semibold mb-4">✅ Преимущества Python версии</h3>
+            <div class="grid gap-4 md:grid-cols-2">
+                <div class="space-y-3">
+                    <div class="flex items-start space-x-3">
+                        <div class="w-2 h-2 bg-green-500 rounded-full mt-2"></div>
+                        <div>
+                            <p class="font-medium">100% совместимость с хостингами</p>
+                            <p class="text-sm text-muted-foreground">Работает на любом Python хостинге</p>
+                        </div>
+                    </div>
+                    
+                    <div class="flex items-start space-x-3">
+                        <div class="w-2 h-2 bg-green-500 rounded-full mt-2"></div>
+                        <div>
+                            <p class="font-medium">Оригинальный дизайн сохранен</p>
+                            <p class="text-sm text-muted-foreground">Точная копия React интерфейса</p>
+                        </div>
+                    </div>
+                    
+                    <div class="flex items-start space-x-3">
+                        <div class="w-2 h-2 bg-green-500 rounded-full mt-2"></div>
+                        <div>
+                            <p class="font-medium">Быстрая загрузка</p>
+                            <p class="text-sm text-muted-foreground">Никаких проблем с JavaScript</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="space-y-3">
+                    <div class="flex items-start space-x-3">
+                        <div class="w-2 h-2 bg-green-500 rounded-full mt-2"></div>
+                        <div>
+                            <p class="font-medium">Простое развертывание</p>
+                            <p class="text-sm text-muted-foreground">Один файл app.py</p>
+                        </div>
+                    </div>
+                    
+                    <div class="flex items-start space-x-3">
+                        <div class="w-2 h-2 bg-green-500 rounded-full mt-2"></div>
+                        <div>
+                            <p class="font-medium">Встроенная база данных</p>
+                            <p class="text-sm text-muted-foreground">SQLite работает везде</p>
+                        </div>
+                    </div>
+                    
+                    <div class="flex items-start space-x-3">
+                        <div class="w-2 h-2 bg-green-500 rounded-full mt-2"></div>
+                        <div>
+                            <p class="font-medium">Все функции сохранены</p>
+                            <p class="text-sm text-muted-foreground">Клиенты, стадии, комментарии</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

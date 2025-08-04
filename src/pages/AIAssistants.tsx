@@ -31,6 +31,16 @@ const AIAssistants = () => {
       route: '/voice-chat'
     },
     {
+      id: 'tinkoff-voice',
+      name: 'Tinkoff VoiceKit',
+      description: 'Голосовой ассистент на базе российских технологий Тинькофф',
+      icon: Mic,
+      status: 'active',
+      features: ['STT Tinkoff', 'TTS Tinkoff', 'Voice Activity Detection', 'Непрерывный режим'],
+      color: 'bg-yellow-500',
+      route: '/tinkoff-voice'
+    },
+    {
       id: 'ai-consultant',
       name: 'ИИ-консультант',
       description: 'Отвечает на вопросы клиентов по услугам, ценам и материалам',

@@ -1,0 +1,18 @@
+Options -Indexes
+DirectoryIndex index.html
+
+RewriteEngine On
+RewriteBase /
+
+# Если это реальный файл или папка - не трогаем
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+
+# Всё остальное направляем на index.html
+RewriteRule ^(.*)$ index.html [QSA,L]
+
+# Дополнительные правила для безопасности
+<Files ".htaccess">
+Order allow,deny
+Deny from all
+</Files>

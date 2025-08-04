@@ -1,0 +1,348 @@
+{% extends "base.html" %}
+
+{% block title %}Голосовой помощник - ParkConstructionCRM{% endblock %}
+{% block page_title %}Голосовой помощник{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto space-y-6">
+    <!-- Заголовок -->
+    <div class="text-center">
+        <h1 class="text-3xl font-bold tracking-tight">🎤 Голосовой ИИ-помощник</h1>
+        <p class="text-muted-foreground mt-2">
+            Взаимодействуйте с CRM системой через голосовые команды
+        </p>
+    </div>
+    
+    <!-- Управление голосом -->
+    <div class="card p-8 text-center">
+        <div class="space-y-6">
+            <!-- Кнопка записи -->
+            <div>
+                <button id="voiceBtn" class="w-20 h-20 rounded-full bg-red-500 hover:bg-red-600 text-white transition-all transform hover:scale-105 focus:outline-none focus:ring-4 focus:ring-red-500/50">
+                    <i data-lucide="mic" class="h-8 w-8 mx-auto"></i>
+                </button>
+            </div>
+            
+            <!-- Статус -->
+            <div>
+                <p id="voiceStatus" class="text-lg font-medium">Нажмите на микрофон для начала записи</p>
+                <p class="text-sm text-muted-foreground mt-2">
+                    Говорите четко и медленно для лучшего распознавания
+                </p>
+            </div>
+            
+            <!-- Переключатель режимов -->
+            <div class="flex items-center justify-center space-x-4">
+                <label class="flex items-center space-x-2">
+                    <input type="checkbox" id="voiceResponse" class="rounded border-border focus:ring-ring">
+                    <span class="text-sm">Голосовые ответы</span>
+                </label>
+                <label class="flex items-center space-x-2">
+                    <input type="checkbox" id="autoMode" class="rounded border-border focus:ring-ring">
+                    <span class="text-sm">Автоматический режим</span>
+                </label>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Чат -->
+    <div class="card">
+        <div class="p-6 border-b border-border">
+            <h3 class="text-lg font-semibold">История разговора</h3>
+            <button id="clearChat" class="btn btn-ghost text-sm mt-2">
+                <i data-lucide="trash-2" class="mr-2 h-4 w-4"></i>
+                Очистить историю
+            </button>
+        </div>
+        
+        <div class="p-6">
+            <div id="chatMessages" class="space-y-4 min-h-[300px] max-h-[500px] overflow-y-auto">
+                <!-- Приветственное сообщение -->
+                <div class="flex space-x-3">
+                    <div class="w-8 h-8 bg-primary/10 rounded-full flex items-center justify-center">
+                        <i data-lucide="bot" class="h-4 w-4 text-primary"></i>
+                    </div>
+                    <div class="flex-1">
+                        <div class="bg-muted rounded-lg p-3">
+                            <p class="text-sm">
+                                Привет! Я ваш голосовой ИИ-помощник. Могу помочь с управлением клиентами, 
+                                проектами и ответить на вопросы о CRM системе. 
+                                Что вас интересует?
+                            </p>
+                        </div>
+                        <p class="text-xs text-muted-foreground mt-1">Сейчас</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Ввод текста -->
+        <div class="p-6 border-t border-border">
+            <div class="flex space-x-3">
+                <input 
+                    type="text" 
+                    id="textInput" 
+                    placeholder="Или введите сообщение текстом..." 
+                    class="flex-1 border border-border rounded-md px-3 py-2 bg-background focus:outline-none focus:ring-2 focus:ring-ring"
+                >
+                <button id="sendBtn" class="btn btn-primary">
+                    <i data-lucide="send" class="h-4 w-4"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Быстрые команды -->
+    <div class="card">
+        <div class="p-6">
+            <h3 class="text-lg font-semibold mb-4">Быстрые команды</h3>
+            <div class="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
+                <button class="btn btn-secondary text-left p-3 h-auto quick-command" data-command="Покажи последних клиентов">
+                    <div>
+                        <p class="font-medium">Последние клиенты</p>
+                        <p class="text-xs text-muted-foreground">Показать недавно добавленных</p>
+                    </div>
+                </button>
+                
+                <button class="btn btn-secondary text-left p-3 h-auto quick-command" data-command="Какая статистика по проектам?">
+                    <div>
+                        <p class="font-medium">Статистика проектов</p>
+                        <p class="text-xs text-muted-foreground">Общая информация</p>
+                    </div>
+                </button>
+                
+                <button class="btn btn-secondary text-left p-3 h-auto quick-command" data-command="Создай нового клиента">
+                    <div>
+                        <p class="font-medium">Добавить клиента</p>
+                        <p class="text-xs text-muted-foreground">Создать новую заявку</p>
+                    </div>
+                </button>
+                
+                <button class="btn btn-secondary text-left p-3 h-auto quick-command" data-command="Какие задачи на сегодня?">
+                    <div>
+                        <p class="font-medium">Задачи на сегодня</p>
+                        <p class="text-xs text-muted-foreground">Планы на день</p>
+                    </div>
+                </button>
+                
+                <button class="btn btn-secondary text-left p-3 h-auto quick-command" data-command="Помощь по системе">
+                    <div>
+                        <p class="font-medium">Справка</p>
+                        <p class="text-xs text-muted-foreground">Как пользоваться CRM</p>
+                    </div>
+                </button>
+                
+                <button class="btn btn-secondary text-left p-3 h-auto quick-command" data-command="Настройки голосового помощника">
+                    <div>
+                        <p class="font-medium">Настройки</p>
+                        <p class="text-xs text-muted-foreground">Конфигурация помощника</p>
+                    </div>
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block javascript %}
+<script>
+    console.log('🎤 Voice Assistant page loaded');
+    
+    let isRecording = false;
+    let mediaRecorder = null;
+    let audioStream = null;
+    
+    const voiceBtn = document.getElementById('voiceBtn');
+    const voiceStatus = document.getElementById('voiceStatus');
+    const chatMessages = document.getElementById('chatMessages');
+    const textInput = document.getElementById('textInput');
+    const sendBtn = document.getElementById('sendBtn');
+    
+    // Инициализация
+    function init() {
+        voiceBtn.addEventListener('click', toggleRecording);
+        sendBtn.addEventListener('click', sendTextMessage);
+        textInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') sendTextMessage();
+        });
+        
+        // Быстрые команды
+        document.querySelectorAll('.quick-command').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const command = btn.dataset.command;
+                sendMessage(command, 'user');
+                processCommand(command);
+            });
+        });
+        
+        // Очистка чата
+        document.getElementById('clearChat').addEventListener('click', clearChat);
+    }
+    
+    // Переключение записи
+    async function toggleRecording() {
+        if (!isRecording) {
+            await startRecording();
+        } else {
+            stopRecording();
+        }
+    }
+    
+    // Начало записи
+    async function startRecording() {
+        try {
+            audioStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            mediaRecorder = new MediaRecorder(audioStream);
+            
+            mediaRecorder.ondataavailable = handleAudioData;
+            mediaRecorder.onstop = processAudio;
+            
+            mediaRecorder.start();
+            isRecording = true;
+            
+            voiceBtn.innerHTML = '<i data-lucide="square" class="h-8 w-8 mx-auto"></i>';
+            voiceBtn.className = voiceBtn.className.replace('bg-red-500 hover:bg-red-600', 'bg-green-500 hover:bg-green-600');
+            voiceStatus.textContent = 'Запись... Нажмите еще раз для остановки';
+            
+            lucide.createIcons();
+        } catch (error) {
+            console.error('Ошибка доступа к микрофону:', error);
+            voiceStatus.textContent = 'Ошибка доступа к микрофону';
+        }
+    }
+    
+    // Остановка записи
+    function stopRecording() {
+        if (mediaRecorder && isRecording) {
+            mediaRecorder.stop();
+            audioStream.getTracks().forEach(track => track.stop());
+            
+            isRecording = false;
+            voiceBtn.innerHTML = '<i data-lucide="mic" class="h-8 w-8 mx-auto"></i>';
+            voiceBtn.className = voiceBtn.className.replace('bg-green-500 hover:bg-green-600', 'bg-red-500 hover:bg-red-600');
+            voiceStatus.textContent = 'Обработка аудио...';
+            
+            lucide.createIcons();
+        }
+    }
+    
+    // Обработка аудио данных
+    function handleAudioData(event) {
+        // Здесь будет обработка аудио
+        console.log('Audio data received:', event.data);
+    }
+    
+    // Обработка аудио после записи
+    function processAudio() {
+        // Симуляция распознавания речи
+        setTimeout(() => {
+            const demoText = 'Покажи статистику по клиентам';
+            sendMessage(demoText, 'user');
+            processCommand(demoText);
+            voiceStatus.textContent = 'Нажмите на микрофон для начала записи';
+        }, 1000);
+    }
+    
+    // Отправка текстового сообщения
+    function sendTextMessage() {
+        const text = textInput.value.trim();
+        if (text) {
+            sendMessage(text, 'user');
+            processCommand(text);
+            textInput.value = '';
+        }
+    }
+    
+    // Добавление сообщения в чат
+    function sendMessage(text, sender) {
+        const messageDiv = document.createElement('div');
+        messageDiv.className = 'flex space-x-3';
+        
+        const isUser = sender === 'user';
+        const icon = isUser ? 'user' : 'bot';
+        const bgColor = isUser ? 'bg-primary text-primary-foreground' : 'bg-muted';
+        
+        messageDiv.innerHTML = `
+            <div class="w-8 h-8 ${isUser ? 'bg-primary' : 'bg-primary/10'} rounded-full flex items-center justify-center">
+                <i data-lucide="${icon}" class="h-4 w-4 ${isUser ? 'text-primary-foreground' : 'text-primary'}"></i>
+            </div>
+            <div class="flex-1">
+                <div class="${bgColor} rounded-lg p-3">
+                    <p class="text-sm">${text}</p>
+                </div>
+                <p class="text-xs text-muted-foreground mt-1">Сейчас</p>
+            </div>
+        `;
+        
+        chatMessages.appendChild(messageDiv);
+        chatMessages.scrollTop = chatMessages.scrollHeight;
+        lucide.createIcons();
+    }
+    
+    // Обработка команд
+    function processCommand(command) {
+        setTimeout(() => {
+            const lowerCommand = command.toLowerCase();
+            let response = '';
+            
+            if (lowerCommand.includes('клиент') || lowerCommand.includes('последн')) {
+                response = 'У вас {{ total_clients or 0 }} клиентов в базе. Последние добавленные: Гаврилюк Сергей Владимирович (футбольное поле), проект на 1.5М рублей.';
+            } else if (lowerCommand.includes('статистик') || lowerCommand.includes('проект')) {
+                response = 'Статистика: {{ total_projects or 0 }} активных проектов, 8 смет на утверждении, общий доход 2.4М рублей (+20% к прошлому месяцу).';
+            } else if (lowerCommand.includes('создай') || lowerCommand.includes('добав')) {
+                response = 'Для создания нового клиента перейдите в раздел "Клиенты и заявки" и нажмите кнопку "Добавить клиента". Хотите, чтобы я открыл эту страницу?';
+            } else if (lowerCommand.includes('задач') || lowerCommand.includes('сегодня')) {
+                response = 'На сегодня запланировано: созвониться с клиентом Гаврилюк С.В., подготовить смету для детской площадки, встреча с подрядчиком в 15:00.';
+            } else if (lowerCommand.includes('помощь') || lowerCommand.includes('справк')) {
+                response = 'ParkConstructionCRM поможет управлять проектами паркового строительства. Основные разделы: Клиенты, Сметы, Подрядчики, Задачи. Используйте голосовые команды или навигацию слева.';
+            } else if (lowerCommand.includes('настройк')) {
+                response = 'Настройки голосового помощника: языки распознавания, голоса для ответов, автоматический режим. Пока что функция в разработке.';
+            } else {
+                response = 'Понял ваш запрос, но пока не могу на него ответить. Попробуйте использовать быстрые команды выше или задайте вопрос о клиентах, проектах или статистике.';
+            }
+            
+            sendMessage(response, 'assistant');
+            
+            // Голосовой ответ (если включен)
+            if (document.getElementById('voiceResponse').checked) {
+                speakText(response);
+            }
+        }, 500);
+    }
+    
+    // Синтез речи
+    function speakText(text) {
+        if ('speechSynthesis' in window) {
+            const utterance = new SpeechSynthesisUtterance(text);
+            utterance.lang = 'ru-RU';
+            utterance.rate = 0.9;
+            speechSynthesis.speak(utterance);
+        }
+    }
+    
+    // Очистка чата
+    function clearChat() {
+        chatMessages.innerHTML = `
+            <div class="flex space-x-3">
+                <div class="w-8 h-8 bg-primary/10 rounded-full flex items-center justify-center">
+                    <i data-lucide="bot" class="h-4 w-4 text-primary"></i>
+                </div>
+                <div class="flex-1">
+                    <div class="bg-muted rounded-lg p-3">
+                        <p class="text-sm">
+                            Привет! Я ваш голосовой ИИ-помощник. Могу помочь с управлением клиентами, 
+                            проектами и ответить на вопросы о CRM системе. 
+                            Что вас интересует?
+                        </p>
+                    </div>
+                    <p class="text-xs text-muted-foreground mt-1">Сейчас</p>
+                </div>
+            </div>
+        `;
+        lucide.createIcons();
+    }
+    
+    // Инициализация при загрузке
+    init();
+</script>
+{% endblock %}
