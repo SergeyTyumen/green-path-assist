@@ -5,6 +5,14 @@ import { resolve } from 'path';
 export default defineConfig(async ({ mode }) => {
   const plugins = [react()];
   
+  // Динамический импорт для Tailwind CSS
+  try {
+    const tailwindcss = await import('@tailwindcss/vite');
+    plugins.push(tailwindcss.default());
+  } catch (error) {
+    console.warn('Failed to load @tailwindcss/vite:', error);
+  }
+  
   if (mode === 'development') {
     try {
       const { componentTagger } = await import("lovable-tagger");
