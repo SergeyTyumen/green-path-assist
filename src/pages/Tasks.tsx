@@ -50,7 +50,7 @@ export default function Tasks() {
     
     const config = statusConfig[status];
     return (
-      <Badge className={config.className}>
+      <Badge className={`${config.className} whitespace-nowrap`}>
         {config.label}
       </Badge>
     );
