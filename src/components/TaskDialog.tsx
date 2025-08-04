@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -55,7 +55,7 @@ export function TaskDialog({ task, trigger, onClose }: TaskDialogProps) {
     const taskData = {
       ...formData,
       due_date: formData.due_date?.toISOString().split('T')[0],
-      client_id: formData.client_id === "none" ? null : formData.client_id,
+      client_id: (formData.client_id === "none" || formData.client_id === "") ? null : formData.client_id,
     };
 
     if (task) {
@@ -98,6 +98,9 @@ export function TaskDialog({ task, trigger, onClose }: TaskDialogProps) {
           <DialogTitle>
             {task ? "Редактировать задачу" : "Создать новую задачу"}
           </DialogTitle>
+          <DialogDescription>
+            {task ? "Измените параметры задачи" : "Заполните информацию для новой задачи"}
+          </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
