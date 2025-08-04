@@ -12,7 +12,7 @@ export function Layout() {
   return (
     <ProtectedRoute>
       <SidebarProvider>
-        <div className="min-h-screen flex w-full bg-background">
+        <div className="min-h-screen flex w-full test-bg" style={{backgroundColor: '#f8f9fa', padding: '20px'}}>
           <AppSidebar />
           
           <div className="flex-1 flex flex-col">
