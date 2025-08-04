@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -7,6 +7,9 @@ import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Switch } from '@/components/ui/switch';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { 
   MessageSquare, 
   Send, 
@@ -15,35 +18,116 @@ import {
   Settings,
   Database,
   Users,
-  Bot
+  Bot,
+  Edit3,
+  Plus,
+  Trash2,
+  MessageCircle,
+  Send as MessageCircle2,
+  Globe,
+  Check,
+  X,
+  Play,
+  Pause
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { supabase } from '@/integrations/supabase/client';
 
 interface ChatMessage {
   id: string;
-  type: 'user' | 'assistant';
+  type: 'user' | 'assistant' | 'system';
   content: string;
   timestamp: Date;
+  source?: 'website' | 'whatsapp' | 'telegram';
+  clientId?: string;
+  status?: 'pending' | 'approved' | 'sent';
+  originalContent?: string;
+}
+
+interface KnowledgeItem {
+  id: string;
+  category: string;
+  question: string;
+  answer: string;
+}
+
+interface IntegrationConfig {
+  whatsapp: {
+    enabled: boolean;
+    token?: string;
+    webhookUrl?: string;
+  };
+  telegram: {
+    enabled: boolean;
+    token?: string;
+    webhookUrl?: string;
+  };
+  website: {
+    enabled: boolean;
+    widgetCode?: string;
+  };
 }
 
 const AIConsultant = () => {
   const { toast } = useToast();
-  const [messages, setMessages] = useState<ChatMessage[]>([
-    {
-      id: '1',
-      type: 'assistant',
-      content: 'Здравствуйте! Я ИИ-консультант. Могу ответить на вопросы о наших услугах, ценах и материалах. Чем могу помочь?',
-      timestamp: new Date()
-    }
-  ]);
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [inputMessage, setInputMessage] = useState('');
   const [isTyping, setIsTyping] = useState(false);
+  const [autoMode, setAutoMode] = useState(false);
+  const [knowledgeBase, setKnowledgeBase] = useState<KnowledgeItem[]>([
+    {
+      id: '1',
+      category: 'Услуги',
+      question: 'Какие услуги вы предоставляете?',
+      answer: 'Мы предоставляем полный спектр строительно-отделочных работ: укладка плитки (от 1100₽/м²), покраска стен (от 400₽/м²), штукатурка (от 350₽/м²), монтаж гипсокартона, электромонтажные работы, сантехнические работы.'
+    },
+    {
+      id: '2',
+      category: 'Цены',
+      question: 'Сколько стоят ваши услуги?',
+      answer: 'Наши цены: Укладка плитки от 1100₽/м², покраска стен от 400₽/м², штукатурка от 350₽/м², монтаж гипсокартона от 500₽/м². Точная стоимость рассчитывается после замера.'
+    },
+    {
+      id: '3',
+      category: 'Гарантии',
+      question: 'Какие гарантии вы даете?',
+      answer: 'Мы предоставляем гарантию на все виды работ: отделочные работы - 2 года, электромонтажные работы - 3 года, сантехнические работы - 2 года. Гарантия распространяется на материалы и качество выполнения.'
+    }
+  ]);
+  
+  const [integrations, setIntegrations] = useState<IntegrationConfig>({
+    whatsapp: { enabled: false },
+    telegram: { enabled: false },
+    website: { enabled: false }
+  });
 
-  const knowledgeBase = [
-    { category: 'Услуги', items: ['Укладка плитки', 'Покраска стен', 'Штукатурка', 'Монтаж гипсокартона'] },
-    { category: 'Материалы', items: ['Керамическая плитка', 'Краска', 'Гипсокартон', 'Цемент'] },
-    { category: 'Цены', items: ['Укладка плитки: от 1100₽/м²', 'Покраска: от 400₽/м²', 'Штукатурка: от 350₽/м²'] }
+  const [pendingMessages, setPendingMessages] = useState<ChatMessage[]>([]);
+  const [editingKnowledge, setEditingKnowledge] = useState<KnowledgeItem | null>(null);
+  const [isKnowledgeDialogOpen, setIsKnowledgeDialogOpen] = useState(false);
+
+  // Быстрые ответы (готовые ответы, а не вопросы)
+  const quickReplies = [
+    'Здравствуйте! Спасибо за обращение. Я готов ответить на все ваши вопросы о наших услугах.',
+    'Для точного расчета стоимости работ нам необходимо произвести замер. Вызов замерщика бесплатный.',
+    'Все материалы мы закупаем у проверенных поставщиков с сертификатами качества.',
+    'Сроки выполнения работ зависят от объема. Обычно это от 3 до 14 рабочих дней.',
+    'На все виды работ мы предоставляем официальную гарантию от 2 до 3 лет.'
   ];
+
+  const generateAIResponse = async (userMessage: string): Promise<string> => {
+    // Поиск в базе знаний
+    const relevantKnowledge = knowledgeBase.find(item => 
+      userMessage.toLowerCase().includes(item.question.toLowerCase().split(' ')[0]) ||
+      item.answer.toLowerCase().includes(userMessage.toLowerCase().split(' ')[0])
+    );
+
+    if (relevantKnowledge) {
+      return relevantKnowledge.answer;
+    }
+
+    // Если не нашли в базе знаний, генерируем общий ответ
+    return `Спасибо за ваш вопрос. Позвольте уточнить детали и предоставить вам максимально точную информацию. Для получения персональной консультации рекомендую связаться с нашим менеджером по телефону.`;
+  };
 
   const sendMessage = async () => {
     if (!inputMessage.trim()) return;
@@ -52,24 +136,96 @@ const AIConsultant = () => {
       id: Date.now().toString(),
       type: 'user',
       content: inputMessage,
-      timestamp: new Date()
+      timestamp: new Date(),
+      source: 'website'
     };
 
     setMessages(prev => [...prev, userMessage]);
     setInputMessage('');
     setIsTyping(true);
 
-    // Симуляция ответа ИИ
-    setTimeout(() => {
+    try {
+      const aiResponseContent = await generateAIResponse(inputMessage);
+      
       const aiResponse: ChatMessage = {
         id: (Date.now() + 1).toString(),
         type: 'assistant',
-        content: `Спасибо за ваш вопрос: "${inputMessage}". На основе нашей базы знаний могу предложить следующую информацию...`,
-        timestamp: new Date()
+        content: aiResponseContent,
+        timestamp: new Date(),
+        status: autoMode ? 'sent' : 'pending',
+        originalContent: aiResponseContent
       };
-      setMessages(prev => [...prev, aiResponse]);
+
+      if (autoMode) {
+        setMessages(prev => [...prev, aiResponse]);
+        toast({
+          title: "Сообщение отправлено",
+          description: "Ответ автоматически отправлен клиенту",
+        });
+      } else {
+        setPendingMessages(prev => [...prev, aiResponse]);
+        toast({
+          title: "Ответ сгенерирован",
+          description: "Проверьте и отредактируйте ответ перед отправкой",
+        });
+      }
+    } catch (error) {
+      toast({
+        title: "Ошибка",
+        description: "Не удалось сгенерировать ответ",
+        variant: "destructive",
+      });
+    } finally {
       setIsTyping(false);
-    }, 2000);
+    }
+  };
+
+  const approveMessage = (messageId: string) => {
+    const message = pendingMessages.find(m => m.id === messageId);
+    if (message) {
+      setMessages(prev => [...prev, { ...message, status: 'sent' }]);
+      setPendingMessages(prev => prev.filter(m => m.id !== messageId));
+      toast({
+        title: "Сообщение отправлено",
+        description: "Ответ отправлен клиенту",
+      });
+    }
+  };
+
+  const editMessage = (messageId: string, newContent: string) => {
+    setPendingMessages(prev => 
+      prev.map(m => m.id === messageId ? { ...m, content: newContent } : m)
+    );
+  };
+
+  const addKnowledgeItem = (item: Omit<KnowledgeItem, 'id'>) => {
+    const newItem: KnowledgeItem = {
+      ...item,
+      id: Date.now().toString()
+    };
+    setKnowledgeBase(prev => [...prev, newItem]);
+    toast({
+      title: "Элемент добавлен",
+      description: "Новый элемент базы знаний успешно добавлен",
+    });
+  };
+
+  const updateKnowledgeItem = (id: string, updates: Partial<KnowledgeItem>) => {
+    setKnowledgeBase(prev => 
+      prev.map(item => item.id === id ? { ...item, ...updates } : item)
+    );
+    toast({
+      title: "Элемент обновлен",
+      description: "Элемент базы знаний успешно обновлен",
+    });
+  };
+
+  const deleteKnowledgeItem = (id: string) => {
+    setKnowledgeBase(prev => prev.filter(item => item.id !== id));
+    toast({
+      title: "Элемент удален",
+      description: "Элемент базы знаний удален",
+    });
   };
 
   return (
@@ -107,34 +263,128 @@ const AIConsultant = () => {
         </TabsList>
 
         <TabsContent value="chat" className="space-y-6">
+          {/* Режим работы */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center justify-between">
+                <span>Режим работы</span>
+                <div className="flex items-center gap-2">
+                  {autoMode ? <Play className="h-4 w-4 text-green-500" /> : <Pause className="h-4 w-4 text-orange-500" />}
+                  <Switch checked={autoMode} onCheckedChange={setAutoMode} />
+                  <span className="text-sm">{autoMode ? 'Автоматический' : 'Ручной'}</span>
+                </div>
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-sm text-muted-foreground">
+                {autoMode 
+                  ? 'Сообщения отправляются автоматически без модерации'
+                  : 'Каждое сообщение требует подтверждения перед отправкой'
+                }
+              </p>
+            </CardContent>
+          </Card>
+
+          {/* Ожидающие модерации сообщения */}
+          {pendingMessages.length > 0 && (
+            <Card className="border-orange-200">
+              <CardHeader>
+                <CardTitle className="text-orange-700">Ожидают модерации ({pendingMessages.length})</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {pendingMessages.map((message) => (
+                  <div key={message.id} className="border rounded-lg p-4 space-y-3">
+                    <div className="bg-muted p-3 rounded">
+                      <p className="text-sm">{message.content}</p>
+                    </div>
+                    <div className="flex gap-2">
+                      <Button 
+                        size="sm" 
+                        variant="default"
+                        onClick={() => approveMessage(message.id)}
+                      >
+                        <Check className="h-3 w-3 mr-1" />
+                        Отправить
+                      </Button>
+                      <Dialog>
+                        <DialogTrigger asChild>
+                          <Button size="sm" variant="outline">
+                            <Edit3 className="h-3 w-3 mr-1" />
+                            Редактировать
+                          </Button>
+                        </DialogTrigger>
+                        <DialogContent>
+                          <DialogHeader>
+                            <DialogTitle>Редактирование ответа</DialogTitle>
+                          </DialogHeader>
+                          <div className="space-y-4">
+                            <Textarea 
+                              defaultValue={message.content}
+                              rows={6}
+                              onChange={(e) => editMessage(message.id, e.target.value)}
+                            />
+                            <div className="flex gap-2">
+                              <Button onClick={() => approveMessage(message.id)}>
+                                Отправить
+                              </Button>
+                              <Button variant="outline">
+                                Отмена
+                              </Button>
+                            </div>
+                          </div>
+                        </DialogContent>
+                      </Dialog>
+                      <Button 
+                        size="sm" 
+                        variant="ghost"
+                        onClick={() => setPendingMessages(prev => prev.filter(m => m.id !== message.id))}
+                      >
+                        <X className="h-3 w-3" />
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
+          )}
+
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <div className="lg:col-span-2">
               <Card className="h-[600px] flex flex-col">
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <Bot className="h-5 w-5" />
-                    Чат с консультантом
+                    Единый чат клиентов
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="flex-1 flex flex-col p-0">
                   <ScrollArea className="flex-1 p-4">
                     <div className="space-y-4">
                       {messages.map((message) => (
-                        <div
-                          key={message.id}
-                          className={`flex ${message.type === 'user' ? 'justify-end' : 'justify-start'}`}
-                        >
-                          <div
-                            className={`max-w-[80%] p-3 rounded-lg ${
+                        <div key={message.id} className="space-y-2">
+                          <div className={`flex ${message.type === 'user' ? 'justify-end' : 'justify-start'}`}>
+                            <div className={`max-w-[80%] p-3 rounded-lg ${
                               message.type === 'user'
                                 ? 'bg-primary text-primary-foreground'
-                                : 'bg-muted'
-                            }`}
-                          >
-                            <p className="text-sm">{message.content}</p>
-                            <p className="text-xs opacity-70 mt-1">
-                              {message.timestamp.toLocaleTimeString()}
-                            </p>
+                                : message.status === 'sent' 
+                                  ? 'bg-green-100 dark:bg-green-900' 
+                                  : 'bg-muted'
+                            }`}>
+                              <div className="flex items-center gap-2 mb-1">
+                                {message.source === 'whatsapp' && <MessageCircle className="h-3 w-3 text-green-600" />}
+                                {message.source === 'telegram' && <MessageCircle2 className="h-3 w-3 text-blue-600" />}
+                                {message.source === 'website' && <Globe className="h-3 w-3 text-gray-600" />}
+                                <span className="text-xs opacity-70">
+                                  {message.source === 'whatsapp' && 'WhatsApp'}
+                                  {message.source === 'telegram' && 'Telegram'}
+                                  {message.source === 'website' && 'Сайт'}
+                                </span>
+                              </div>
+                              <p className="text-sm">{message.content}</p>
+                              <p className="text-xs opacity-70 mt-1">
+                                {message.timestamp.toLocaleTimeString()}
+                              </p>
+                            </div>
                           </div>
                         </div>
                       ))}
@@ -156,7 +406,7 @@ const AIConsultant = () => {
                       <Input
                         value={inputMessage}
                         onChange={(e) => setInputMessage(e.target.value)}
-                        placeholder="Задайте вопрос о наших услугах..."
+                        placeholder="Симуляция сообщения клиента..."
                         onKeyPress={(e) => e.key === 'Enter' && sendMessage()}
                       />
                       <Button onClick={sendMessage} disabled={!inputMessage.trim() || isTyping}>
@@ -172,25 +422,55 @@ const AIConsultant = () => {
               <Card>
                 <CardHeader>
                   <CardTitle className="text-lg">Быстрые ответы</CardTitle>
+                  <CardDescription>Готовые шаблоны ответов для клиентов</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-2">
-                  {[
-                    'Какие у вас есть услуги?',
-                    'Сколько стоит укладка плитки?',
-                    'Какие материалы вы используете?',
-                    'Сроки выполнения работ?',
-                    'Гарантия на работы?'
-                  ].map((question, index) => (
+                  {quickReplies.map((reply, index) => (
                     <Button
                       key={index}
                       variant="ghost"
                       className="w-full justify-start text-left h-auto p-2"
-                      onClick={() => setInputMessage(question)}
+                      onClick={() => setInputMessage(reply)}
                     >
                       <MessageSquare className="h-3 w-3 mr-2 flex-shrink-0" />
-                      <span className="text-xs">{question}</span>
+                      <span className="text-xs">{reply.substring(0, 50)}...</span>
                     </Button>
                   ))}
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg">Интеграции</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <MessageCircle className="h-4 w-4 text-green-600" />
+                      <span className="text-sm">WhatsApp</span>
+                    </div>
+                    <Badge variant={integrations.whatsapp.enabled ? "default" : "secondary"}>
+                      {integrations.whatsapp.enabled ? "Подключен" : "Не подключен"}
+                    </Badge>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <MessageCircle2 className="h-4 w-4 text-blue-600" />
+                      <span className="text-sm">Telegram</span>
+                    </div>
+                    <Badge variant={integrations.telegram.enabled ? "default" : "secondary"}>
+                      {integrations.telegram.enabled ? "Подключен" : "Не подключен"}
+                    </Badge>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Globe className="h-4 w-4" />
+                      <span className="text-sm">Виджет сайта</span>
+                    </div>
+                    <Badge variant={integrations.website.enabled ? "default" : "secondary"}>
+                      {integrations.website.enabled ? "Подключен" : "Не подключен"}
+                    </Badge>
+                  </div>
                 </CardContent>
               </Card>
 
@@ -218,26 +498,121 @@ const AIConsultant = () => {
         </TabsContent>
 
         <TabsContent value="knowledge" className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {knowledgeBase.map((section, index) => (
-              <Card key={index}>
+          <div className="flex justify-between items-center">
+            <h2 className="text-2xl font-bold">База знаний</h2>
+            <Dialog open={isKnowledgeDialogOpen} onOpenChange={setIsKnowledgeDialogOpen}>
+              <DialogTrigger asChild>
+                <Button>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Добавить элемент
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>
+                    {editingKnowledge ? 'Редактировать элемент' : 'Добавить элемент'}
+                  </DialogTitle>
+                </DialogHeader>
+                <div className="space-y-4">
+                  <div>
+                    <Label>Категория</Label>
+                    <Select defaultValue={editingKnowledge?.category || 'Услуги'}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Выберите категорию" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Услуги">Услуги</SelectItem>
+                        <SelectItem value="Цены">Цены</SelectItem>
+                        <SelectItem value="Материалы">Материалы</SelectItem>
+                        <SelectItem value="Гарантии">Гарантии</SelectItem>
+                        <SelectItem value="Сроки">Сроки</SelectItem>
+                        <SelectItem value="Контакты">Контакты</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label>Вопрос/Ключевое слово</Label>
+                    <Input 
+                      defaultValue={editingKnowledge?.question || ''}
+                      placeholder="Какой вопрос задают клиенты?"
+                    />
+                  </div>
+                  <div>
+                    <Label>Ответ</Label>
+                    <Textarea 
+                      defaultValue={editingKnowledge?.answer || ''}
+                      rows={4}
+                      placeholder="Подробный ответ для клиента..."
+                    />
+                  </div>
+                  <div className="flex gap-2">
+                    <Button onClick={() => {
+                      // В реальном приложении здесь будет сохранение данных из формы
+                      if (editingKnowledge) {
+                        updateKnowledgeItem(editingKnowledge.id, editingKnowledge);
+                      } else {
+                        addKnowledgeItem({
+                          category: 'Услуги',
+                          question: 'Новый вопрос',
+                          answer: 'Новый ответ'
+                        });
+                      }
+                      setEditingKnowledge(null);
+                      setIsKnowledgeDialogOpen(false);
+                    }}>
+                      Сохранить
+                    </Button>
+                    <Button variant="outline" onClick={() => {
+                      setEditingKnowledge(null);
+                      setIsKnowledgeDialogOpen(false);
+                    }}>
+                      Отмена
+                    </Button>
+                  </div>
+                </div>
+              </DialogContent>
+            </Dialog>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {knowledgeBase.map((item) => (
+              <Card key={item.id}>
                 <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Database className="h-5 w-5" />
-                    {section.category}
+                  <CardTitle className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Database className="h-5 w-5" />
+                      <Badge variant="outline">{item.category}</Badge>
+                    </div>
+                    <div className="flex gap-1">
+                      <Button 
+                        size="sm" 
+                        variant="ghost"
+                        onClick={() => {
+                          setEditingKnowledge(item);
+                          setIsKnowledgeDialogOpen(true);
+                        }}
+                      >
+                        <Edit3 className="h-3 w-3" />
+                      </Button>
+                      <Button 
+                        size="sm" 
+                        variant="ghost"
+                        onClick={() => deleteKnowledgeItem(item.id)}
+                      >
+                        <Trash2 className="h-3 w-3" />
+                      </Button>
+                    </div>
                   </CardTitle>
                 </CardHeader>
-                <CardContent>
-                  <div className="space-y-2">
-                    {section.items.map((item, itemIndex) => (
-                      <div key={itemIndex} className="p-2 bg-muted/50 rounded text-sm">
-                        {item}
-                      </div>
-                    ))}
+                <CardContent className="space-y-3">
+                  <div>
+                    <Label className="font-medium">Вопрос:</Label>
+                    <p className="text-sm text-muted-foreground mt-1">{item.question}</p>
                   </div>
-                  <Button variant="outline" size="sm" className="w-full mt-4">
-                    Редактировать
-                  </Button>
+                  <div>
+                    <Label className="font-medium">Ответ:</Label>
+                    <p className="text-sm text-muted-foreground mt-1">{item.answer}</p>
+                  </div>
                 </CardContent>
               </Card>
             ))}
@@ -245,38 +620,150 @@ const AIConsultant = () => {
         </TabsContent>
 
         <TabsContent value="settings" className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Settings className="h-5 w-5" />
-                Настройки консультанта
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="space-y-4">
-                <div>
-                  <Label>Промпт системы</Label>
-                  <Textarea 
-                    className="mt-2"
-                    placeholder="Вы - профессиональный консультант строительной компании..."
-                    rows={4}
-                  />
-                </div>
-                <div>
-                  <Label>Стиль общения</Label>
-                  <div className="grid grid-cols-3 gap-2 mt-2">
-                    <Button variant="outline" size="sm">Формальный</Button>
-                    <Button variant="default" size="sm">Дружелюбный</Button>
-                    <Button variant="outline" size="sm">Краткий</Button>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Settings className="h-5 w-5" />
+                  Настройки консультанта
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div className="space-y-4">
+                  <div>
+                    <Label>Промпт системы</Label>
+                    <Textarea 
+                      className="mt-2"
+                      defaultValue="Вы - профессиональный консультант строительной компании. Отвечайте вежливо, информативно и помогайте клиентам с выбором услуг. Используйте информацию из базы знаний для точных ответов о ценах и услугах."
+                      rows={4}
+                    />
+                  </div>
+                  <div>
+                    <Label>Стиль общения</Label>
+                    <div className="grid grid-cols-3 gap-2 mt-2">
+                      <Button variant="outline" size="sm">Формальный</Button>
+                      <Button variant="default" size="sm">Дружелюбный</Button>
+                      <Button variant="outline" size="sm">Краткий</Button>
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <Label>Уведомления о новых обращениях</Label>
+                    <Switch defaultChecked />
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <Label>Автоматические ответы в нерабочее время</Label>
+                    <Switch />
                   </div>
                 </div>
-                <div className="flex items-center justify-between">
-                  <Label>Уведомления о новых обращениях</Label>
-                  <Button variant="outline" size="sm">Включены</Button>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Интеграции мессенджеров</CardTitle>
+                <CardDescription>
+                  Настройте подключение к WhatsApp, Telegram и виджету сайта
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between p-4 border rounded-lg">
+                    <div className="flex items-center gap-3">
+                      <MessageCircle className="h-5 w-5 text-green-600" />
+                      <div>
+                        <p className="font-medium">WhatsApp Business</p>
+                        <p className="text-sm text-muted-foreground">
+                          Подключите WhatsApp API для автоматических ответов
+                        </p>
+                      </div>
+                    </div>
+                    <Button 
+                      variant={integrations.whatsapp.enabled ? "secondary" : "default"}
+                      onClick={() => {
+                        setIntegrations(prev => ({
+                          ...prev,
+                          whatsapp: { ...prev.whatsapp, enabled: !prev.whatsapp.enabled }
+                        }));
+                        toast({
+                          title: integrations.whatsapp.enabled ? "WhatsApp отключен" : "WhatsApp подключен",
+                          description: "Настройки интеграции обновлены",
+                        });
+                      }}
+                    >
+                      {integrations.whatsapp.enabled ? "Отключить" : "Подключить"}
+                    </Button>
+                  </div>
+
+                  <div className="flex items-center justify-between p-4 border rounded-lg">
+                    <div className="flex items-center gap-3">
+                      <MessageCircle2 className="h-5 w-5 text-blue-600" />
+                      <div>
+                        <p className="font-medium">Telegram Bot</p>
+                        <p className="text-sm text-muted-foreground">
+                          Создайте Telegram бота для консультаций
+                        </p>
+                      </div>
+                    </div>
+                    <Button 
+                      variant={integrations.telegram.enabled ? "secondary" : "default"}
+                      onClick={() => {
+                        setIntegrations(prev => ({
+                          ...prev,
+                          telegram: { ...prev.telegram, enabled: !prev.telegram.enabled }
+                        }));
+                        toast({
+                          title: integrations.telegram.enabled ? "Telegram отключен" : "Telegram подключен",
+                          description: "Настройки интеграции обновлены",
+                        });
+                      }}
+                    >
+                      {integrations.telegram.enabled ? "Отключить" : "Подключить"}
+                    </Button>
+                  </div>
+
+                  <div className="flex items-center justify-between p-4 border rounded-lg">
+                    <div className="flex items-center gap-3">
+                      <Globe className="h-5 w-5 text-gray-600" />
+                      <div>
+                        <p className="font-medium">Виджет сайта</p>
+                        <p className="text-sm text-muted-foreground">
+                          Встройте чат-виджет на ваш сайт
+                        </p>
+                      </div>
+                    </div>
+                    <Button 
+                      variant={integrations.website.enabled ? "secondary" : "default"}
+                      onClick={() => {
+                        setIntegrations(prev => ({
+                          ...prev,
+                          website: { ...prev.website, enabled: !prev.website.enabled }
+                        }));
+                        toast({
+                          title: integrations.website.enabled ? "Виджет отключен" : "Виджет подключен",
+                          description: "Настройки интеграции обновлены",
+                        });
+                      }}
+                    >
+                      {integrations.website.enabled ? "Отключить" : "Подключить"}
+                    </Button>
+                  </div>
                 </div>
-              </div>
-            </CardContent>
-          </Card>
+
+                {integrations.website.enabled && (
+                  <div className="p-4 bg-muted/50 rounded-lg">
+                    <Label className="text-sm font-medium">Код виджета для вставки на сайт:</Label>
+                    <div className="mt-2 p-3 bg-black text-green-400 rounded font-mono text-xs">
+                      {`<script src="https://your-domain.com/widget.js"></script>
+<div id="ai-consultant-widget"></div>`}
+                    </div>
+                    <Button variant="outline" size="sm" className="mt-2">
+                      Скопировать код
+                    </Button>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
         </TabsContent>
       </Tabs>
     </div>
