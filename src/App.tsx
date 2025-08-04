@@ -22,6 +22,7 @@ import NotFound from "./pages/NotFound";
 import { Auth } from "./pages/Auth";
 import AIAnalystPage from "./pages/AIAnalystPage";
 import CompetitorAnalysisPage from "./pages/CompetitorAnalysisPage";
+import AIEstimator from "./pages/AIEstimator";
 
 const queryClient = new QueryClient();
 
@@ -50,6 +51,7 @@ const App = () => (
               <Route path="voice-settings" element={<VoiceAssistantSettings />} />
               <Route path="ai-analyst" element={<AIAnalystPage />} />
               <Route path="competitor-analysis" element={<CompetitorAnalysisPage />} />
+              <Route path="ai-estimator" element={<AIEstimator />} />
             </Route>
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />

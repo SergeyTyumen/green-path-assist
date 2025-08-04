@@ -45,7 +45,7 @@ const AIAssistants = () => {
       name: 'ИИ-сметчик',
       description: 'Формирует предварительные и точные сметы по техзаданию',
       icon: FileText,
-      status: 'development',
+      status: 'active',
       features: ['Автоматический расчёт объёмов', 'Нормы и коэффициенты', 'Экспорт в PDF/Word'],
       color: 'bg-green-500',
       route: '/ai-estimator'
@@ -192,7 +192,7 @@ const AIAssistants = () => {
             <div className="flex items-center gap-3">
               <Bot className="h-8 w-8 text-primary" />
               <div>
-                <p className="text-2xl font-bold">3</p>
+                <p className="text-2xl font-bold">4</p>
                 <p className="text-sm text-muted-foreground">Активных помощника</p>
               </div>
             </div>
