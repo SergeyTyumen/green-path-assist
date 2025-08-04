@@ -12,11 +12,11 @@ export function Layout() {
   return (
     <ProtectedRoute>
       <SidebarProvider>
-        <div className="min-h-screen flex w-full test-bg" style={{backgroundColor: '#f8f9fa', padding: '20px'}}>
+        <div className="main-container">
           <AppSidebar />
           
           <div className="flex-1 flex flex-col">
-            <header className="h-14 flex items-center justify-between px-4 border-b bg-card/50 backdrop-blur-sm">
+            <header className="header">
               <div className="flex items-center gap-4">
                 <SidebarTrigger className="h-8 w-8 p-0 hover:bg-accent hover:text-accent-foreground">
                   <Menu className="h-4 w-4" />
@@ -41,7 +41,7 @@ export function Layout() {
               </div>
             </header>
 
-            <main className="flex-1 overflow-auto">
+            <main className="main-content">
               <Outlet />
             </main>
           </div>
