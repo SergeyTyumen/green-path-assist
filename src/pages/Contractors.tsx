@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import { useContractors } from "@/hooks/useContractors";
 import { ContractorDialog } from "@/components/ContractorDialog";
+import { ClickablePhone } from "@/components/ClickablePhone";
 
 export default function Contractors() {
   const [searchTerm, setSearchTerm] = useState("");
@@ -147,10 +148,11 @@ export default function Contractors() {
                     
                     <div className="flex items-center gap-4 text-sm text-muted-foreground">
                       {contractor.phone && (
-                        <div className="flex items-center gap-1">
-                          <Phone className="h-4 w-4" />
-                          {contractor.phone}
-                        </div>
+                        <ClickablePhone 
+                          phone={contractor.phone} 
+                          variant="text" 
+                          className="text-sm text-muted-foreground"
+                        />
                       )}
                       {contractor.rating && contractor.rating > 0 && (
                         <div className="flex items-center gap-1">

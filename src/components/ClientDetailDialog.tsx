@@ -18,6 +18,7 @@ import {
   Edit,
   X
 } from 'lucide-react';
+import { ClickablePhone } from '@/components/ClickablePhone';
 
 interface Client {
   id: string;
@@ -110,10 +111,11 @@ export function ClientDetailDialog({ client, isOpen, onClose, onEdit }: ClientDe
             <div className="space-y-3">
               <h3 className="font-semibold">Контактная информация</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="flex items-center gap-2">
-                  <Phone className="h-4 w-4 text-muted-foreground" />
-                  <span>{client.phone}</span>
-                </div>
+                <ClickablePhone 
+                  phone={client.phone} 
+                  variant="text" 
+                  className="text-sm"
+                />
                 {client.email && (
                   <div className="flex items-center gap-2">
                     <Mail className="h-4 w-4 text-muted-foreground" />

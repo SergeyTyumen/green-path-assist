@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import { useSuppliers } from "@/hooks/useSuppliers";
 import { SupplierDialog } from "@/components/SupplierDialog";
+import { ClickablePhone } from "@/components/ClickablePhone";
 
 interface SupplierPhone {
   number: string;
@@ -184,24 +185,28 @@ export default function Suppliers() {
                           <span>👤 {supplier.contact_person}</span>
                         </div>
                       )}
-                      {supplier.phones && supplier.phones.length > 0 && (
-                        <div className="space-y-1">
-                          {supplier.phones.map((phone, index) => (
-                            <div key={index} className="flex items-center gap-2">
-                              <Phone className="h-4 w-4" />
-                              <span>{phone.number}</span>
-                              <Badge variant="outline" className="text-xs">
-                                {phone.type === 'mobile' ? 'Мобильный' : 'Городской'}
-                              </Badge>
-                              {phone.messenger && !["none", ""].includes(phone.messenger) && (
-                                <Badge variant="secondary" className="text-xs">
-                                  {phone.messenger}
-                                </Badge>
-                              )}
-                            </div>
-                          ))}
-                        </div>
-                      )}
+                       {supplier.phones && supplier.phones.length > 0 && (
+                         <div className="space-y-1">
+                           {supplier.phones.map((phone, index) => (
+                             <div key={index} className="flex items-center gap-2">
+                               <ClickablePhone 
+                                 phone={phone.number} 
+                                 messenger={phone.messenger || undefined}
+                                 variant="text"
+                                 className="text-sm"
+                               />
+                               <Badge variant="outline" className="text-xs">
+                                 {phone.type === 'mobile' ? 'Мобильный' : 'Городской'}
+                               </Badge>
+                               {phone.messenger && !["none", ""].includes(phone.messenger) && (
+                                 <Badge variant="secondary" className="text-xs">
+                                   {phone.messenger}
+                                 </Badge>
+                               )}
+                             </div>
+                           ))}
+                         </div>
+                       )}
                       {supplier.email && (
                         <div className="flex items-center gap-1">
                           <Mail className="h-4 w-4" />

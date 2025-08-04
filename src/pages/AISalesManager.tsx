@@ -23,6 +23,7 @@ import {
   DollarSign
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { ClickablePhone } from '@/components/ClickablePhone';
 
 interface SalesLead {
   id: string;
@@ -260,7 +261,7 @@ const AISalesManager = () => {
                       <TableCell className="font-medium">{lead.clientName}</TableCell>
                       <TableCell>
                         <div className="text-xs">
-                          <div>{lead.phone}</div>
+                          <ClickablePhone phone={lead.phone} variant="text" className="text-xs" />
                           <div className="text-muted-foreground">{lead.email}</div>
                         </div>
                       </TableCell>

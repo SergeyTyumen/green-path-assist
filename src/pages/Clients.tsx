@@ -23,6 +23,7 @@ import {
 import { useClients, Client } from "@/hooks/useClients";
 import { ClientDetailDialog } from "@/components/ClientDetailDialog";
 import { AddClientDialog } from "@/components/AddClientDialog";
+import { ClickablePhone } from "@/components/ClickablePhone";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 
@@ -303,10 +304,11 @@ export default function Clients() {
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-2">
-                <div className="flex items-center gap-2 text-sm">
-                  <Phone className="h-4 w-4 text-muted-foreground" />
-                  <span>{client.phone}</span>
-                </div>
+                <ClickablePhone 
+                  phone={client.phone} 
+                  variant="text" 
+                  className="text-sm text-muted-foreground"
+                />
                 {client.email && (
                   <div className="flex items-center gap-2 text-sm">
                     <Mail className="h-4 w-4 text-muted-foreground" />
