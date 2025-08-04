@@ -23,6 +23,11 @@ import { Auth } from "./pages/Auth";
 import AIAnalystPage from "./pages/AIAnalystPage";
 import CompetitorAnalysisPage from "./pages/CompetitorAnalysisPage";
 import AIEstimator from "./pages/AIEstimator";
+import AIConsultant from "./pages/AIConsultant";
+import AIProposalManager from "./pages/AIProposalManager";
+import AISalesManager from "./pages/AISalesManager";
+import AISupplierManager from "./pages/AISupplierManager";
+import AIContractorManager from "./pages/AIContractorManager";
 
 const queryClient = new QueryClient();
 
@@ -52,6 +57,11 @@ const App = () => (
               <Route path="ai-analyst" element={<AIAnalystPage />} />
               <Route path="competitor-analysis" element={<CompetitorAnalysisPage />} />
               <Route path="ai-estimator" element={<AIEstimator />} />
+              <Route path="ai-consultant" element={<AIConsultant />} />
+              <Route path="ai-proposal-manager" element={<AIProposalManager />} />
+              <Route path="ai-sales-manager" element={<AISalesManager />} />
+              <Route path="ai-supplier-manager" element={<AISupplierManager />} />
+              <Route path="ai-contractor-manager" element={<AIContractorManager />} />
             </Route>
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />

@@ -35,7 +35,7 @@ const AIAssistants = () => {
       name: 'ИИ-консультант',
       description: 'Отвечает на вопросы клиентов по услугам, ценам и материалам',
       icon: MessageSquare,
-      status: 'development',
+      status: 'active',
       features: ['База услуг и материалов', 'Консультации клиентов', 'Сбор информации'],
       color: 'bg-purple-500',
       route: '/ai-consultant'
@@ -55,7 +55,7 @@ const AIAssistants = () => {
       name: 'ИИ-КП-менеджер',
       description: 'Оформляет и отправляет коммерческие предложения заказчикам',
       icon: FileText,
-      status: 'development',
+      status: 'active',
       features: ['Оформление КП', 'Автоотправка клиентам', 'Отслеживание статусов'],
       color: 'bg-indigo-500',
       route: '/ai-proposal-manager'
@@ -65,7 +65,7 @@ const AIAssistants = () => {
       name: 'ИИ-продажник',
       description: 'Ведение клиентов от заявки до заключения договора',
       icon: Users,
-      status: 'development',
+      status: 'active',
       features: ['Определение потребностей', 'Ведение воронки продаж', 'Автоматические напоминания'],
       color: 'bg-orange-500',
       route: '/ai-sales-manager'
@@ -75,7 +75,7 @@ const AIAssistants = () => {
       name: 'ИИ-поставщик-менеджер',
       description: 'Находит поставщиков и запрашивает цены по категориям',
       icon: Settings,
-      status: 'development',
+      status: 'active',
       features: ['Поиск поставщиков', 'Запрос цен', 'Анализ предложений'],
       color: 'bg-teal-500',
       route: '/ai-supplier-manager'
@@ -85,7 +85,7 @@ const AIAssistants = () => {
       name: 'ИИ-подрядчик-менеджер',
       description: 'Находит исполнителей по видам работ и формирует задания',
       icon: Settings,
-      status: 'development',
+      status: 'active',
       features: ['Поиск подрядчиков', 'Формирование заданий', 'Контроль сроков'],
       color: 'bg-cyan-500',
       route: '/ai-contractor-manager'
@@ -192,7 +192,7 @@ const AIAssistants = () => {
             <div className="flex items-center gap-3">
               <Bot className="h-8 w-8 text-primary" />
               <div>
-                <p className="text-2xl font-bold">4</p>
+                <p className="text-2xl font-bold">9</p>
                 <p className="text-sm text-muted-foreground">Активных помощника</p>
               </div>
             </div>
