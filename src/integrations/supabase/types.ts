@@ -14,57 +14,175 @@ export type Database = {
   }
   public: {
     Tables: {
+      client_comments: {
+        Row: {
+          author_name: string
+          client_id: string
+          comment_type: string
+          content: string
+          created_at: string | null
+          id: string
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          author_name: string
+          client_id: string
+          comment_type?: string
+          content: string
+          created_at?: string | null
+          id?: string
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          author_name?: string
+          client_id?: string
+          comment_type?: string
+          content?: string
+          created_at?: string | null
+          id?: string
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "client_comments_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      client_stages: {
+        Row: {
+          client_id: string
+          completed: boolean | null
+          completed_date: string | null
+          created_at: string | null
+          id: string
+          stage_name: string
+          stage_order: number
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          client_id: string
+          completed?: boolean | null
+          completed_date?: string | null
+          created_at?: string | null
+          id?: string
+          stage_name: string
+          stage_order: number
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          client_id?: string
+          completed?: boolean | null
+          completed_date?: string | null
+          created_at?: string | null
+          id?: string
+          stage_name?: string
+          stage_order?: number
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "client_stages_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       clients: {
         Row: {
           address: string | null
           budget: number | null
+          campaign_id: string | null
+          conversion_stage: string | null
           created_at: string
           email: string | null
           id: string
           last_contact: string | null
+          lead_quality_score: number | null
+          lead_source: string | null
+          lead_source_details: Json | null
           name: string
           next_action: string | null
           notes: string | null
           phone: string
           project_area: number | null
+          project_description: string | null
+          referrer_url: string | null
           services: string[]
+          stage_changed_at: string | null
           status: string
           updated_at: string
           user_id: string
+          utm_campaign: string | null
+          utm_medium: string | null
+          utm_source: string | null
         }
         Insert: {
           address?: string | null
           budget?: number | null
+          campaign_id?: string | null
+          conversion_stage?: string | null
           created_at?: string
           email?: string | null
           id?: string
           last_contact?: string | null
+          lead_quality_score?: number | null
+          lead_source?: string | null
+          lead_source_details?: Json | null
           name: string
           next_action?: string | null
           notes?: string | null
           phone: string
           project_area?: number | null
+          project_description?: string | null
+          referrer_url?: string | null
           services?: string[]
+          stage_changed_at?: string | null
           status?: string
           updated_at?: string
           user_id: string
+          utm_campaign?: string | null
+          utm_medium?: string | null
+          utm_source?: string | null
         }
         Update: {
           address?: string | null
           budget?: number | null
+          campaign_id?: string | null
+          conversion_stage?: string | null
           created_at?: string
           email?: string | null
           id?: string
           last_contact?: string | null
+          lead_quality_score?: number | null
+          lead_source?: string | null
+          lead_source_details?: Json | null
           name?: string
           next_action?: string | null
           notes?: string | null
           phone?: string
           project_area?: number | null
+          project_description?: string | null
+          referrer_url?: string | null
           services?: string[]
+          stage_changed_at?: string | null
           status?: string
           updated_at?: string
           user_id?: string
+          utm_campaign?: string | null
+          utm_medium?: string | null
+          utm_source?: string | null
         }
         Relationships: []
       }

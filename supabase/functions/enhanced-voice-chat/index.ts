@@ -81,7 +81,7 @@ async function callOpenAI(messages: AIMessage[], settings: UserSettings): Promis
           type: "function",
           function: {
             name: "createCRMClient",
-            description: "Создать нового клиента в CRM системе",
+            description: "Создать нового клиента в CRM системе с указанием источника лида",
             parameters: {
               type: "object",
               properties: {
@@ -91,7 +91,11 @@ async function callOpenAI(messages: AIMessage[], settings: UserSettings): Promis
                 address: { type: "string", description: "Адрес клиента" },
                 services: { type: "array", items: { type: "string" }, description: "Список услуг" },
                 budget: { type: "number", description: "Бюджет" },
-                notes: { type: "string", description: "Заметки о клиенте" }
+                notes: { type: "string", description: "Заметки о клиенте" },
+                lead_source: { type: "string", description: "Источник лида: звонок, сайт, соцсети, реклама, рекомендация, авито" },
+                lead_source_details: { type: "string", description: "Детали источника лида" },
+                conversion_stage: { type: "string", description: "Стадия: new, qualified, proposal, negotiation, closed" },
+                lead_quality_score: { type: "number", description: "Оценка качества лида от 1 до 10" }
               },
               required: ["name", "phone"]
             }
@@ -315,14 +319,22 @@ async function createCRMClient(clientData: any, userId: string): Promise<string>
         services: clientData.services || [],
         budget: clientData.budget || null,
         notes: clientData.notes || null,
-        status: 'new'
+        status: 'new',
+        // Новые поля для источников лидов
+        lead_source: clientData.lead_source || 'voice_assistant',
+        lead_source_details: { 
+          voice_command: true,
+          details: clientData.lead_source_details || 'Добавлено через голосового помощника'
+        },
+        conversion_stage: clientData.conversion_stage || 'new',
+        lead_quality_score: clientData.lead_quality_score || 5
       })
       .select()
       .single();
 
     if (error) throw error;
 
-    return `Клиент "${clientData.name}" успешно создан в CRM с ID: ${data.id}`;
+    return `Клиент "${clientData.name}" успешно создан в CRM с ID: ${data.id}. Источник лида: ${clientData.lead_source || 'голосовой помощник'}`;
   } catch (error) {
     console.error('Error creating client:', error);
     return `Ошибка при создании клиента: ${error.message}`;

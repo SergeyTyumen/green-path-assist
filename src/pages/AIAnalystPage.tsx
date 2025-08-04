@@ -66,10 +66,23 @@ const AIAnalystPage = () => {
   const generateReport = async (reportType: string) => {
     setLoading(true);
     try {
+      // Получаем данные из CRM для анализа
+      const { data: clientsData } = await supabase
+        .from('clients')
+        .select('*')
+        .order('created_at', { ascending: false });
+
       const { data, error } = await supabase.functions.invoke('ai-analyst', {
         body: { 
           request: customRequest || `Создай ${reportTypes.find(t => t.id === reportType)?.title.toLowerCase()}`,
-          reportType 
+          reportType,
+          crmData: {
+            clients: clientsData || [],
+            totalClients: clientsData?.length || 0,
+            leadSources: extractLeadSourcesStats(clientsData || []),
+            conversionStages: extractConversionStats(clientsData || []),
+            recentActivity: getRecentActivity(clientsData || [])
+          }
         }
       });
 
@@ -80,7 +93,7 @@ const AIAnalystPage = () => {
       setReport(data);
       toast({
         title: 'Отчет готов',
-        description: 'ИИ-аналитик подготовил подробный анализ',
+        description: 'ИИ-аналитик подготовил подробный анализ на основе данных CRM',
       });
     } catch (error) {
       toast({
@@ -91,6 +104,46 @@ const AIAnalystPage = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  // Функции для извлечения статистики из CRM
+  const extractLeadSourcesStats = (clients: any[]) => {
+    const sources = clients.reduce((acc, client) => {
+      const source = client.lead_source || 'unknown';
+      acc[source] = (acc[source] || 0) + 1;
+      return acc;
+    }, {});
+    
+    return Object.entries(sources).map(([source, count]) => ({
+      source,
+      count,
+      percentage: ((count as number) / clients.length * 100).toFixed(1)
+    }));
+  };
+
+  const extractConversionStats = (clients: any[]) => {
+    const stages = clients.reduce((acc, client) => {
+      const stage = client.conversion_stage || 'new';
+      acc[stage] = (acc[stage] || 0) + 1;
+      return acc;
+    }, {});
+    
+    return Object.entries(stages).map(([stage, count]) => ({
+      stage,
+      count,
+      percentage: ((count as number) / clients.length * 100).toFixed(1)
+    }));
+  };
+
+  const getRecentActivity = (clients: any[]) => {
+    const lastMonth = new Date();
+    lastMonth.setMonth(lastMonth.getMonth() - 1);
+    
+    return {
+      newClientsLastMonth: clients.filter(c => new Date(c.created_at) > lastMonth).length,
+      avgLeadQuality: clients.reduce((sum, c) => sum + (c.lead_quality_score || 0), 0) / clients.length,
+      topSources: extractLeadSourcesStats(clients).slice(0, 3)
+    };
   };
 
   const generateCustomReport = async () => {

@@ -20,6 +20,17 @@ export interface Client {
   project_area?: number;
   budget?: number;
   project_description?: string;
+  // Новые поля для источников лидов и аналитики
+  lead_source?: string;
+  lead_source_details?: any;
+  conversion_stage?: string;
+  stage_changed_at?: string;
+  lead_quality_score?: number;
+  campaign_id?: string;
+  utm_source?: string;
+  utm_medium?: string;
+  utm_campaign?: string;
+  referrer_url?: string;
 }
 
 export function useClients() {
