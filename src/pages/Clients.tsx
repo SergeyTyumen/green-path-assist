@@ -3,6 +3,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { 
   Plus, 
   Search, 
@@ -12,14 +15,37 @@ import {
   Calendar,
   Filter,
   Bot,
-  Loader2
+  Loader2,
+  Eye,
+  Edit,
+  FileText
 } from "lucide-react";
 import { useClients, Client } from "@/hooks/useClients";
+import { ClientDetailDialog } from "@/components/ClientDetailDialog";
+import { AddClientDialog } from "@/components/AddClientDialog";
+import { useNavigate } from "react-router-dom";
+import { useToast } from "@/hooks/use-toast";
 
 export default function Clients() {
+  const navigate = useNavigate();
+  const { toast } = useToast();
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
-  const { clients, loading } = useClients();
+  const [showDetailDialog, setShowDetailDialog] = useState(false);
+  const [showAddDialog, setShowAddDialog] = useState(false);
+  const [showFiltersDialog, setShowFiltersDialog] = useState(false);
+  const [selectedClient, setSelectedClient] = useState<Client | null>(null);
+  const [editingClient, setEditingClient] = useState<Client | null>(null);
+  
+  const [advancedFilters, setAdvancedFilters] = useState({
+    serviceFilter: "all",
+    budgetMin: "",
+    budgetMax: "",
+    areaMin: "",
+    areaMax: ""
+  });
+
+  const { clients, loading, createClient, updateClient } = useClients();
 
   const getStatusConfig = (status: string) => {
     const configs = {
@@ -50,8 +76,74 @@ export default function Clients() {
                          client.phone.includes(searchTerm) ||
                          client.email?.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesStatus = statusFilter === "all" || client.status === statusFilter;
-    return matchesSearch && matchesStatus;
+    
+    // Дополнительные фильтры
+    const matchesService = advancedFilters.serviceFilter === "all" || 
+                          client.services.includes(advancedFilters.serviceFilter);
+    const matchesBudget = (!advancedFilters.budgetMin || (client.budget && client.budget >= parseFloat(advancedFilters.budgetMin))) &&
+                         (!advancedFilters.budgetMax || (client.budget && client.budget <= parseFloat(advancedFilters.budgetMax)));
+    const matchesArea = (!advancedFilters.areaMin || (client.project_area && client.project_area >= parseFloat(advancedFilters.areaMin))) &&
+                       (!advancedFilters.areaMax || (client.project_area && client.project_area <= parseFloat(advancedFilters.areaMax)));
+    
+    return matchesSearch && matchesStatus && matchesService && matchesBudget && matchesArea;
   });
+
+  const handleViewClient = (client: Client) => {
+    setSelectedClient(client);
+    setShowDetailDialog(true);
+  };
+
+  const handleEditClient = (client: Client) => {
+    setEditingClient(client);
+    setShowAddDialog(true);
+  };
+
+  const handleSaveClient = async (clientData: Partial<Client>) => {
+    try {
+      if (editingClient) {
+        await updateClient(editingClient.id, clientData);
+        toast({
+          title: "Успешно",
+          description: "Данные клиента обновлены"
+        });
+      } else {
+        // Валидация обязательных полей для создания
+        if (!clientData.name || !clientData.phone || !clientData.status) {
+          toast({
+            title: "Ошибка",
+            description: "Заполните обязательные поля",
+            variant: "destructive"
+          });
+          return;
+        }
+        await createClient(clientData as Omit<Client, "id" | "user_id" | "created_at" | "updated_at">);
+        toast({
+          title: "Успешно",
+          description: "Клиент добавлен"
+        });
+      }
+      setEditingClient(null);
+    } catch (error) {
+      toast({
+        title: "Ошибка",
+        description: "Не удалось сохранить данные клиента",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const handleCreateEstimate = (client: Client) => {
+    // Переход на страницу создания сметы с предзаполненными данными клиента
+    navigate(`/estimates?client=${client.id}`);
+  };
+
+  const handleCallClient = (client: Client) => {
+    window.open(`tel:${client.phone}`);
+  };
+
+  const handleAIAssistant = () => {
+    navigate('/ai-consultant');
+  };
 
   if (loading) {
     return (
@@ -72,11 +164,14 @@ export default function Clients() {
           </p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" className="gap-2">
+          <Button variant="outline" className="gap-2" onClick={handleAIAssistant}>
             <Bot className="h-4 w-4" />
             ИИ-помощник
           </Button>
-          <Button className="bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 gap-2">
+          <Button 
+            className="bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 gap-2"
+            onClick={() => setShowAddDialog(true)}
+          >
             <Plus className="h-4 w-4" />
             Добавить клиента
           </Button>
@@ -118,10 +213,69 @@ export default function Clients() {
               >
                 В работе
               </Button>
-              <Button variant="outline" size="sm">
-                <Filter className="h-4 w-4 mr-1" />
-                Фильтры
-              </Button>
+              <Dialog open={showFiltersDialog} onOpenChange={setShowFiltersDialog}>
+                <DialogTrigger asChild>
+                  <Button variant="outline" size="sm">
+                    <Filter className="h-4 w-4 mr-1" />
+                    Фильтры
+                  </Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Расширенные фильтры</DialogTitle>
+                  </DialogHeader>
+                  <div className="space-y-4">
+                    <div>
+                      <Label>Услуга</Label>
+                      <Select 
+                        value={advancedFilters.serviceFilter} 
+                        onValueChange={(value) => setAdvancedFilters({...advancedFilters, serviceFilter: value})}
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">Все услуги</SelectItem>
+                          <SelectItem value="landscape-design">Ландшафтный дизайн</SelectItem>
+                          <SelectItem value="auto-irrigation">Автополив</SelectItem>
+                          <SelectItem value="lawn">Газон</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <Label>Бюджет от</Label>
+                        <Input 
+                          type="number" 
+                          value={advancedFilters.budgetMin}
+                          onChange={(e) => setAdvancedFilters({...advancedFilters, budgetMin: e.target.value})}
+                          placeholder="0"
+                        />
+                      </div>
+                      <div>
+                        <Label>Бюджет до</Label>
+                        <Input 
+                          type="number" 
+                          value={advancedFilters.budgetMax}
+                          onChange={(e) => setAdvancedFilters({...advancedFilters, budgetMax: e.target.value})}
+                          placeholder="∞"
+                        />
+                      </div>
+                    </div>
+                    <div className="flex gap-2 pt-4">
+                      <Button variant="outline" onClick={() => {
+                        setAdvancedFilters({serviceFilter: "all", budgetMin: "", budgetMax: "", areaMin: "", areaMax: ""});
+                        setShowFiltersDialog(false);
+                      }}>
+                        Сбросить
+                      </Button>
+                      <Button onClick={() => setShowFiltersDialog(false)}>
+                        Применить
+                      </Button>
+                    </div>
+                  </div>
+                </DialogContent>
+              </Dialog>
             </div>
           </div>
         </CardContent>
@@ -203,10 +357,16 @@ export default function Clients() {
               )}
 
               <div className="flex gap-2 pt-2">
-                <Button size="sm" className="flex-1">
+                <Button size="sm" variant="outline" onClick={() => handleViewClient(client)}>
+                  <Eye className="h-4 w-4 mr-1" />
+                  Просмотр
+                </Button>
+                <Button size="sm" variant="outline" onClick={() => handleEditClient(client)}>
+                  <Edit className="h-4 w-4 mr-1" />
                   Редактировать
                 </Button>
-                <Button size="sm" variant="outline">
+                <Button size="sm" onClick={() => handleCreateEstimate(client)}>
+                  <FileText className="h-4 w-4 mr-1" />
                   Создать смету
                 </Button>
               </div>
@@ -224,6 +384,27 @@ export default function Clients() {
           </CardContent>
         </Card>
       )}
+
+      {/* Диалоги */}
+      <ClientDetailDialog
+        client={selectedClient}
+        isOpen={showDetailDialog}
+        onClose={() => {
+          setShowDetailDialog(false);
+          setSelectedClient(null);
+        }}
+        onEdit={handleEditClient}
+      />
+
+      <AddClientDialog
+        isOpen={showAddDialog}
+        onClose={() => {
+          setShowAddDialog(false);
+          setEditingClient(null);
+        }}
+        onSave={handleSaveClient}
+        client={editingClient}
+      />
     </div>
   );
 }

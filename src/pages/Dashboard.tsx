@@ -14,12 +14,61 @@ import { useClients } from "@/hooks/useClients";
 import { useTasks } from "@/hooks/useTasks";
 import { useEstimates } from "@/hooks/useEstimates";
 import { useProposals } from "@/hooks/useProposals";
+import { useNavigate } from "react-router-dom";
+import { useState } from "react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useToast } from "@/hooks/use-toast";
 
 export default function Dashboard() {
-  const { clients, loading: clientsLoading } = useClients();
+  const navigate = useNavigate();
+  const { toast } = useToast();
+  const [showAddClientDialog, setShowAddClientDialog] = useState(false);
+  const [newClient, setNewClient] = useState({
+    name: '',
+    phone: '',
+    email: '',
+    services: [],
+    project_description: '',
+    status: 'new',
+    budget: 0,
+    project_area: 0
+  });
+
+  const { clients, loading: clientsLoading, createClient } = useClients();
   const { tasks, loading: tasksLoading } = useTasks();
   const { estimates, loading: estimatesLoading } = useEstimates();
   const { proposals, loading: proposalsLoading } = useProposals();
+
+  const handleAddClient = async () => {
+    if (!newClient.name || !newClient.phone) {
+      toast({
+        title: "Ошибка",
+        description: "Заполните обязательные поля: имя и телефон",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    try {
+      await createClient(newClient);
+      setShowAddClientDialog(false);
+      setNewClient({ name: '', phone: '', email: '', services: [], project_description: '', status: 'new', budget: 0, project_area: 0 });
+      toast({
+        title: "Успешно",
+        description: "Клиент добавлен"
+      });
+    } catch (error) {
+      toast({
+        title: "Ошибка",
+        description: "Не удалось добавить клиента",
+        variant: "destructive"
+      });
+    }
+  };
 
   const recentClients = clients.slice(0, 4);
   const todayTasks = tasks.filter(task => task.status === 'pending').slice(0, 3);
@@ -90,10 +139,66 @@ export default function Dashboard() {
             Обзор активности и ключевые метрики
           </p>
         </div>
-        <Button className="bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70">
-          <Plus className="h-4 w-4 mr-2" />
-          Добавить клиента
-        </Button>
+        <Dialog open={showAddClientDialog} onOpenChange={setShowAddClientDialog}>
+          <DialogTrigger asChild>
+            <Button className="bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70">
+              <Plus className="h-4 w-4 mr-2" />
+              Добавить клиента
+            </Button>
+          </DialogTrigger>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Добавить нового клиента</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div>
+                <Label htmlFor="name">Имя клиента *</Label>
+                <Input
+                  id="name"
+                  value={newClient.name}
+                  onChange={(e) => setNewClient({ ...newClient, name: e.target.value })}
+                  placeholder="Введите имя клиента"
+                />
+              </div>
+              <div>
+                <Label htmlFor="phone">Телефон *</Label>
+                <Input
+                  id="phone"
+                  value={newClient.phone}
+                  onChange={(e) => setNewClient({ ...newClient, phone: e.target.value })}
+                  placeholder="+7 (999) 123-45-67"
+                />
+              </div>
+              <div>
+                <Label htmlFor="email">Email</Label>
+                <Input
+                  id="email"
+                  type="email"
+                  value={newClient.email}
+                  onChange={(e) => setNewClient({ ...newClient, email: e.target.value })}
+                  placeholder="email@example.com"
+                />
+              </div>
+              <div>
+                <Label htmlFor="description">Описание проекта</Label>
+                <Textarea
+                  id="description"
+                  value={newClient.project_description}
+                  onChange={(e) => setNewClient({ ...newClient, project_description: e.target.value })}
+                  placeholder="Краткое описание потребностей клиента"
+                />
+              </div>
+              <div className="flex gap-2 pt-4">
+                <Button variant="outline" onClick={() => setShowAddClientDialog(false)}>
+                  Отмена
+                </Button>
+                <Button onClick={handleAddClient}>
+                  Добавить клиента
+                </Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
       </div>
 
       {/* Статистика */}
@@ -139,7 +244,7 @@ export default function Dashboard() {
                 </div>
               ))}
             </div>
-            <Button variant="outline" className="w-full mt-4">
+            <Button variant="outline" className="w-full mt-4" onClick={() => navigate('/clients')}>
               Посмотреть всех клиентов
             </Button>
           </CardContent>
@@ -191,7 +296,7 @@ export default function Dashboard() {
                 </div>
               )}
             </div>
-            <Button variant="outline" className="w-full mt-4">
+            <Button variant="outline" className="w-full mt-4" onClick={() => navigate('/tasks')}>
               Посмотреть все задачи
             </Button>
           </CardContent>
