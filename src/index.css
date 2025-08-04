@@ -6,6 +6,10 @@
 All colors MUST be HSL.
 */
 
+html, body {
+  overflow-x: hidden;
+}
+
 @layer base {
   :root {
     --background: 210 20% 98%;
@@ -98,65 +102,6 @@ All colors MUST be HSL.
 
     --destructive: 0 62.8% 30.6%;
     --destructive-foreground: 210 40% 98%;
-
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
-    --ring: 212.7 26.8% 83.9%;
-    --sidebar-background: 240 5.9% 10%;
-    --sidebar-foreground: 240 4.8% 95.9%;
-    --sidebar-primary: 224.3 76.3% 48%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 240 3.7% 15.9%;
-    --sidebar-accent-foreground: 240 4.8% 95.9%;
-    --sidebar-border: 240 3.7% 15.9%;
-    --sidebar-ring: 217.2 91.2% 59.8%;
   }
 }
 
-@layer base {
-  * {
-    @apply border-border;
-  }
-
-  body {
-    @apply bg-background text-foreground;
-    overflow-x: hidden;
-    width: 100%;
-    max-width: 100vw;
-  }
-  
-  html {
-    overflow-x: hidden;
-    width: 100%;
-    max-width: 100vw;
-  }
-  
-  #root {
-    overflow-x: hidden;
-    width: 100%;
-    max-width: 100vw;
-  }
-  
-  /* Mobile-specific fixes */
-  @media (max-width: 768px) {
-    .p-6 {
-      @apply px-4 py-4;
-    }
-    
-    .space-y-6 > * + * {
-      margin-top: 1rem;
-    }
-    
-    /* Ensure cards don't overflow */
-    .grid {
-      width: 100%;
-      max-width: 100%;
-    }
-    
-    /* Fix form inputs */
-    input, select, textarea {
-      max-width: 100%;
-      width: 100%;
-    }
-  }
-}
