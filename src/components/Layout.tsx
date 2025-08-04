@@ -1,5 +1,5 @@
 import { Outlet } from "react-router-dom";
-import { Menu, LogOut } from "lucide-react";
+import { Menu, LogOut, LayoutGrid } from "lucide-react";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
 import { Button } from "@/components/ui/button";
@@ -18,8 +18,8 @@ export function Layout() {
           <div className="flex-1 flex flex-col">
             <header className="h-14 flex items-center justify-between px-4 border-b bg-card/50 backdrop-blur-sm">
               <div className="flex items-center gap-4">
-                <SidebarTrigger className="h-8 w-8 p-0 hover:bg-accent hover:text-accent-foreground">
-                  <Menu className="h-4 w-4" />
+                <SidebarTrigger className="h-10 w-10 p-0 hover:bg-primary/10 hover:text-primary text-primary border border-primary/20 rounded-md">
+                  <LayoutGrid className="h-6 w-6" />
                 </SidebarTrigger>
                 <div className="text-sm text-muted-foreground">
                   CRM система для ландшафтного бизнеса
