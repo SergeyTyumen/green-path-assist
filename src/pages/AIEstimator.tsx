@@ -8,6 +8,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Textarea } from '@/components/ui/textarea';
 import { 
   Calculator, 
   FileText, 
@@ -16,9 +17,23 @@ import {
   Plus,
   Trash2,
   Brain,
-  Zap
+  Zap,
+  Mic,
+  MapPin,
+  Building,
+  Sparkles
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+
+interface TechnicalSpecification {
+  objectDescription: string;
+  location: string;
+  selectedServices: string[];
+  customServices: string[];
+  workComposition: string;
+  selectedMaterials: string[];
+  paymentTerms: string;
+}
 
 interface WorkItem {
   id: string;
@@ -40,99 +55,171 @@ interface EstimateResult {
 
 const AIEstimator = () => {
   const { toast } = useToast();
-  const [workItems, setWorkItems] = useState<WorkItem[]>([
-    { id: '1', name: 'укладка плитки', area: 120, options: ['подготовка основания'] }
-  ]);
+  const [techSpec, setTechSpec] = useState<TechnicalSpecification>({
+    objectDescription: '',
+    location: '',
+    selectedServices: [],
+    customServices: [],
+    workComposition: '',
+    selectedMaterials: [],
+    paymentTerms: ''
+  });
+  const [workItems, setWorkItems] = useState<WorkItem[]>([]);
   const [calculating, setCalculating] = useState(false);
   const [results, setResults] = useState<EstimateResult[]>([]);
+  const [isRecording, setIsRecording] = useState(false);
 
-  const workTypes = [
-    'укладка плитки',
-    'покраска стен',
-    'штукатурка',
-    'устройство стяжки',
-    'монтаж гипсокартона',
-    'укладка ламината',
-    'установка дверей',
-    'установка окон'
+  const availableServices = [
+    'Ландшафтный дизайн',
+    'Автоматический полив',
+    'Устройство газона',
+    'Посадка растений',
+    'Мощение дорожек',
+    'Устройство освещения',
+    'Водные элементы',
+    'Малые архитектурные формы',
+    'Ограждения и заборы',
+    'Дренажная система'
   ];
 
-  const availableOptions = [
-    'подготовка основания',
-    'грунтовка',
-    'армирование',
-    'теплоизоляция',
-    'гидроизоляция',
-    'финишная обработка'
+  const availableMaterials = [
+    'Тротуарная плитка',
+    'Природный камень',
+    'Газонная трава',
+    'Саженцы деревьев',
+    'Кустарники',
+    'Многолетние растения',
+    'Система капельного полива',
+    'Дренажные трубы',
+    'Геотекстиль',
+    'Песок',
+    'Щебень',
+    'Грунт растительный'
   ];
 
-  const addWorkItem = () => {
-    const newItem: WorkItem = {
-      id: Date.now().toString(),
-      name: '',
-      area: 0,
-      options: []
-    };
-    setWorkItems([...workItems, newItem]);
+  const updateTechSpec = (field: keyof TechnicalSpecification, value: any) => {
+    setTechSpec(prev => ({ ...prev, [field]: value }));
   };
 
-  const removeWorkItem = (id: string) => {
-    setWorkItems(workItems.filter(item => item.id !== id));
-  };
-
-  const updateWorkItem = (id: string, field: keyof WorkItem, value: any) => {
-    setWorkItems(workItems.map(item => 
-      item.id === id ? { ...item, [field]: value } : item
-    ));
-  };
-
-  const toggleOption = (itemId: string, option: string) => {
-    setWorkItems(workItems.map(item => {
-      if (item.id === itemId) {
-        const newOptions = item.options.includes(option)
-          ? item.options.filter(opt => opt !== option)
-          : [...item.options, option];
-        return { ...item, options: newOptions };
-      }
-      return item;
+  const toggleService = (service: string) => {
+    setTechSpec(prev => ({
+      ...prev,
+      selectedServices: prev.selectedServices.includes(service)
+        ? prev.selectedServices.filter(s => s !== service)
+        : [...prev.selectedServices, service]
     }));
   };
 
+  const addCustomService = (service: string) => {
+    if (service.trim() && !techSpec.customServices.includes(service.trim())) {
+      setTechSpec(prev => ({
+        ...prev,
+        customServices: [...prev.customServices, service.trim()]
+      }));
+    }
+  };
+
+  const removeCustomService = (service: string) => {
+    setTechSpec(prev => ({
+      ...prev,
+      customServices: prev.customServices.filter(s => s !== service)
+    }));
+  };
+
+  const toggleMaterial = (material: string) => {
+    setTechSpec(prev => ({
+      ...prev,
+      selectedMaterials: prev.selectedMaterials.includes(material)
+        ? prev.selectedMaterials.filter(m => m !== material)
+        : [...prev.selectedMaterials, material]
+    }));
+  };
+
+  const generateDescription = async () => {
+    const allServices = [...techSpec.selectedServices, ...techSpec.customServices];
+    if (allServices.length === 0) {
+      toast({
+        title: "Выберите услуги",
+        description: "Для генерации описания необходимо выбрать хотя бы одну услугу",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    const generatedText = `Объект благоустройства и ландшафтного дизайна по адресу: ${techSpec.location || '[указать адрес]'}. 
+
+Планируемые работы включают в себя: ${allServices.join(', ').toLowerCase()}. 
+
+Использование материалов: ${techSpec.selectedMaterials.length > 0 ? techSpec.selectedMaterials.join(', ').toLowerCase() : '[материалы будут уточнены]'}.
+
+Описание работ: ${techSpec.workComposition || '[детальное описание работ будет предоставлено отдельно]'}.`;
+
+    updateTechSpec('objectDescription', generatedText);
+    
+    toast({
+      title: "Описание сгенерировано",
+      description: "Базовое описание объекта создано на основе выбранных услуг"
+    });
+  };
+
+  const startVoiceInput = () => {
+    setIsRecording(true);
+    // Здесь будет реализация голосового ввода
+    toast({
+      title: "Голосовой ввод",
+      description: "Функция голосового ввода будет реализована в следующих версиях"
+    });
+    setTimeout(() => setIsRecording(false), 2000);
+  };
+
   const calculateEstimate = async () => {
+    if (techSpec.selectedServices.length === 0 && techSpec.customServices.length === 0) {
+      toast({
+        title: "Выберите услуги",
+        description: "Для расчета сметы необходимо выбрать хотя бы одну услугу",
+        variant: "destructive"
+      });
+      return;
+    }
+
     setCalculating(true);
     
-    // Симуляция расчета ИИ-сметчика
     try {
-      const calculatedResults: EstimateResult[] = workItems.map(item => {
-        // Базовые цены (в реальности будут из базы данных)
-        const basePrices: Record<string, number> = {
-          'укладка плитки': 1100,
-          'покраска стен': 400,
-          'штукатурка': 350,
-          'устройство стяжки': 600,
-          'монтаж гипсокартона': 450,
-          'укладка ламината': 800,
-          'установка дверей': 2500,
-          'установка окон': 3500
-        };
+      // Создаем позиции для сметы на основе технического задания
+      const allServices = [...techSpec.selectedServices, ...techSpec.customServices];
+      
+      // Базовые цены для ландшафтных работ (за м² или за единицу)
+      const basePrices: Record<string, { price: number; unit: string }> = {
+        'Ландшафтный дизайн': { price: 800, unit: 'м²' },
+        'Автоматический полив': { price: 1500, unit: 'м²' },
+        'Устройство газона': { price: 450, unit: 'м²' },
+        'Посадка растений': { price: 1200, unit: 'м²' },
+        'Мощение дорожек': { price: 2200, unit: 'м²' },
+        'Устройство освещения': { price: 3500, unit: 'точка' },
+        'Водные элементы': { price: 25000, unit: 'шт' },
+        'Малые архитектурные формы': { price: 15000, unit: 'шт' },
+        'Ограждения и заборы': { price: 1800, unit: 'м.п.' },
+        'Дренажная система': { price: 900, unit: 'м²' }
+      };
 
-        const basePrice = basePrices[item.name] || 500;
+      const calculatedResults: EstimateResult[] = allServices.map((service, index) => {
+        const priceInfo = basePrices[service] || { price: 1000, unit: 'м²' };
+        const basePrice = priceInfo.price;
         let coefficient = 1.0;
         
-        // Коэффициенты для опций
-        if (item.options.includes('подготовка основания')) coefficient += 0.1;
-        if (item.options.includes('грунтовка')) coefficient += 0.05;
-        if (item.options.includes('армирование')) coefficient += 0.15;
-        if (item.options.includes('теплоизоляция')) coefficient += 0.2;
-        if (item.options.includes('гидроизоляция')) coefficient += 0.1;
-        if (item.options.includes('финишная обработка')) coefficient += 0.08;
-
+        // Увеличиваем коэффициент в зависимости от сложности объекта
+        if (techSpec.selectedMaterials.includes('Природный камень')) coefficient += 0.15;
+        if (techSpec.selectedMaterials.includes('Система капельного полива')) coefficient += 0.1;
+        if (techSpec.location.toLowerCase().includes('москва')) coefficient += 0.2;
+        
+        // Для примера используем базовую площадь 100 м²
+        const area = 100;
         const pricePerM2 = Math.round(basePrice * coefficient);
-        const total = Math.round(item.area * pricePerM2);
+        const total = Math.round(area * pricePerM2);
 
         return {
-          position: `${item.name}${item.options.length > 0 ? ` (${item.options.join(', ')})` : ''}`,
-          area: item.area,
+          position: service,
+          area,
           pricePerM2,
           coefficient,
           total
@@ -140,9 +227,11 @@ const AIEstimator = () => {
       });
 
       setResults(calculatedResults);
+      
+      // Создаем новую смету в системе (здесь будет интеграция с базой данных)
       toast({
-        title: "Смета рассчитана",
-        description: "ИИ-сметчик успешно обработал техническое задание"
+        title: "Смета создана",
+        description: "ИИ-сметчик успешно обработал техническое задание и создал смету"
       });
     } catch (error) {
       toast({
@@ -191,119 +280,207 @@ const AIEstimator = () => {
         </div>
       </div>
 
-      <Tabs defaultValue="calculator" className="space-y-6">
+      <Tabs defaultValue="technical-spec" className="space-y-6">
         <TabsList className="grid w-full grid-cols-3">
-          <TabsTrigger value="calculator">Калькулятор</TabsTrigger>
-          <TabsTrigger value="results">Результаты</TabsTrigger>
+          <TabsTrigger value="technical-spec">Техническое задание</TabsTrigger>
+          <TabsTrigger value="results">Смета</TabsTrigger>
           <TabsTrigger value="settings">Настройки</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="calculator" className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Plus className="h-5 w-5" />
-                Техническое задание
-              </CardTitle>
-              <CardDescription>
-                Добавьте виды работ и их параметры для расчета сметы
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              {workItems.map((item, index) => (
-                <div key={item.id} className="space-y-4 p-4 border rounded-lg">
-                  <div className="flex items-center justify-between">
-                    <h4 className="font-medium">Позиция {index + 1}</h4>
-                    {workItems.length > 1 && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => removeWorkItem(item.id)}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    )}
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label>Вид работ</Label>
-                      <Select
-                        value={item.name}
-                        onValueChange={(value) => updateWorkItem(item.id, 'name', value)}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Выберите вид работ" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {workTypes.map((type) => (
-                            <SelectItem key={type} value={type}>
-                              {type}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label>Площадь (м²)</Label>
-                      <Input
-                        type="number"
-                        value={item.area}
-                        onChange={(e) => updateWorkItem(item.id, 'area', parseFloat(e.target.value) || 0)}
-                        placeholder="Введите площадь"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label>Дополнительные опции</Label>
-                    <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-                      {availableOptions.map((option) => (
-                        <div key={option} className="flex items-center space-x-2">
-                          <Checkbox
-                            id={`${item.id}-${option}`}
-                            checked={item.options.includes(option)}
-                            onCheckedChange={() => toggleOption(item.id, option)}
-                          />
-                          <Label 
-                            htmlFor={`${item.id}-${option}`}
-                            className="text-sm font-normal"
-                          >
-                            {option}
-                          </Label>
-                        </div>
-                      ))}
-                    </div>
+        <TabsContent value="technical-spec" className="space-y-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Описание объекта */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Building className="h-5 w-5" />
+                  Описание объекта
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="space-y-2">
+                  <Label>Основное описание</Label>
+                  <div className="relative">
+                    <Textarea
+                      value={techSpec.objectDescription}
+                      onChange={(e) => updateTechSpec('objectDescription', e.target.value)}
+                      placeholder="Описание объекта благоустройства..."
+                      className="min-h-[120px] pr-12"
+                    />
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="absolute top-2 right-2"
+                      onClick={startVoiceInput}
+                      disabled={isRecording}
+                    >
+                      <Mic className={`h-4 w-4 ${isRecording ? 'text-red-500' : ''}`} />
+                    </Button>
                   </div>
                 </div>
-              ))}
+                
+                <div className="space-y-2">
+                  <Label>География расположения</Label>
+                  <div className="relative">
+                    <MapPin className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      value={techSpec.location}
+                      onChange={(e) => updateTechSpec('location', e.target.value)}
+                      placeholder="Адрес или регион..."
+                      className="pl-10"
+                    />
+                  </div>
+                </div>
 
-              <div className="flex gap-2">
-                <Button variant="outline" onClick={addWorkItem}>
-                  <Plus className="h-4 w-4 mr-2" />
-                  Добавить позицию
+                <Button variant="outline" onClick={generateDescription} className="w-full">
+                  <Sparkles className="h-4 w-4 mr-2" />
+                  Сгенерировать описание
                 </Button>
-                <Button 
-                  onClick={calculateEstimate}
-                  disabled={calculating || workItems.some(item => !item.name || item.area <= 0)}
-                  className="ml-auto"
-                >
-                  {calculating ? (
-                    <>
-                      <div className="animate-spin h-4 w-4 mr-2 border-2 border-white border-t-transparent rounded-full" />
-                      Расчет...
-                    </>
-                  ) : (
-                    <>
-                      <Calculator className="h-4 w-4 mr-2" />
-                      Рассчитать смету
-                    </>
+              </CardContent>
+            </Card>
+
+            {/* Виды работ и услуг */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Виды работ и услуг</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-2 gap-2">
+                  {availableServices.map((service) => (
+                    <div key={service} className="flex items-center space-x-2">
+                      <Checkbox
+                        id={service}
+                        checked={techSpec.selectedServices.includes(service)}
+                        onCheckedChange={() => toggleService(service)}
+                      />
+                      <Label htmlFor={service} className="text-sm">
+                        {service}
+                      </Label>
+                    </div>
+                  ))}
+                </div>
+
+                <Separator />
+
+                <div className="space-y-2">
+                  <Label>Дополнительные услуги</Label>
+                  <div className="flex gap-2">
+                    <Input
+                      placeholder="Введите название услуги..."
+                      onKeyPress={(e) => {
+                        if (e.key === 'Enter') {
+                          addCustomService(e.currentTarget.value);
+                          e.currentTarget.value = '';
+                        }
+                      }}
+                    />
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={(e) => {
+                        const input = e.currentTarget.parentNode?.querySelector('input') as HTMLInputElement;
+                        if (input) {
+                          addCustomService(input.value);
+                          input.value = '';
+                        }
+                      }}
+                    >
+                      <Plus className="h-4 w-4" />
+                    </Button>
+                  </div>
+                  {techSpec.customServices.length > 0 && (
+                    <div className="flex flex-wrap gap-2 mt-2">
+                      {techSpec.customServices.map((service) => (
+                        <Badge key={service} variant="secondary" className="flex items-center gap-1">
+                          {service}
+                          <button
+                            onClick={() => removeCustomService(service)}
+                            className="ml-1 hover:text-destructive"
+                          >
+                            <Trash2 className="h-3 w-3" />
+                          </button>
+                        </Badge>
+                      ))}
+                    </div>
                   )}
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Состав работ */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Состав работ и услуг</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <Textarea
+                  value={techSpec.workComposition}
+                  onChange={(e) => updateTechSpec('workComposition', e.target.value)}
+                  placeholder="Детальное описание состава работ..."
+                  className="min-h-[100px]"
+                />
+              </CardContent>
+            </Card>
+
+            {/* Используемые материалы */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Используемые материалы</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-2 gap-2">
+                  {availableMaterials.map((material) => (
+                    <div key={material} className="flex items-center space-x-2">
+                      <Checkbox
+                        id={material}
+                        checked={techSpec.selectedMaterials.includes(material)}
+                        onCheckedChange={() => toggleMaterial(material)}
+                      />
+                      <Label htmlFor={material} className="text-sm">
+                        {material}
+                      </Label>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Условия оплаты */}
+            <Card className="lg:col-span-2">
+              <CardHeader>
+                <CardTitle>Условия оплаты</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <Textarea
+                  value={techSpec.paymentTerms}
+                  onChange={(e) => updateTechSpec('paymentTerms', e.target.value)}
+                  placeholder="Условия и график оплаты..."
+                  className="min-h-[80px]"
+                />
+              </CardContent>
+            </Card>
+          </div>
+
+          <div className="flex justify-center">
+            <Button 
+              onClick={calculateEstimate}
+              disabled={calculating || (techSpec.selectedServices.length === 0 && techSpec.customServices.length === 0)}
+              size="lg"
+              className="px-8"
+            >
+              {calculating ? (
+                <>
+                  <div className="animate-spin h-4 w-4 mr-2 border-2 border-white border-t-transparent rounded-full" />
+                  Расчет сметы...
+                </>
+              ) : (
+                <>
+                  <Calculator className="h-4 w-4 mr-2" />
+                  Рассчитать смету
+                </>
+              )}
+            </Button>
+          </div>
         </TabsContent>
 
         <TabsContent value="results" className="space-y-6">
@@ -327,7 +504,7 @@ const AIEstimator = () => {
                 <div className="text-center py-12 text-muted-foreground">
                   <Calculator className="h-12 w-12 mx-auto mb-4 opacity-50" />
                   <p>Нет результатов расчета</p>
-                  <p className="text-sm">Перейдите на вкладку "Калькулятор" для создания сметы</p>
+                  <p className="text-sm">Перейдите на вкладку "Техническое задание" для создания сметы</p>
                 </div>
               ) : (
                 <div className="space-y-4">

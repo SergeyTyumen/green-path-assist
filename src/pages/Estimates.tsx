@@ -11,8 +11,10 @@ import {
   Eye, 
   Copy,
   Bot,
-  Trash2
+  Trash2,
+  Brain
 } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import { useEstimates, Estimate } from "@/hooks/useEstimates";
 import { EstimateDialog } from "@/components/EstimateDialog";
 import { useClients } from "@/hooks/useClients";
@@ -22,6 +24,7 @@ export default function Estimates() {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedEstimate, setSelectedEstimate] = useState<Estimate | undefined>();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const navigate = useNavigate();
 
   const { estimates, loading, createEstimate, updateEstimate, deleteEstimate } = useEstimates();
   const { clients } = useClients();
@@ -101,8 +104,12 @@ export default function Estimates() {
           </p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" className="gap-2">
-            <Bot className="h-4 w-4" />
+          <Button 
+            variant="outline" 
+            className="gap-2"
+            onClick={() => navigate('/ai-estimator')}
+          >
+            <Brain className="h-4 w-4" />
             ИИ-расчет
           </Button>
           <Button 
