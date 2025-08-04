@@ -21,16 +21,30 @@ interface TaskDialogProps {
 
 export function TaskDialog({ task, trigger, onClose }: TaskDialogProps) {
   const [open, setOpen] = useState(false);
-  const [formData, setFormData] = useState({
-    title: task?.title || "",
-    description: task?.description || "",
-    client_id: task?.client_id || "",
-    assignee: task?.assignee || "",
-    status: task?.status || "pending" as Task["status"],
-    priority: task?.priority || "medium" as Task["priority"],
-    category: task?.category || "other" as Task["category"],
-    due_date: task?.due_date ? new Date(task?.due_date) : undefined as Date | undefined,
+  
+  const resetForm = () => ({
+    title: "",
+    description: "",
+    client_id: "",
+    assignee: "",
+    status: "pending" as Task["status"],
+    priority: "medium" as Task["priority"],
+    category: "other" as Task["category"],
+    due_date: undefined as Date | undefined,
   });
+
+  const [formData, setFormData] = useState(() => 
+    task ? {
+      title: task.title,
+      description: task.description || "",
+      client_id: task.client_id || "",
+      assignee: task.assignee || "",
+      status: task.status,
+      priority: task.priority,
+      category: task.category,
+      due_date: task.due_date ? new Date(task.due_date) : undefined,
+    } : resetForm()
+  );
 
   const { createTask, updateTask } = useTasks();
   const { clients } = useClients();
@@ -55,12 +69,22 @@ export function TaskDialog({ task, trigger, onClose }: TaskDialogProps) {
   };
 
   const handleClose = () => {
+    if (!task) {
+      setFormData(resetForm());
+    }
     setOpen(false);
     onClose?.();
   };
 
+  const handleOpenChange = (isOpen: boolean) => {
+    setOpen(isOpen);
+    if (!isOpen) {
+      handleClose();
+    }
+  };
+
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger asChild>
         {trigger || (
           <Button className="bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 gap-2">

@@ -19,6 +19,7 @@ import {
   Trash2
 } from "lucide-react";
 import { useTasks, Task } from "@/hooks/useTasks";
+import { useClients } from "@/hooks/useClients";
 import { TaskDialog } from "@/components/TaskDialog";
 import { toast } from "sonner";
 
@@ -26,7 +27,9 @@ export default function Tasks() {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedStatus, setSelectedStatus] = useState("all");
   const [selectedPriority, setSelectedPriority] = useState("all");
+  const [selectedClient, setSelectedClient] = useState("all");
   const { tasks, loading, updateTask, deleteTask } = useTasks();
+  const { clients } = useClients();
 
   const handleCompleteTask = async (task: Task) => {
     await updateTask(task.id, { status: "completed" });
@@ -84,8 +87,15 @@ export default function Tasks() {
                          (task.description && task.description.toLowerCase().includes(searchTerm.toLowerCase()));
     const matchesStatus = selectedStatus === "all" || task.status === selectedStatus;
     const matchesPriority = selectedPriority === "all" || task.priority === selectedPriority;
-    return matchesSearch && matchesStatus && matchesPriority;
+    const matchesClient = selectedClient === "all" || task.client_id === selectedClient;
+    return matchesSearch && matchesStatus && matchesPriority && matchesClient;
   });
+
+  const getClientName = (clientId: string | null | undefined) => {
+    if (!clientId) return "Без клиента";
+    const client = clients.find(c => c.id === clientId);
+    return client?.name || "Неизвестный клиент";
+  };
 
   if (loading) {
     return (
@@ -144,6 +154,19 @@ export default function Tasks() {
                 <SelectItem value="low">Низкий</SelectItem>
               </SelectContent>
             </Select>
+            <Select value={selectedClient} onValueChange={setSelectedClient}>
+              <SelectTrigger className="w-48">
+                <SelectValue placeholder="Клиент" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Все клиенты</SelectItem>
+                {clients.map((client) => (
+                  <SelectItem key={client.id} value={client.id}>
+                    {client.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
         </CardContent>
       </Card>
@@ -194,13 +217,13 @@ export default function Tasks() {
                   
                   <div className="space-y-1">
                     <div className="flex items-center gap-4 text-sm">
-                      <span className="font-medium text-foreground">ID: {task.id}</span>
+                      <span className="font-medium text-foreground">Клиент: {getClientName(task.client_id)}</span>
                     </div>
                     
                     <div className="flex items-center gap-4 text-xs text-muted-foreground">
                       <div className="flex items-center gap-1">
                         <User className="h-3 w-3" />
-                        {task.assignee}
+                        {task.assignee || 'Не назначен'}
                       </div>
                       <div className="flex items-center gap-1">
                         <Calendar className="h-3 w-3" />

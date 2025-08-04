@@ -19,6 +19,7 @@ export interface Client {
   next_action?: string;
   project_area?: number;
   budget?: number;
+  project_description?: string;
 }
 
 export function useClients() {
