@@ -24,6 +24,14 @@ interface UserSettings {
   ai_settings: any;
 }
 
+interface ConversationContext {
+  currentTask?: string;
+  pendingQuestions?: string[];
+  waitingForInfo?: boolean;
+  taskData?: any;
+  activeAssistant?: string;
+}
+
 // Global variable to store current user ID
 let currentUserId: string = '';
 
@@ -287,11 +295,15 @@ async function delegateToAssistant(assistantName: string, taskDescription: strin
   }
 
   try {
+    // Обогащаем данные информацией из CRM для контекста
+    const enrichedData = await enrichTaskWithCRMData(taskDescription, additionalData, userId);
+    
     const { data, error } = await supabase.functions.invoke(functionName, {
       body: {
         task: taskDescription,
-        data: additionalData,
-        user_id: userId
+        data: enrichedData,
+        user_id: userId,
+        conversation_mode: true // Указываем что это диалоговый режим
       }
     });
 
@@ -299,10 +311,106 @@ async function delegateToAssistant(assistantName: string, taskDescription: strin
       throw error;
     }
 
-    return `Результат от ${assistantName}: ${JSON.stringify(data)}`;
+    // Если ответ содержит вопросы, возвращаем их для уточнения
+    if (data?.needs_clarification) {
+      return `${assistantName} запрашивает уточнения:\n\n${data.questions}\n\nПожалуйста, предоставьте дополнительную информацию.`;
+    }
+
+    return data?.response || `Результат от ${assistantName}: ${JSON.stringify(data)}`;
   } catch (error) {
     console.error(`Error delegating to ${assistantName}:`, error);
     return `Ошибка при обращении к ассистенту ${assistantName}: ${error.message}`;
+  }
+}
+
+// Обогащение данных задачи информацией из CRM
+async function enrichTaskWithCRMData(taskDescription: string, additionalData: any, userId: string): Promise<any> {
+  const enrichedData = { ...additionalData };
+  
+  // Ищем упоминания клиентов в задаче
+  const clientMentions = await findClientMentions(taskDescription, userId);
+  if (clientMentions.length > 0) {
+    enrichedData.mentioned_clients = clientMentions;
+  }
+  
+  // Добавляем контекст материалов и услуг
+  const servicesContext = await getServicesContext(userId);
+  const materialsContext = await getMaterialsContext(userId);
+  
+  enrichedData.available_services = servicesContext;
+  enrichedData.available_materials = materialsContext;
+  
+  return enrichedData;
+}
+
+// Поиск упоминаний клиентов в тексте
+async function findClientMentions(text: string, userId: string): Promise<any[]> {
+  try {
+    const { data: clients, error } = await supabase
+      .from('clients')
+      .select('id, name, phone, address, services, budget, notes')
+      .eq('user_id', userId);
+
+    if (error || !clients) return [];
+
+    const mentions = [];
+    const textLower = text.toLowerCase();
+
+    for (const client of clients) {
+      const nameParts = client.name.toLowerCase().split(' ');
+      const hasNameMatch = nameParts.some(part => 
+        part.length > 2 && textLower.includes(part)
+      );
+      
+      if (hasNameMatch) {
+        mentions.push({
+          id: client.id,
+          name: client.name,
+          phone: client.phone,
+          address: client.address,
+          services: client.services,
+          budget: client.budget,
+          notes: client.notes
+        });
+      }
+    }
+
+    return mentions;
+  } catch (error) {
+    console.error('Error finding client mentions:', error);
+    return [];
+  }
+}
+
+// Получение контекста услуг
+async function getServicesContext(userId: string): Promise<any[]> {
+  try {
+    const { data: services, error } = await supabase
+      .from('services')
+      .select('name, category, unit, price')
+      .eq('user_id', userId)
+      .limit(20);
+
+    return services || [];
+  } catch (error) {
+    console.error('Error getting services context:', error);
+    return [];
+  }
+}
+
+// Получение контекста материалов
+async function getMaterialsContext(userId: string): Promise<any[]> {
+  try {
+    const { data: materials, error } = await supabase
+      .from('materials')
+      .select('name, category, unit, price')
+      .eq('user_id', userId)
+      .limit(20);
+
+    return materials || [];
+  } catch (error) {
+    console.error('Error getting materials context:', error);
+    return [];
   }
 }
 
@@ -395,14 +503,26 @@ serve(async (req) => {
     // Получаем настройки пользователя
     const userSettings = await getUserSettings(user.id);
 
-    const systemPrompt = `Вы - голосовой помощник руководителя строительной компании. 
-Вы помогаете управлять CRM системой, создавать клиентов, задачи, анализировать данные.
-Вы можете делегировать сложные задачи специализированным ассистентам:
-- Сметчик: для расчета стоимости работ и материалов
-- Аналитик: для анализа данных по клиентам и проектам  
-- Конкурентный анализ: для анализа конкурентов
+    const systemPrompt = `Вы - умный голосовой помощник руководителя строительной компании. 
+Вы понимаете контекст разговора и помогаете управлять бизнесом.
 
-Отвечайте кратко и по делу. Используйте функции для выполнения действий в CRM.`;
+ОСНОВНЫЕ ФУНКЦИИ:
+- Управление CRM: создание и поиск клиентов с указанием источников лидов
+- Делегирование задач специализированным ИИ-помощникам
+- Анализ данных и составление отчетов
+
+СПЕЦИАЛИЗИРОВАННЫЕ АССИСТЕНТЫ:
+- Сметчик: создание смет, расчет материалов (запрашивает: клиент, объект, география, виды работ)
+- Аналитик: анализ клиентов, продаж, воронки (использует данные CRM)
+- Конкурентный анализ: анализ конкурентов и рынка
+
+ВАЖНО: 
+- Определяйте о чем идет речь и какой ассистент нужен
+- При создании клиентов указывайте источник лида (звонок, сайт, соцсети, реклама, рекомендация, авито)
+- Собирайте всю доступную информацию из разговора
+- Если ассистент запрашивает дополнительные данные - передавайте их пользователю
+
+Отвечайте конкретно и по делу. Задавайте уточняющие вопросы если нужно.`;
 
     const messages: AIMessage[] = [
       { role: 'system', content: systemPrompt },

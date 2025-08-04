@@ -299,6 +299,198 @@ async function saveSmetaItems(taskId: string, userId: string, calculations: Serv
   }
 }
 
+// Интерактивный диалог для сбора информации
+async function handleConversationalRequest(task: string, data: any, userId: string): Promise<any> {
+  console.log('Handling conversational request:', task);
+  console.log('Data provided:', data);
+
+  // Анализируем запрос и определяем что нужно для выполнения задачи
+  const missingInfo = [];
+  let clientInfo = null;
+
+  // Проверяем упоминания клиентов
+  if (data.mentioned_clients && data.mentioned_clients.length > 0) {
+    clientInfo = data.mentioned_clients[0];
+    console.log('Found client info:', clientInfo);
+  } else {
+    // Ищем клиента по имени в тексте задачи
+    const taskLower = task.toLowerCase();
+    if (taskLower.includes('клиент') || taskLower.includes('для ')) {
+      missingInfo.push('Уточните для какого клиента создавать смету (имя или телефон)');
+    }
+  }
+
+  // Проверяем географию объекта
+  if (!data.object_location && !clientInfo?.address) {
+    missingInfo.push('Где находится объект? (адрес или район города)');
+  }
+
+  // Проверяем описание объекта
+  if (!data.object_description) {
+    missingInfo.push('Опишите объект: тип (дом, дача, коттедж), площадь, особенности');
+  }
+
+  // Проверяем какие работы планируются
+  if (!data.planned_services && (!data.available_services || data.available_services.length === 0)) {
+    missingInfo.push('Какие виды работ планируются? (например: газон, дорожки, дренаж, освещение)');
+  }
+
+  // Если информации недостаточно, возвращаем вопросы
+  if (missingInfo.length > 0) {
+    return {
+      needs_clarification: true,
+      questions: missingInfo.join('\n\n'),
+      context: {
+        task,
+        client_info: clientInfo,
+        available_services: data.available_services || [],
+        available_materials: data.available_materials || []
+      }
+    };
+  }
+
+  // Если достаточно информации, создаем смету
+  return await createEstimateFromData(task, data, clientInfo, userId);
+}
+
+// Создание сметы на основе собранных данных
+async function createEstimateFromData(task: string, data: any, clientInfo: any, userId: string): Promise<any> {
+  try {
+    // Определяем услуги на основе описания задачи и доступных услуг
+    const plannedServices = identifyServices(task, data);
+    
+    if (plannedServices.length === 0) {
+      return {
+        success: false,
+        error: 'Не удалось определить требуемые услуги. Уточните какие работы нужно выполнить.'
+      };
+    }
+
+    // Рассчитываем материалы
+    const calculations = await calculateMaterialConsumption(plannedServices, userId);
+
+    // Создаем задачу для отслеживания
+    const { data: newTask, error: taskError } = await supabase
+      .from('tasks')
+      .insert({
+        user_id: userId,
+        title: `Смета для ${clientInfo?.name || 'клиента'}`,
+        description: `${task}\n\nОбъект: ${data.object_location || clientInfo?.address || 'не указан'}\nОписание: ${data.object_description || 'не указано'}`,
+        category: 'estimate',
+        status: 'in_progress',
+        client_id: clientInfo?.id,
+        ai_agent: 'ai-estimator'
+      })
+      .select()
+      .single();
+
+    if (taskError) {
+      console.error('Error creating task:', taskError);
+    }
+
+    // Сохраняем результаты расчетов
+    if (newTask?.id) {
+      await saveSmetaItems(newTask.id, userId, calculations);
+    }
+
+    return {
+      success: true,
+      response: formatEstimateResponse(calculations, clientInfo, data),
+      task_id: newTask?.id,
+      calculations
+    };
+
+  } catch (error) {
+    console.error('Error creating estimate:', error);
+    return {
+      success: false,
+      error: `Ошибка при создании сметы: ${error.message}`
+    };
+  }
+}
+
+// Определение услуг на основе текста задачи
+function identifyServices(task: string, data: any): ServiceInput[] {
+  const services: ServiceInput[] = [];
+  const taskLower = task.toLowerCase();
+
+  // Площадь объекта (примерная, если не указана)
+  let estimatedArea = 100; // м² по умолчанию
+  
+  // Пытаемся извлечь площадь из описания
+  const areaMatch = task.match(/(\d+)\s*(м²|кв\.?\s*м|квадрат)/i);
+  if (areaMatch) {
+    estimatedArea = parseInt(areaMatch[1]);
+  }
+
+  // Определяем услуги на основе ключевых слов
+  if (taskLower.includes('газон') || taskLower.includes('трав')) {
+    services.push({ service: 'Устройство газона', quantity: estimatedArea, unit: 'м²' });
+  }
+
+  if (taskLower.includes('дорожки') || taskLower.includes('мощение') || taskLower.includes('плитка')) {
+    const pathArea = Math.round(estimatedArea * 0.2); // 20% от общей площади
+    services.push({ service: 'Мощение дорожек', quantity: pathArea, unit: 'м²' });
+  }
+
+  if (taskLower.includes('дренаж')) {
+    const drainageLength = Math.round(Math.sqrt(estimatedArea) * 4); // периметр объекта
+    services.push({ service: 'Устройство дренажа', quantity: drainageLength, unit: 'м.п' });
+  }
+
+  if (taskLower.includes('бордюр')) {
+    const borderLength = Math.round(Math.sqrt(estimatedArea) * 4);
+    services.push({ service: 'Установка бордюров', quantity: borderLength, unit: 'м.п' });
+  }
+
+  if (taskLower.includes('освещение')) {
+    const lightPoints = Math.max(4, Math.round(estimatedArea / 50));
+    services.push({ service: 'Устройство освещения', quantity: lightPoints, unit: 'шт' });
+  }
+
+  // Если услуги не определились автоматически, добавляем базовые
+  if (services.length === 0) {
+    services.push({ service: 'Благоустройство территории', quantity: estimatedArea, unit: 'м²' });
+  }
+
+  return services;
+}
+
+// Форматирование ответа с результатами сметы
+function formatEstimateResponse(calculations: ServiceOutput[], clientInfo: any, data: any): string {
+  let response = `✅ Смета создана!\n\n`;
+  
+  if (clientInfo) {
+    response += `👤 Клиент: ${clientInfo.name}\n`;
+    if (clientInfo.phone) response += `📞 Телефон: ${clientInfo.phone}\n`;
+    if (clientInfo.address || data.object_location) {
+      response += `📍 Объект: ${data.object_location || clientInfo.address}\n`;
+    }
+  }
+  
+  response += `\n📋 Расчет материалов:\n\n`;
+
+  for (const calc of calculations) {
+    response += `🔧 ${calc.service} (${calc.quantity} ${calc.unit}):\n`;
+    
+    for (const material of calc.materials) {
+      if (material.error) {
+        response += `   ❌ ${material.name}: ${material.error}\n`;
+      } else {
+        response += `   📦 ${material.name}: ${material.quantity} ${material.unit}\n`;
+        if (material.calculation) {
+          response += `      (расчет: ${material.calculation})\n`;
+        }
+      }
+    }
+    response += `\n`;
+  }
+
+  response += `💡 Смета сохранена в системе. Вы можете просмотреть детали в разделе "Сметы".`;
+  
+  return response;
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -319,7 +511,16 @@ serve(async (req) => {
       throw new Error('Invalid authorization token');
     }
 
-    const { action, services, taskId } = await req.json();
+    const { action, services, taskId, task, data, conversation_mode } = await req.json();
+
+    // Если это диалоговый режим, обрабатываем как интерактивный запрос
+    if (conversation_mode && task) {
+      const result = await handleConversationalRequest(task, data || {}, user.id);
+      
+      return new Response(JSON.stringify(result), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
 
     switch (action) {
       case 'calculate_materials': {
