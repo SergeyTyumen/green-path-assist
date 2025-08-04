@@ -12,7 +12,7 @@ export function Layout() {
   return (
     <ProtectedRoute>
       <SidebarProvider>
-        <div className="min-h-screen flex w-full bg-background">
+        <div className="min-h-screen flex w-full bg-background overflow-x-hidden max-w-screen">
           <AppSidebar />
           
           <div className="flex-1 flex flex-col">
