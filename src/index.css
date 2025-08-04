@@ -1,126 +1,124 @@
-/* Простые стили без Tailwind для проверки */
-* {
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Definition of the design system. All colors, gradients, fonts, etc should be defined here. 
+All colors MUST be HSL.
+*/
+
+@layer base {
+  :root {
+    --background: 210 20% 98%;
+    --foreground: 160 10% 15%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 160 10% 15%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 160 10% 15%;
+
+    --primary: 150 60% 35%;
+    --primary-foreground: 0 0% 98%;
+
+    --secondary: 150 20% 95%;
+    --secondary-foreground: 160 15% 25%;
+
+    --muted: 150 15% 96%;
+    --muted-foreground: 160 8% 45%;
+
+    --accent: 140 50% 92%;
+    --accent-foreground: 160 20% 20%;
+
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 210 40% 98%;
+
+    --border: 150 25% 90%;
+    --input: 150 20% 94%;
+    --ring: 150 60% 35%;
+
+    --success: 140 70% 45%;
+    --success-foreground: 0 0% 98%;
+    
+    --warning: 45 95% 55%;
+    --warning-foreground: 45 10% 15%;
+
+    /* CRM Status Colors */
+    --status-new: 200 80% 50%;
+    --status-in-progress: 45 95% 55%;
+    --status-proposal-sent: 260 75% 60%;
+    --status-call-scheduled: 150 60% 45%;
+    --status-postponed: 25 75% 60%;
+    --status-closed: 140 70% 45%;
+
+    /* Gradients */
+    --gradient-primary: linear-gradient(135deg, hsl(150 60% 35%), hsl(140 70% 45%));
+    --gradient-card: linear-gradient(145deg, hsl(0 0% 100%), hsl(150 15% 98%));
+    --gradient-sidebar: linear-gradient(180deg, hsl(150 25% 97%), hsl(150 20% 95%));
+
+    --radius: 0.5rem;
+
+    --sidebar-background: 0 0% 98%;
+
+    --sidebar-foreground: 240 5.3% 26.1%;
+
+    --sidebar-primary: 240 5.9% 10%;
+
+    --sidebar-primary-foreground: 0 0% 98%;
+
+    --sidebar-accent: 240 4.8% 95.9%;
+
+    --sidebar-accent-foreground: 240 5.9% 10%;
+
+    --sidebar-border: 220 13% 91%;
+
+    --sidebar-ring: 217.2 91.2% 59.8%;
+  }
+
+  .dark {
+    --background: 222.2 84% 4.9%;
+    --foreground: 210 40% 98%;
+
+    --card: 222.2 84% 4.9%;
+    --card-foreground: 210 40% 98%;
+
+    --popover: 222.2 84% 4.9%;
+    --popover-foreground: 210 40% 98%;
+
+    --primary: 210 40% 98%;
+    --primary-foreground: 222.2 47.4% 11.2%;
+
+    --secondary: 217.2 32.6% 17.5%;
+    --secondary-foreground: 210 40% 98%;
+
+    --muted: 217.2 32.6% 17.5%;
+    --muted-foreground: 215 20.2% 65.1%;
+
+    --accent: 217.2 32.6% 17.5%;
+    --accent-foreground: 210 40% 98%;
+
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 210 40% 98%;
+
+    --border: 217.2 32.6% 17.5%;
+    --input: 217.2 32.6% 17.5%;
+    --ring: 212.7 26.8% 83.9%;
+    --sidebar-background: 240 5.9% 10%;
+    --sidebar-foreground: 240 4.8% 95.9%;
+    --sidebar-primary: 224.3 76.3% 48%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 240 3.7% 15.9%;
+    --sidebar-accent-foreground: 240 4.8% 95.9%;
+    --sidebar-border: 240 3.7% 15.9%;
+    --sidebar-ring: 217.2 91.2% 59.8%;
+  }
 }
 
-body {
-  background-color: #f8fafc;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  color: #1e293b;
-}
+@layer base {
+  * {
+    @apply border-border;
+  }
 
-#root {
-  min-height: 100vh;
-}
-
-/* Основной контейнер */
-.main-container {
-  display: flex;
-  min-height: 100vh;
-  background-color: #ffffff;
-}
-
-/* Сайдбар */
-.sidebar {
-  width: 250px;
-  background: linear-gradient(180deg, #16a34a, #15803d);
-  color: white;
-  padding: 1rem;
-}
-
-.sidebar h1 {
-  font-size: 1.5rem;
-  font-weight: bold;
-  margin-bottom: 2rem;
-  color: white;
-}
-
-.nav-item {
-  display: flex;
-  align-items: center;
-  padding: 0.75rem 1rem;
-  color: rgba(255, 255, 255, 0.9);
-  text-decoration: none;
-  border-radius: 0.5rem;
-  margin-bottom: 0.5rem;
-  transition: all 0.2s;
-}
-
-.nav-item:hover {
-  background-color: rgba(255, 255, 255, 0.1);
-  color: white;
-}
-
-.nav-item.active {
-  background-color: rgba(255, 255, 255, 0.2);
-  color: white;
-}
-
-/* Главная область */
-.main-content {
-  flex: 1;
-  padding: 2rem;
-  background-color: #f8fafc;
-}
-
-/* Хедер */
-.header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  background-color: white;
-  padding: 1rem 2rem;
-  border-bottom: 1px solid #e2e8f0;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-}
-
-/* Кнопки */
-.btn {
-  padding: 0.75rem 1.5rem;
-  border-radius: 0.5rem;
-  border: none;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.2s;
-  text-decoration: none;
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.btn-primary {
-  background: linear-gradient(135deg, #16a34a, #15803d);
-  color: white;
-}
-
-.btn-primary:hover {
-  background: linear-gradient(135deg, #15803d, #166534);
-  transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(22, 163, 74, 0.3);
-}
-
-/* Карточки */
-.card {
-  background: white;
-  border-radius: 0.75rem;
-  padding: 1.5rem;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-  border: 1px solid #e2e8f0;
-}
-
-.card-header {
-  margin-bottom: 1rem;
-}
-
-.card-title {
-  font-size: 1.25rem;
-  font-weight: 600;
-  color: #1e293b;
-}
-
-/* Скрыть все Tailwind классы временно */
-[class*="bg-"], [class*="text-"], [class*="p-"], [class*="m-"], [class*="flex"], [class*="grid"] {
-  /* Сброс Tailwind классов */
+  body {
+    @apply bg-background text-foreground;
+  }
 }

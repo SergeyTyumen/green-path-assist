@@ -12,20 +12,14 @@ import {
   Calendar,
   Filter,
   Bot,
-  Loader2,
-  Edit,
-  FileText
+  Loader2
 } from "lucide-react";
 import { useClients, Client } from "@/hooks/useClients";
-import { useClientSummary } from "@/hooks/useClientSummary";
-import { ClientDetailDialog } from "@/components/ClientDetailDialog";
-import { ClientDialog } from "@/components/ClientDialog";
 
 export default function Clients() {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
-  const { clients, loading, refetch } = useClients();
-  const { getSummaryForClient, loading: summaryLoading, refetch: refetchSummary } = useClientSummary();
+  const { clients, loading } = useClients();
 
   const getStatusConfig = (status: string) => {
     const configs = {
@@ -82,12 +76,10 @@ export default function Clients() {
             <Bot className="h-4 w-4" />
             ИИ-помощник
           </Button>
-          <ClientDialog onSuccess={() => { refetch(); refetchSummary(); }}>
-            <Button className="bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 gap-2">
-              <Plus className="h-4 w-4" />
-              Добавить клиента
-            </Button>
-          </ClientDialog>
+          <Button className="bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 gap-2">
+            <Plus className="h-4 w-4" />
+            Добавить клиента
+          </Button>
         </div>
       </div>
 
@@ -138,17 +130,8 @@ export default function Clients() {
       {/* Список клиентов */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {filteredClients.map((client) => (
-          <ClientDetailDialog 
-            key={client.id}
-            client={client}
-            onUpdate={(updatedClient) => {
-              // In real app, this would update the client in the state/database
-              console.log('Client updated:', updatedClient);
-            }}
-            onStageUpdate={refetchSummary}
-          >
-            <Card className="bg-gradient-to-br from-card to-card/50 hover:shadow-lg transition-all duration-200 border border-border/50 cursor-pointer">
-              <CardHeader className="pb-3">
+          <Card key={client.id} className="bg-gradient-to-br from-card to-card/50 hover:shadow-lg transition-all duration-200 border border-border/50">
+            <CardHeader className="pb-3">
               <div className="flex justify-between items-start">
                 <div>
                   <CardTitle className="text-lg font-semibold text-foreground">
@@ -201,86 +184,34 @@ export default function Clients() {
                 </div>
               </div>
 
-              {/* Current Stage and Latest Comment */}
-              {(() => {
-                const summary = getSummaryForClient(client.id);
-                console.log('🏠 Главная страница - summary для клиента', client.name, ':', summary);
-                return (
-                  <div className="space-y-2">
-                    {summary?.current_stage && (
-                      <div>
-                        <div className="text-sm font-medium text-foreground">Текущая стадия:</div>
-                        <div className="text-sm text-primary bg-primary/10 p-3 rounded-lg flex justify-between items-center">
-                          <span>{summary.current_stage}</span>
-                          {summary.current_stage_date && (
-                            <span className="text-xs opacity-70">
-                              {new Date(summary.current_stage_date).toLocaleDateString('ru-RU')}
-                            </span>
-                          )}
-                        </div>
-                        <div className="text-xs text-muted-foreground mt-1">
-                          Прогресс: {summary.completed_stages_count}/{summary.total_stages_count} стадий
-                        </div>
-                      </div>
-                    )}
-                    
-                    {summary?.last_comment && (
-                      <div>
-                        <div className="text-sm font-medium text-foreground">Последняя заметка:</div>
-                        <div className="text-sm text-muted-foreground bg-muted/50 p-3 rounded-lg">
-                          {summary.last_comment.length > 100 
-                            ? `${summary.last_comment.substring(0, 100)}...` 
-                            : summary.last_comment}
-                          {summary.last_comment_date && (
-                            <div className="text-xs opacity-70 mt-1">
-                              {new Date(summary.last_comment_date).toLocaleDateString('ru-RU')}
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    )}
-
-                    {client.next_action && (
-                      <div>
-                        <div className="text-sm font-medium text-foreground">Следующее действие:</div>
-                        <div className="text-sm text-primary bg-primary/10 p-3 rounded-lg">
-                          {client.next_action}
-                        </div>
-                      </div>
-                    )}
+              {client.notes && (
+                <div className="space-y-2">
+                  <div className="text-sm font-medium text-foreground">Заметки:</div>
+                  <div className="text-sm text-muted-foreground bg-muted/50 p-3 rounded-lg">
+                    {client.notes}
                   </div>
-                );
-              })()}
+                </div>
+              )}
+
+              {client.next_action && (
+                <div className="space-y-2">
+                  <div className="text-sm font-medium text-foreground">Следующее действие:</div>
+                  <div className="text-sm text-primary bg-primary/10 p-3 rounded-lg">
+                    {client.next_action}
+                  </div>
+                </div>
+              )}
 
               <div className="flex gap-2 pt-2">
-                <Button 
-                  size="sm" 
-                  className="flex-1" 
-                  variant="outline"
-                  onClick={(e) => {
-                    e.stopPropagation(); // Prevent opening dialog when clicking button
-                    // This button now just shows it's clickable, the actual edit is in the dialog
-                  }}
-                >
-                  <Edit className="h-4 w-4 mr-1" />
-                  Подробнее
+                <Button size="sm" className="flex-1">
+                  Редактировать
                 </Button>
-                <Button 
-                  size="sm" 
-                  variant="outline"
-                  onClick={(e) => {
-                    e.stopPropagation(); // Prevent opening dialog when clicking button
-                    // Handle create estimate functionality
-                    console.log('Create estimate for client:', client.id);
-                  }}
-                >
-                  <FileText className="h-4 w-4 mr-1" />
+                <Button size="sm" variant="outline">
                   Создать смету
                 </Button>
               </div>
             </CardContent>
-            </Card>
-          </ClientDetailDialog>
+          </Card>
         ))}
       </div>
 

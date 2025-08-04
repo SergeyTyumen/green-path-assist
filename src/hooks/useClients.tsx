@@ -13,7 +13,6 @@ export interface Client {
   services: string[];
   status: string;
   notes?: string;
-  project_description?: string;
   created_at: string;
   updated_at: string;
   last_contact?: string;
@@ -33,7 +32,7 @@ export function useClients() {
     try {
       const { data, error } = await supabase
         .from('clients')
-        .select('*, project_description')
+        .select('*')
         .eq('user_id', user.id)
         .order('created_at', { ascending: false });
 
@@ -48,18 +47,9 @@ export function useClients() {
   };
 
   const createClient = async (clientData: Omit<Client, 'id' | 'user_id' | 'created_at' | 'updated_at'>) => {
-    console.log('🔍 useClients.createClient - начало');
-    console.log('👤 Текущий пользователь:', user?.id);
-    
-    if (!user) {
-      console.error('❌ Пользователь не авторизован!');
-      toast.error('Пользователь не авторизован');
-      return;
-    }
+    if (!user) return;
 
     try {
-      console.log('📝 Данные для создания:', { ...clientData, user_id: user.id });
-      
       const { data, error } = await supabase
         .from('clients')
         .insert({
@@ -69,17 +59,13 @@ export function useClients() {
         .select()
         .single();
 
-      console.log('📊 Ответ Supabase:', { data, error });
-
       if (error) throw error;
-      
-      console.log('✅ Клиент создан успешно:', data);
       setClients(prev => [data, ...prev]);
       toast.success('Клиент успешно добавлен');
       return data;
     } catch (error) {
-      console.error('❌ Ошибка создания клиента:', error);
-      toast.error('Ошибка при создании клиента: ' + error.message);
+      console.error('Error creating client:', error);
+      toast.error('Ошибка при создании клиента');
     }
   };
 

@@ -8,53 +8,32 @@ const corsHeaders = {
 
 // Process base64 in chunks to prevent memory issues
 function processBase64Chunks(base64String: string, chunkSize = 32768) {
-  try {
-    const chunks: Uint8Array[] = [];
-    let position = 0;
+  const chunks: Uint8Array[] = [];
+  let position = 0;
+  
+  while (position < base64String.length) {
+    const chunk = base64String.slice(position, position + chunkSize);
+    const binaryChunk = atob(chunk);
+    const bytes = new Uint8Array(binaryChunk.length);
     
-    // Clean the base64 string
-    const cleanBase64 = base64String.replace(/[^A-Za-z0-9+/=]/g, '');
-    
-    while (position < cleanBase64.length) {
-      const chunk = cleanBase64.slice(position, position + chunkSize);
-      
-      try {
-        const binaryChunk = atob(chunk);
-        const bytes = new Uint8Array(binaryChunk.length);
-        
-        for (let i = 0; i < binaryChunk.length; i++) {
-          bytes[i] = binaryChunk.charCodeAt(i);
-        }
-        
-        chunks.push(bytes);
-      } catch (chunkError) {
-        console.error('Error processing base64 chunk:', chunkError);
-        throw new Error(`Invalid base64 chunk at position ${position}`);
-      }
-      
-      position += chunkSize;
-    }
-
-    const totalLength = chunks.reduce((acc, chunk) => acc + chunk.length, 0);
-    
-    if (totalLength === 0) {
-      throw new Error('No valid audio data after base64 processing');
+    for (let i = 0; i < binaryChunk.length; i++) {
+      bytes[i] = binaryChunk.charCodeAt(i);
     }
     
-    const result = new Uint8Array(totalLength);
-    let offset = 0;
-
-    for (const chunk of chunks) {
-      result.set(chunk, offset);
-      offset += chunk.length;
-    }
-
-    console.log(`Processed base64 to ${totalLength} bytes`);
-    return result;
-  } catch (error) {
-    console.error('Error in processBase64Chunks:', error);
-    throw new Error(`Failed to process base64 audio data: ${error.message}`);
+    chunks.push(bytes);
+    position += chunkSize;
   }
+
+  const totalLength = chunks.reduce((acc, chunk) => acc + chunk.length, 0);
+  const result = new Uint8Array(totalLength);
+  let offset = 0;
+
+  for (const chunk of chunks) {
+    result.set(chunk, offset);
+    offset += chunk.length;
+  }
+
+  return result;
 }
 
 serve(async (req) => {
@@ -74,13 +53,6 @@ serve(async (req) => {
       throw new Error('OPENAI_API_KEY not found');
     }
 
-    // Validate base64 audio data
-    if (typeof audio !== 'string' || audio.length < 100) {
-      throw new Error('Invalid audio data format');
-    }
-
-    console.log(`Processing audio data of length: ${audio.length}`);
-
     // Process audio in chunks
     const binaryAudio = processBase64Chunks(audio);
     
@@ -91,8 +63,6 @@ serve(async (req) => {
     formData.append('model', 'whisper-1');
     formData.append('language', 'ru');
 
-    console.log('Sending audio to OpenAI Whisper API...');
-
     // Send to OpenAI
     const response = await fetch('https://api.openai.com/v1/audio/transcriptions', {
       method: 'POST',
@@ -102,16 +72,11 @@ serve(async (req) => {
       body: formData,
     });
 
-    console.log(`OpenAI API response status: ${response.status}`);
-
     if (!response.ok) {
-      const errorText = await response.text();
-      console.error('OpenAI API error:', errorText);
-      throw new Error(`OpenAI API error (${response.status}): ${errorText}`);
+      throw new Error(`OpenAI API error: ${await response.text()}`);
     }
 
     const result = await response.json();
-    console.log('Transcription successful:', result.text?.length || 0, 'characters');
 
     return new Response(
       JSON.stringify({ text: result.text }),

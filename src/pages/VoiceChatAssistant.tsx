@@ -55,13 +55,9 @@ const VoiceChatAssistant = () => {
     volume: 0.8
   });
   const [isVoiceMode, setIsVoiceMode] = useState(false);
-  const [isProcessing, setIsProcessing] = useState(false);
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
-  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
-  const streamRef = useRef<MediaStream | null>(null);
-  const audioChunksRef = useRef<Blob[]>([]);
 
   // Scroll to bottom when new messages arrive
   const scrollToBottom = useCallback(() => {
@@ -115,14 +111,7 @@ const VoiceChatAssistant = () => {
       }
     } catch (error) {
       setMessages(prev => prev.filter(m => m.id !== 'thinking'));
-      
-      const errorMessage = error.message.includes('OpenAI') 
-        ? 'ИИ-помощник временно недоступен. Попробуйте позже.'
-        : error.message.includes('network') || error.message.includes('fetch')
-        ? 'Проблемы с сетью. Проверьте подключение к интернету.'
-        : 'Извините, произошла ошибка. Попробуйте еще раз.';
-      
-      addMessage('assistant', errorMessage);
+      addMessage('assistant', 'Извините, произошла ошибка. Попробуйте еще раз.');
     }
   }, [inputValue, addMessage, isVoiceMode, voiceState.volume]);
 
@@ -152,276 +141,25 @@ const VoiceChatAssistant = () => {
   };
 
   // Text-to-speech helper function
-  const speakResponse = useCallback((text: string) => {
-    if (!isVoiceMode) {
-      console.log('Voice mode is disabled, skipping speech');
-      return;
-    }
-    
-    // Stop any current speech
-    speechSynthesis.cancel();
-    
-    console.log('Starting speech synthesis for:', text.substring(0, 100) + '...');
+  const speakResponse = (text: string) => {
+    if (!isVoiceMode) return;
     
     const utterance = new SpeechSynthesisUtterance(text);
-    utterance.rate = 0.85; // Немного медленнее для естественности
-    utterance.pitch = 0.9; // Немного ниже
+    utterance.rate = 0.9;
+    utterance.pitch = 1;
     utterance.volume = voiceState.volume;
     utterance.lang = 'ru-RU';
     
-    utterance.onstart = () => {
-      console.log('Speech synthesis started');
-      setVoiceState(prev => ({ ...prev, isSpeaking: true }));
-    };
-    
     utterance.onend = () => {
-      console.log('Speech synthesis ended');
       setVoiceState(prev => ({ ...prev, isSpeaking: false }));
     };
     
-    utterance.onerror = (event) => {
-      console.error('Speech synthesis error:', event.error);
-      setVoiceState(prev => ({ ...prev, isSpeaking: false }));
-      toast({
-        title: 'Ошибка голосового воспроизведения',
-        description: 'Не удалось воспроизвести ответ голосом',
-        variant: 'destructive'
-      });
-    };
-    
-    // Find the best Russian voice
-    const selectBestRussianVoice = (voices: SpeechSynthesisVoice[]) => {
-      // Priority order for better quality voices
-      const preferredVoices = [
-        'Microsoft Elena - Russian (Russia)',
-        'Microsoft Irina - Russian (Russia)', 
-        'Google русский',
-        'Yandex Russian',
-        'ru-RU-Standard-A',
-        'ru-RU-Standard-B',
-        'ru-RU-Standard-C',
-        'ru-RU-Standard-D'
-      ];
-      
-      // Try to find preferred voice
-      for (const preferred of preferredVoices) {
-        const voice = voices.find(v => v.name.includes(preferred.split(' - ')[0]));
-        if (voice) {
-          return voice;
-        }
-      }
-      
-      // Fallback to any Russian voice
-      return voices.find(voice => 
-        voice.lang.startsWith('ru') || voice.lang.includes('RU')
-      );
-    };
+    setVoiceState(prev => ({ ...prev, isSpeaking: true }));
+    speechSynthesis.speak(utterance);
+  };
 
-    // Ensure voices are loaded
-    const voices = speechSynthesis.getVoices();
-    if (voices.length === 0) {
-      // Wait for voices to load
-      speechSynthesis.addEventListener('voiceschanged', () => {
-        const russianVoice = selectBestRussianVoice(speechSynthesis.getVoices());
-        if (russianVoice) {
-          utterance.voice = russianVoice;
-          console.log('Using Russian voice:', russianVoice.name);
-        }
-        speechSynthesis.speak(utterance);
-      }, { once: true });
-    } else {
-      // Find best Russian voice
-      const russianVoice = selectBestRussianVoice(voices);
-      if (russianVoice) {
-        utterance.voice = russianVoice;
-        console.log('Using Russian voice:', russianVoice.name);
-      } else {
-        console.log('Russian voice not found, using default');
-      }
-      
-      speechSynthesis.speak(utterance);
-    }
-  }, [isVoiceMode, voiceState.volume, toast]);
-
-  // Cleanup function for stopping recording and releasing resources
-  const cleanupRecording = useCallback(() => {
-    // Clear auto-stop timer
-    if (autoStopTimerRef.current) {
-      clearTimeout(autoStopTimerRef.current);
-      autoStopTimerRef.current = null;
-    }
-    
-    if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
-      mediaRecorderRef.current.stop();
-    }
-    
-    if (streamRef.current) {
-      streamRef.current.getTracks().forEach(track => track.stop());
-      streamRef.current = null;
-    }
-    
-    // Stop any ongoing speech synthesis
-    speechSynthesis.cancel();
-    
-    mediaRecorderRef.current = null;
-    audioChunksRef.current = [];
-    setVoiceState(prev => ({ ...prev, isListening: false, isSpeaking: false }));
-    setMessages(prev => prev.filter(m => m.content !== '🎤 Слушаю...'));
-  }, []);
-
-  // Process recorded audio and send to speech-to-text
-  const processRecordedAudio = useCallback(async () => {
-    console.log('Processing recorded audio...');
-    
-    if (audioChunksRef.current.length === 0) {
-      console.warn('No audio data recorded');
-      setIsProcessing(false);
-      cleanupRecording();
-      return;
-    }
-    
-    try {
-      // Convert audio to base64
-      const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
-      const arrayBuffer = await audioBlob.arrayBuffer();
-      const uint8Array = new Uint8Array(arrayBuffer);
-      
-      // Convert to base64 in chunks to prevent memory issues
-      let binary = '';
-      const chunkSize = 0x8000;
-      for (let i = 0; i < uint8Array.length; i += chunkSize) {
-        const chunk = uint8Array.subarray(i, Math.min(i + chunkSize, uint8Array.length));
-        binary += String.fromCharCode.apply(null, Array.from(chunk));
-      }
-      const base64Audio = btoa(binary);
-      
-      console.log('Sending audio to speech-to-text...');
-      
-      // Send to speech-to-text function
-      const { data: transcriptionData, error: transcriptionError } = await supabase.functions.invoke('speech-to-text', {
-        body: { audio: base64Audio }
-      });
-      
-      setVoiceState(prev => ({ ...prev, isListening: false }));
-      setMessages(prev => prev.filter(m => m.content !== '🎤 Слушаю...'));
-      
-      if (transcriptionError) {
-        console.error('Transcription error:', transcriptionError);
-              const errorMessage = transcriptionError.message.includes('OpenAI') 
-        ? 'Сервис распознавания речи временно недоступен. Попробуйте позже.'
-        : 'Не удалось распознать речь. Проверьте качество записи и попробуйте еще раз.';
-      addMessage('assistant', errorMessage);
-      setIsProcessing(false);
-      return;
-      }
-      
-      const transcript = transcriptionData.text || '';
-      console.log('Transcription result:', transcript);
-      
-      if (!transcript.trim()) {
-        addMessage('assistant', 'Не удалось распознать речь. Попробуйте говорить громче и четче.');
-        setIsProcessing(false);
-        return;
-      }
-      
-      addMessage('user', transcript, true);
-      
-      // Add thinking indicator
-      const thinkingMessage: Message = {
-        id: 'thinking',
-        type: 'assistant',
-        content: '',
-        timestamp: new Date(),
-        thinking: true
-      };
-      setMessages(prev => [...prev, thinkingMessage]);
-      
-      // Process voice message with enhanced system
-      try {
-        const response = await generateResponse(transcript);
-        setMessages(prev => prev.filter(m => m.id !== 'thinking'));
-        addMessage('assistant', response);
-        
-        // Save to command history (local storage as fallback)
-        try {
-          await supabase.functions.invoke('voice-chat', {
-            body: { 
-              message: `create_command_history: ${JSON.stringify({
-                voice_text: transcript,
-                transcript: transcript,
-                actions: ['voice_processing'],
-                execution_result: { response }
-              })}` 
-            }
-          });
-        } catch (historyError) {
-          console.warn('Failed to save command history:', historyError);
-          // Fallback to local storage
-          const history = JSON.parse(localStorage.getItem('voice_command_history') || '[]');
-          history.push({
-            id: Date.now(),
-            transcript,
-            response,
-            created_at: new Date().toISOString(),
-            status: 'completed'
-          });
-          // Keep only last 10 commands
-          if (history.length > 10) {
-            history.splice(0, history.length - 10);
-          }
-          localStorage.setItem('voice_command_history', JSON.stringify(history));
-        }
-        
-        if (isVoiceMode) {
-          speakResponse(response);
-        }
-        
-        setIsProcessing(false);
-      } catch (error) {
-        console.error('Error processing voice message:', error);
-        setMessages(prev => prev.filter(m => m.id !== 'thinking'));
-        
-        const errorMessage = error.message.includes('OpenAI') 
-          ? 'ИИ-помощник временно недоступен. Попробуйте позже.'
-          : error.message.includes('network') || error.message.includes('fetch')
-          ? 'Проблемы с сетью. Проверьте подключение к интернету.'
-          : 'Извините, произошла ошибка при обработке команды. Попробуйте еще раз.';
-        
-        addMessage('assistant', errorMessage);
-        setIsProcessing(false);
-      }
-      
-    } catch (error) {
-      console.error('Error processing audio:', error);
-      setVoiceState(prev => ({ ...prev, isListening: false }));
-      setMessages(prev => prev.filter(m => m.content !== '🎤 Слушаю...'));
-      
-      const errorMessage = error.message.includes('QuotaExceededError') 
-        ? 'Превышен лимит размера аудиофайла. Запишите более короткое сообщение.'
-        : error.message.includes('network') || error.message.includes('fetch')
-        ? 'Ошибка сети при загрузке аудио. Проверьте подключение.'
-        : 'Ошибка при обработке аудио. Попробуйте еще раз.';
-      
-      addMessage('assistant', errorMessage);
-      setIsProcessing(false);
-    }
-  }, [addMessage, cleanupRecording, generateResponse, isVoiceMode]);
-
-  // Auto-stop timer ref
-  const autoStopTimerRef = useRef<NodeJS.Timeout | null>(null);
-
-  // Start voice recording
+  // Real voice recording with MediaRecorder
   const startVoiceRecording = useCallback(async () => {
-    // Prevent multiple recordings
-    if (voiceState.isListening || mediaRecorderRef.current) {
-      console.log('Recording already in progress');
-      return;
-    }
-
-    // Stop any ongoing speech synthesis when starting to record
-    speechSynthesis.cancel();
-    setVoiceState(prev => ({ ...prev, isSpeaking: false }));
-
     try {
       console.log('Starting voice recording...');
       
@@ -436,7 +174,6 @@ const VoiceChatAssistant = () => {
         }
       });
       
-      streamRef.current = stream;
       setVoiceState(prev => ({ ...prev, isListening: true, isConnected: true }));
       addMessage('user', '🎤 Слушаю...', true);
       
@@ -445,105 +182,146 @@ const VoiceChatAssistant = () => {
         mimeType: 'audio/webm; codecs=opus'
       });
       
-      mediaRecorderRef.current = mediaRecorder;
-      audioChunksRef.current = [];
+      const audioChunks: Blob[] = [];
       
       mediaRecorder.ondataavailable = (event) => {
         if (event.data.size > 0) {
-          audioChunksRef.current.push(event.data);
+          audioChunks.push(event.data);
         }
       };
       
       mediaRecorder.onstop = async () => {
         console.log('Recording stopped, processing audio...');
-        await processRecordedAudio();
+        stream.getTracks().forEach(track => track.stop());
+        
+        if (audioChunks.length === 0) {
+          console.warn('No audio data recorded');
+          setVoiceState(prev => ({ ...prev, isListening: false }));
+          setMessages(prev => prev.filter(m => m.content !== '🎤 Слушаю...'));
+          return;
+        }
+        
+        try {
+          // Convert audio to base64
+          const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+          const arrayBuffer = await audioBlob.arrayBuffer();
+          const uint8Array = new Uint8Array(arrayBuffer);
+          
+          // Convert to base64
+          let binary = '';
+          const chunkSize = 0x8000;
+          for (let i = 0; i < uint8Array.length; i += chunkSize) {
+            const chunk = uint8Array.subarray(i, Math.min(i + chunkSize, uint8Array.length));
+            binary += String.fromCharCode.apply(null, Array.from(chunk));
+          }
+          const base64Audio = btoa(binary);
+          
+          console.log('Sending audio to speech-to-text...');
+          
+          // Send to speech-to-text function
+          const { data: transcriptionData, error: transcriptionError } = await supabase.functions.invoke('speech-to-text', {
+            body: { audio: base64Audio }
+          });
+          
+          setVoiceState(prev => ({ ...prev, isListening: false }));
+          setMessages(prev => prev.filter(m => m.content !== '🎤 Слушаю...'));
+          
+          if (transcriptionError) {
+            console.error('Transcription error:', transcriptionError);
+            addMessage('assistant', 'Извините, не удалось распознать речь. Попробуйте еще раз.');
+            return;
+          }
+          
+          const transcript = transcriptionData.text || '';
+          console.log('Transcription result:', transcript);
+          
+          if (!transcript.trim()) {
+            addMessage('assistant', 'Не удалось распознать речь. Попробуйте говорить громче и четче.');
+            return;
+          }
+          
+          addMessage('user', transcript, true);
+          
+          // Add thinking indicator
+          const thinkingMessage: Message = {
+            id: 'thinking',
+            type: 'assistant',
+            content: '',
+            timestamp: new Date(),
+            thinking: true
+          };
+          setMessages(prev => [...prev, thinkingMessage]);
+          
+          // Process voice message with enhanced system
+          try {
+            const response = await generateResponse(transcript);
+            setMessages(prev => prev.filter(m => m.id !== 'thinking'));
+            addMessage('assistant', response);
+            
+            // Save to command history
+            await supabase.functions.invoke('voice-chat', {
+              body: { 
+                message: `create_command_history: ${JSON.stringify({
+                  voice_text: transcript,
+                  transcript: transcript,
+                  actions: ['voice_processing'],
+                  execution_result: { response }
+                })}` 
+              }
+            });
+            
+            if (isVoiceMode) {
+              speakResponse(response);
+            }
+          } catch (error) {
+            console.error('Error processing voice message:', error);
+            setMessages(prev => prev.filter(m => m.id !== 'thinking'));
+            addMessage('assistant', 'Извините, произошла ошибка при обработке команды.');
+          }
+          
+        } catch (error) {
+          console.error('Error processing audio:', error);
+          setVoiceState(prev => ({ ...prev, isListening: false }));
+          setMessages(prev => prev.filter(m => m.content !== '🎤 Слушаю...'));
+          addMessage('assistant', 'Ошибка при обработке аудио. Попробуйте еще раз.');
+        }
       };
       
-      mediaRecorder.start(1000); // Record in 1 second chunks
-      console.log('MediaRecorder started');
+      // Store recorder reference for stopping
+      (window as any).currentRecorder = mediaRecorder;
       
-      // Auto-stop after 8 seconds if not manually stopped
-      autoStopTimerRef.current = setTimeout(() => {
-        console.log('Auto-stopping recording after 8 seconds');
-        if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
-          stopVoiceRecording();
-        }
-      }, 8000);
+      mediaRecorder.start();
+      console.log('MediaRecorder started');
       
     } catch (error) {
       console.error('Error starting voice recording:', error);
-      cleanupRecording();
+      setVoiceState(prev => ({ ...prev, isListening: false }));
       toast({
         title: 'Ошибка доступа к микрофону',
         description: 'Разрешите доступ к микрофону для голосового ввода',
         variant: 'destructive'
       });
     }
-  }, [voiceState.isListening, addMessage, toast, cleanupRecording, processRecordedAudio]);
+  }, [addMessage, toast, isVoiceMode, generateResponse, voiceState.volume]);
 
-  // Stop voice recording
   const stopVoiceRecording = useCallback(() => {
     console.log('Stopping voice recording...');
-    
-    // Prevent multiple stop calls
-    if (isProcessing) {
-      console.log('Already processing, ignoring stop request');
-      return;
+    const recorder = (window as any).currentRecorder;
+    if (recorder && recorder.state === 'recording') {
+      recorder.stop();
     }
-    
-    // Clear auto-stop timer
-    if (autoStopTimerRef.current) {
-      clearTimeout(autoStopTimerRef.current);
-      autoStopTimerRef.current = null;
-    }
-    
-    if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
-      setIsProcessing(true);
-      mediaRecorderRef.current.stop();
-    } else {
-      console.log('MediaRecorder not in recording state:', mediaRecorderRef.current?.state);
-    }
-  }, [isProcessing]);
-
-  // Cleanup on unmount
-  useEffect(() => {
-    return () => {
-      cleanupRecording();
-    };
-  }, [cleanupRecording]);
+    setVoiceState(prev => ({ ...prev, isListening: false }));
+  }, []);
 
   const toggleVoiceMode = useCallback(() => {
-    const newVoiceMode = !isVoiceMode;
-    setIsVoiceMode(newVoiceMode);
-    
-    if (newVoiceMode) {
+    setIsVoiceMode(prev => !prev);
+    if (!isVoiceMode) {
       toast({
         title: 'Голосовой режим включен',
         description: 'Теперь помощник будет отвечать голосом'
       });
-      
-      // Test speech synthesis
-      setTimeout(() => {
-        if (newVoiceMode) { // Check again in case it was toggled quickly
-          const utterance = new SpeechSynthesisUtterance('Голосовой режим включен. Я готов отвечать голосом!');
-          utterance.rate = 0.9;
-          utterance.pitch = 1;
-          utterance.volume = voiceState.volume;
-          utterance.lang = 'ru-RU';
-          speechSynthesis.speak(utterance);
-        }
-      }, 500);
-    } else {
-      // Stop any ongoing speech when disabling voice mode
-      speechSynthesis.cancel();
-      setVoiceState(prev => ({ ...prev, isSpeaking: false }));
-      
-      toast({
-        title: 'Голосовой режим выключен',
-        description: 'Помощник будет отвечать только текстом'
-      });
     }
-  }, [isVoiceMode, toast, voiceState.volume]);
+  }, [isVoiceMode, toast]);
 
   const clearChat = useCallback(() => {
     setMessages([{
@@ -559,30 +337,21 @@ const VoiceChatAssistant = () => {
   
   const loadCommandHistory = useCallback(async () => {
     try {
-      // Try to load from Supabase first
       const { data, error } = await supabase.functions.invoke('voice-chat', {
         body: { message: 'get_command_history' }
       });
       
       if (!error && data) {
         setCommandHistory(data.history || []);
-      } else {
-        throw new Error('Supabase history not available');
       }
     } catch (error) {
-      console.warn('Loading history from localStorage:', error);
-      // Fallback to local storage
-      const localHistory = JSON.parse(localStorage.getItem('voice_command_history') || '[]');
-      setCommandHistory(localHistory);
+      console.error('Error loading command history:', error);
     }
   }, []);
 
   useEffect(() => {
     loadCommandHistory();
-    // Reload history when messages change (to show new commands)
-    const timer = setTimeout(loadCommandHistory, 1000);
-    return () => clearTimeout(timer);
-  }, [loadCommandHistory, messages]);
+  }, [loadCommandHistory]);
 
   return (
     <div className="h-full flex flex-col bg-gradient-to-br from-background to-muted/20">
@@ -595,18 +364,20 @@ const VoiceChatAssistant = () => {
           <div>
             <h1 className="text-lg font-semibold">Голосовой помощник руководителя</h1>
             <p className="text-sm text-muted-foreground">
-              {voiceState.isListening ? (
-                <span className="text-green-500 flex items-center gap-1">
-                  <div className="h-2 w-2 bg-green-500 rounded-full animate-pulse" />
-                  Слушаю...
-                </span>
-              ) : voiceState.isSpeaking ? (
-                <span className="text-blue-500 flex items-center gap-1">
-                  <div className="h-2 w-2 bg-blue-500 rounded-full animate-pulse" />
-                  Говорю...
-                </span>
-              ) : voiceState.isConnected ? (
-                <span className="text-green-500">Готов к работе</span>
+              {voiceState.isConnected ? (
+                voiceState.isListening ? (
+                  <span className="text-green-500 flex items-center gap-1">
+                    <div className="h-2 w-2 bg-green-500 rounded-full animate-pulse" />
+                    Слушаю...
+                  </span>
+                ) : voiceState.isSpeaking ? (
+                  <span className="text-blue-500 flex items-center gap-1">
+                    <div className="h-2 w-2 bg-blue-500 rounded-full animate-pulse" />
+                    Говорю...
+                  </span>
+                ) : (
+                  <span className="text-green-500">Готов к работе</span>
+                )
               ) : (
                 'Управление CRM через голос и текст'
               )}
@@ -624,20 +395,6 @@ const VoiceChatAssistant = () => {
             {isVoiceMode ? <Volume2 className="h-4 w-4" /> : <VolumeX className="h-4 w-4" />}
             {isVoiceMode ? 'Голос ВКЛ' : 'Голос ВЫКЛ'}
           </Button>
-          {voiceState.isSpeaking && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => {
-                speechSynthesis.cancel();
-                setVoiceState(prev => ({ ...prev, isSpeaking: false }));
-              }}
-              className="gap-1"
-            >
-              <VolumeX className="h-4 w-4" />
-              Стоп
-            </Button>
-          )}
           <Button variant="outline" size="sm" onClick={clearChat}>
             <Trash2 className="h-4 w-4" />
           </Button>
@@ -679,8 +436,8 @@ const VoiceChatAssistant = () => {
                     <span className="text-sm">Думаю...</span>
                   </div>
                 ) : (
-                  <div>
-                    <div className="text-sm leading-relaxed">{message.content}</div>
+                  <>
+                    <p className="text-sm leading-relaxed">{message.content}</p>
                     <div className="flex items-center justify-between mt-2">
                       <span className="text-xs opacity-70">
                         {message.timestamp.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}
@@ -692,7 +449,7 @@ const VoiceChatAssistant = () => {
                         </Badge>
                       )}
                     </div>
-                  </div>
+                  </>
                 )}
               </div>
               
@@ -737,13 +494,12 @@ const VoiceChatAssistant = () => {
                 "h-10 w-10 p-0 relative",
                 voiceState.isListening && "animate-pulse"
               )}
-              onClick={voiceState.isListening ? stopVoiceRecording : startVoiceRecording}
-              disabled={isProcessing}
+              onMouseDown={startVoiceRecording}
+              onMouseUp={stopVoiceRecording}
+              onMouseLeave={stopVoiceRecording}
             >
               {voiceState.isListening ? (
                 <MicOff className="h-5 w-5" />
-              ) : isProcessing ? (
-                <div className="h-5 w-5 border-2 border-current border-t-transparent rounded-full animate-spin" />
               ) : (
                 <Mic className="h-5 w-5" />
               )}
@@ -754,12 +510,7 @@ const VoiceChatAssistant = () => {
           </div>
           
           <p className="text-xs text-muted-foreground mt-2 text-center">
-            {isProcessing 
-              ? 'Обрабатываю запись...' 
-              : voiceState.isListening 
-              ? 'Говорите! Автоостановка через 8 сек или нажмите красный микрофон'
-              : 'Нажмите зеленый микрофон для начала записи голоса'
-            }
+            Нажмите и удерживайте кнопку микрофона для голосового ввода
           </p>
           
           {/* Command History */}
@@ -769,10 +520,10 @@ const VoiceChatAssistant = () => {
               <div className="space-y-1 max-h-32 overflow-y-auto">
                 {commandHistory.slice(0, 5).map((cmd: any) => (
                   <div key={cmd.id} className="text-xs text-muted-foreground p-2 bg-background rounded border-l-2 border-primary/20">
-                    <span className="font-medium block">{cmd.transcript}</span>
-                    <span className="text-xs opacity-60 block">
+                    <div className="font-medium">{cmd.transcript}</div>
+                    <div className="text-xs opacity-60">
                       {new Date(cmd.created_at).toLocaleString('ru-RU')} • {cmd.status}
-                    </span>
+                    </div>
                   </div>
                 ))}
               </div>
