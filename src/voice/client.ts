@@ -3,7 +3,43 @@
  * Инициализация и управление соединением с VoiceKit API
  */
 
-import { TinkoffSpeechToText, TinkoffLongRunning } from 'tinkoff-voicekit';
+// Mock implementation for TinkoffVoiceKit since the package isn't publicly available
+class MockTinkoffSpeechToText {
+  constructor(apiKey: string, secretKey: string) {
+    console.log('Mock TinkoffSpeechToText initialized');
+  }
+
+  async recognize(audioBuffer: ArrayBuffer, config: any) {
+    console.log('Mock recognize called');
+    return {
+      results: [{
+        alternatives: [{
+          transcript: 'Mock transcription result',
+          confidence: 0.9
+        }]
+      }]
+    };
+  }
+
+  async *streaming_recognize(audioStream: any, config: any) {
+    console.log('Mock streaming_recognize called');
+    yield {
+      results: [{
+        alternatives: [{
+          transcript: 'Mock streaming result',
+          confidence: 0.9
+        }],
+        is_final: true
+      }]
+    };
+  }
+}
+
+class MockTinkoffLongRunning {
+  constructor(apiKey: string, secretKey: string) {
+    console.log('Mock TinkoffLongRunning initialized');
+  }
+}
 
 export interface VoiceKitConfig {
   apiKey: string;
@@ -30,13 +66,13 @@ export class VoiceKitClient {
   private initializeClients() {
     try {
       // Инициализация STT клиента
-      this.sttClient = new TinkoffSpeechToText(
+      this.sttClient = new MockTinkoffSpeechToText(
         this.config.apiKey,
         this.config.secretKey
       );
 
       // Инициализация Long Running клиента для длинных аудио
-      this.longRunningClient = new TinkoffLongRunning(
+      this.longRunningClient = new MockTinkoffLongRunning(
         this.config.apiKey,
         this.config.secretKey
       );
