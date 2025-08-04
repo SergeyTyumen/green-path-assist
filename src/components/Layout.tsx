@@ -22,7 +22,7 @@ export function Layout() {
                   <LayoutGrid className="h-6 w-6" />
                 </SidebarTrigger>
                 <div className="text-sm text-muted-foreground">
-                  CRM система для ландшафтного бизнеса
+                  Ландшафтная CRM
                 </div>
               </div>
               
