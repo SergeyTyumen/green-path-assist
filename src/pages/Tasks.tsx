@@ -91,6 +91,10 @@ export default function Tasks() {
     return matchesSearch && matchesStatus && matchesPriority && matchesClient;
   });
 
+  // Разделяем задачи на активные и выполненные
+  const activeTasks = filteredTasks.filter(task => task.status !== "completed");
+  const completedTasks = filteredTasks.filter(task => task.status === "completed");
+
   const getClientName = (clientId: string | null | undefined) => {
     if (!clientId) return "Без клиента";
     const client = clients.find(c => c.id === clientId);
@@ -171,12 +175,11 @@ export default function Tasks() {
         </CardContent>
       </Card>
 
-      {/* Статистика задач */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      {/* Статистика активных задач */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {[
           { status: "pending", label: "Ожидает", color: "text-gray-600" },
           { status: "in-progress", label: "В работе", color: "text-blue-600" },
-          { status: "completed", label: "Выполнено", color: "text-green-600" },
           { status: "overdue", label: "Просрочено", color: "text-red-600" }
         ].map(({ status, label, color }) => (
           <Card key={status}>
@@ -195,9 +198,15 @@ export default function Tasks() {
         ))}
       </div>
 
-      {/* Список задач */}
-      <div className="grid gap-4">
-        {filteredTasks.map((task) => (
+      {/* Активные задачи */}
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <h2 className="text-xl font-semibold text-foreground">Активные задачи</h2>
+          <span className="text-sm text-muted-foreground">{activeTasks.length} задач(и)</span>
+        </div>
+        
+        <div className="grid gap-4">
+          {activeTasks.map((task) => (
           <Card key={task.id} className="hover:shadow-md transition-shadow">
             <CardContent className="p-6">
               <div className="flex items-start justify-between">
@@ -278,8 +287,115 @@ export default function Tasks() {
               </div>
             </CardContent>
           </Card>
-        ))}
+          ))}
+        </div>
+        
+        {activeTasks.length === 0 && (
+          <Card>
+            <CardContent className="p-12 text-center">
+              <CheckSquare className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+              <h3 className="text-lg font-medium text-foreground mb-2">
+                Активные задачи не найдены
+              </h3>
+              <p className="text-muted-foreground mb-4">
+                Попробуйте изменить параметры поиска или создайте новую задачу
+              </p>
+              <TaskDialog
+                trigger={
+                  <Button>
+                    <Plus className="h-4 w-4 mr-2" />
+                    Создать задачу
+                  </Button>
+                }
+              />
+            </CardContent>
+          </Card>
+        )}
       </div>
+
+      {/* Выполненные задачи */}
+      {completedTasks.length > 0 && (
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <h2 className="text-xl font-semibold text-foreground">Выполненные задачи</h2>
+            <span className="text-sm text-muted-foreground">{completedTasks.length} задач(и)</span>
+          </div>
+          
+          <div className="grid gap-4">
+            {completedTasks.map((task) => (
+              <Card key={task.id} className="hover:shadow-md transition-shadow opacity-75">
+                <CardContent className="p-6">
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-3 mb-2">
+                        {getCategoryIcon(task.category)}
+                        <h3 className="text-lg font-semibold text-foreground line-through">
+                          {task.title}
+                        </h3>
+                        {getStatusBadge(task.status)}
+                        {getPriorityBadge(task.priority)}
+                      </div>
+                      
+                      <p className="text-sm text-muted-foreground mb-3">
+                        {task.description}
+                      </p>
+                      
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-4 text-sm">
+                          <span className="font-medium text-foreground">Клиент: {getClientName(task.client_id)}</span>
+                        </div>
+                        
+                        <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                          <div className="flex items-center gap-1">
+                            <User className="h-3 w-3" />
+                            {task.assignee || 'Не назначен'}
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <Calendar className="h-3 w-3" />
+                            Выполнена: {new Date(task.updated_at).toLocaleDateString('ru-RU')}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex gap-1">
+                      <TaskDialog
+                        task={task}
+                        trigger={
+                          <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                        }
+                      />
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-destructive hover:text-destructive">
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Удалить задачу?</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              Это действие нельзя отменить. Задача будет удалена безвозвратно.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Отмена</AlertDialogCancel>
+                            <AlertDialogAction onClick={() => handleDeleteTask(task.id)}>
+                              Удалить
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </div>
+      )}
 
       {filteredTasks.length === 0 && (
         <Card>
