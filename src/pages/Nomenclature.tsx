@@ -49,9 +49,7 @@ export default function Nomenclature() {
     
     const config = statusConfig[status];
     return (
-      <Badge className={config.className}>
-        {config.label}
-      </Badge>
+      <Badge className={config.className}>{config.label}</Badge>
     );
   };
 
