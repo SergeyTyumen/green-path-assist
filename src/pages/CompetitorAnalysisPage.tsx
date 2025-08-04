@@ -16,9 +16,16 @@ import {
   Download,
   RefreshCw,
   Eye,
-  Zap
+  Zap,
+  Building,
+  Search,
+  BarChart3,
+  Calendar,
+  Target
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
+import CompetitorForm from '@/components/CompetitorForm';
+import CompetitorAnalysisTools from '@/components/CompetitorAnalysisTools';
 
 interface CompetitorAnalysis {
   analysis: string;
@@ -100,9 +107,18 @@ const CompetitorAnalysisPage = () => {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
-        {/* Input Section */}
-        <div className="xl:col-span-1 space-y-6">
+      <Tabs defaultValue="analysis" className="w-full">
+        <TabsList className="grid w-full grid-cols-4 mb-6">
+          <TabsTrigger value="analysis">КП Анализ</TabsTrigger>
+          <TabsTrigger value="competitors">База конкурентов</TabsTrigger>
+          <TabsTrigger value="monitoring">Мониторинг</TabsTrigger>
+          <TabsTrigger value="trends">Аналитика</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="analysis">
+          <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+            {/* Input Section */}
+            <div className="xl:col-span-1 space-y-6">
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
@@ -170,26 +186,62 @@ const CompetitorAnalysisPage = () => {
           </Card>
 
           {/* Quick Stats */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg">Статистика анализов</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <div className="flex justify-between items-center">
-                <span className="text-sm text-muted-foreground">Проанализировано КП</span>
-                <Badge variant="secondary">47</Badge>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-sm text-muted-foreground">Выявлено акций</span>
-                <Badge variant="secondary">12</Badge>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-sm text-muted-foreground">Улучшений внедрено</span>
-                <Badge variant="secondary">23</Badge>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg">Статистика анализов</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-muted-foreground">Проанализировано КП</span>
+                  <Badge variant="secondary">47</Badge>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-muted-foreground">Выявлено акций</span>
+                  <Badge variant="secondary">12</Badge>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-muted-foreground">Улучшений внедрено</span>
+                  <Badge variant="secondary">23</Badge>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-muted-foreground">Конкурентов в базе</span>
+                  <Badge variant="secondary">15</Badge>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-muted-foreground">Трендов выявлено</span>
+                  <Badge variant="secondary">8</Badge>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Быстрые действия */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <Zap className="h-5 w-5" />
+                  Быстрые действия
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-2">
+                <Button variant="outline" size="sm" className="w-full justify-start">
+                  <Search className="h-4 w-4 mr-2" />
+                  Поиск новых акций
+                </Button>
+                <Button variant="outline" size="sm" className="w-full justify-start">
+                  <TrendingUp className="h-4 w-4 mr-2" />
+                  Обновить тренды
+                </Button>
+                <Button variant="outline" size="sm" className="w-full justify-start">
+                  <BarChart3 className="h-4 w-4 mr-2" />
+                  Анализ цен
+                </Button>
+                <Button variant="outline" size="sm" className="w-full justify-start">
+                  <Target className="h-4 w-4 mr-2" />
+                  Прогноз изменений
+                </Button>
+              </CardContent>
+            </Card>
+          </div>
 
         {/* Results Section */}
         <div className="xl:col-span-2">
@@ -297,8 +349,162 @@ const CompetitorAnalysisPage = () => {
               </CardContent>
             </Card>
           )}
-        </div>
-      </div>
+            </div>
+          </div>
+        </TabsContent>
+
+        <TabsContent value="competitors">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <CompetitorForm onSave={(data) => {
+              console.log('Сохранение конкурента:', data);
+              toast({
+                title: 'Конкурент добавлен',
+                description: `${data.name} успешно добавлен в базу`,
+              });
+            }} />
+            
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Building className="h-5 w-5" />
+                  База конкурентов
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  {/* Пример карточек конкурентов */}
+                  <div className="border rounded-lg p-4">
+                    <div className="flex justify-between items-start mb-2">
+                      <h4 className="font-semibold">ООО "Зеленый Мир"</h4>
+                      <Badge variant="outline">Активный</Badge>
+                    </div>
+                    <p className="text-sm text-muted-foreground mb-2">
+                      Ландшафтный дизайн, автополив, озеленение
+                    </p>
+                    <div className="flex gap-2 text-xs text-muted-foreground">
+                      <span>Средний сегмент</span>
+                      <span>•</span>
+                      <span>15 отслеживаемых URL</span>
+                      <span>•</span>
+                      <span>Последнее обновление: вчера</span>
+                    </div>
+                  </div>
+                  
+                  <div className="border rounded-lg p-4">
+                    <div className="flex justify-between items-start mb-2">
+                      <h4 className="font-semibold">ИП Садовников</h4>
+                      <Badge variant="secondary">Мониторинг</Badge>
+                    </div>
+                    <p className="text-sm text-muted-foreground mb-2">
+                      Ландшафтный дизайн, уход за садом
+                    </p>
+                    <div className="flex gap-2 text-xs text-muted-foreground">
+                      <span>Эконом сегмент</span>
+                      <span>•</span>
+                      <span>8 отслеживаемых URL</span>
+                      <span>•</span>
+                      <span>Последнее обновление: 3 дня назад</span>
+                    </div>
+                  </div>
+                  
+                  <Button variant="outline" className="w-full">
+                    Показать всех конкурентов (15)
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
+
+        <TabsContent value="monitoring">
+          <CompetitorAnalysisTools />
+        </TabsContent>
+
+        <TabsContent value="trends">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <TrendingUp className="h-5 w-5" />
+                  Ценовые тренды
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  <div className="border rounded-lg p-4">
+                    <div className="flex justify-between items-center mb-2">
+                      <span className="font-medium">Ландшафтный дизайн</span>
+                      <Badge variant="default" className="bg-green-600">↗ +12%</Badge>
+                    </div>
+                    <p className="text-sm text-muted-foreground">
+                      Рост цен в весенний период. Прогноз до мая: +18%
+                    </p>
+                  </div>
+                  
+                  <div className="border rounded-lg p-4">
+                    <div className="flex justify-between items-center mb-2">
+                      <span className="font-medium">Автополив</span>
+                      <Badge variant="destructive">↘ -8%</Badge>
+                    </div>
+                    <p className="text-sm text-muted-foreground">
+                      Снижение цен из-за конкуренции. Стабилизация ожидается в июне
+                    </p>
+                  </div>
+                  
+                  <div className="border rounded-lg p-4">
+                    <div className="flex justify-between items-center mb-2">
+                      <span className="font-medium">Мощение</span>
+                      <Badge variant="secondary">→ 0%</Badge>
+                    </div>
+                    <p className="text-sm text-muted-foreground">
+                      Цены стабильны. Небольшой рост ожидается к концу сезона
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Calendar className="h-5 w-5" />
+                  Сезонная аналитика
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  <div className="border rounded-lg p-4">
+                    <h4 className="font-semibold mb-2">Весенний пик (март-май)</h4>
+                    <ul className="text-sm text-muted-foreground space-y-1">
+                      <li>• Рост спроса на газоны: +40%</li>
+                      <li>• Увеличение цен на посадочный материал: +25%</li>
+                      <li>• Пик активности конкурентов в соцсетях</li>
+                    </ul>
+                  </div>
+                  
+                  <div className="border rounded-lg p-4">
+                    <h4 className="font-semibold mb-2">Летний период (июнь-август)</h4>
+                    <ul className="text-sm text-muted-foreground space-y-1">
+                      <li>• Стабилизация цен на основные услуги</li>
+                      <li>• Рост спроса на системы полива: +60%</li>
+                      <li>• Активные акции по уходу за садом</li>
+                    </ul>
+                  </div>
+                  
+                  <div className="border rounded-lg p-4">
+                    <h4 className="font-semibold mb-2">Осенне-зимний спад</h4>
+                    <ul className="text-sm text-muted-foreground space-y-1">
+                      <li>• Снижение цен на проектирование: -20%</li>
+                      <li>• Акции на подготовку к следующему сезону</li>
+                      <li>• Минимальная активность конкурентов</li>
+                    </ul>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 };
