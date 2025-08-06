@@ -159,11 +159,22 @@ const VoiceChatAssistant = () => {
   };
 
   // Real voice recording with MediaRecorder
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
+  const recordingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  
   const startVoiceRecording = useCallback(async () => {
     try {
       console.log('Starting voice recording...');
       
-      // Request microphone access
+      // Don't start if already recording
+      if (voiceState.isListening) {
+        console.log('Already recording, ignoring request');
+        return;
+      }
+      
+      // Request microphone access with better settings
       const stream = await navigator.mediaDevices.getUserMedia({ 
         audio: {
           sampleRate: 16000,
@@ -174,40 +185,74 @@ const VoiceChatAssistant = () => {
         }
       });
       
+      streamRef.current = stream;
+      audioChunksRef.current = [];
+      
+      // Check if MediaRecorder supports webm
+      let mimeType = 'audio/webm; codecs=opus';
+      if (!MediaRecorder.isTypeSupported(mimeType)) {
+        mimeType = 'audio/webm';
+        if (!MediaRecorder.isTypeSupported(mimeType)) {
+          mimeType = 'audio/mp4';
+          if (!MediaRecorder.isTypeSupported(mimeType)) {
+            mimeType = '';
+          }
+        }
+      }
+      
+      console.log('Using MIME type:', mimeType);
+      
+      // Initialize MediaRecorder
+      const mediaRecorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
+      mediaRecorderRef.current = mediaRecorder;
+      
       setVoiceState(prev => ({ ...prev, isListening: true, isConnected: true }));
       addMessage('user', '🎤 Слушаю...', true);
       
-      // Initialize MediaRecorder
-      const mediaRecorder = new MediaRecorder(stream, {
-        mimeType: 'audio/webm; codecs=opus'
-      });
-      
-      const audioChunks: Blob[] = [];
-      
       mediaRecorder.ondataavailable = (event) => {
+        console.log('Audio data available, size:', event.data.size);
         if (event.data.size > 0) {
-          audioChunks.push(event.data);
+          audioChunksRef.current.push(event.data);
         }
       };
       
       mediaRecorder.onstop = async () => {
         console.log('Recording stopped, processing audio...');
-        stream.getTracks().forEach(track => track.stop());
+        
+        // Clean up stream
+        if (streamRef.current) {
+          streamRef.current.getTracks().forEach(track => track.stop());
+          streamRef.current = null;
+        }
+        
+        const audioChunks = audioChunksRef.current;
+        audioChunksRef.current = [];
         
         if (audioChunks.length === 0) {
           console.warn('No audio data recorded');
           setVoiceState(prev => ({ ...prev, isListening: false }));
           setMessages(prev => prev.filter(m => m.content !== '🎤 Слушаю...'));
+          toast({
+            title: 'Нет аудио данных',
+            description: 'Говорите дольше и громче для лучшего распознавания',
+            variant: 'destructive'
+          });
           return;
         }
         
         try {
           // Convert audio to base64
-          const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+          const audioBlob = new Blob(audioChunks, { type: mimeType || 'audio/webm' });
+          console.log('Audio blob size:', audioBlob.size);
+          
+          if (audioBlob.size < 1000) {
+            throw new Error('Audio too short');
+          }
+          
           const arrayBuffer = await audioBlob.arrayBuffer();
           const uint8Array = new Uint8Array(arrayBuffer);
           
-          // Convert to base64
+          // Convert to base64 in chunks
           let binary = '';
           const chunkSize = 0x8000;
           for (let i = 0; i < uint8Array.length; i += chunkSize) {
@@ -216,7 +261,7 @@ const VoiceChatAssistant = () => {
           }
           const base64Audio = btoa(binary);
           
-          console.log('Sending audio to speech-to-text...');
+          console.log('Sending audio to speech-to-text, size:', base64Audio.length);
           
           // Send to speech-to-text function
           const { data: transcriptionData, error: transcriptionError } = await supabase.functions.invoke('speech-to-text', {
@@ -287,11 +332,27 @@ const VoiceChatAssistant = () => {
         }
       };
       
-      // Store recorder reference for stopping
-      (window as any).currentRecorder = mediaRecorder;
+      mediaRecorder.onerror = (event) => {
+        console.error('MediaRecorder error:', event);
+        setVoiceState(prev => ({ ...prev, isListening: false }));
+        setMessages(prev => prev.filter(m => m.content !== '🎤 Слушаю...'));
+        toast({
+          title: 'Ошибка записи',
+          description: 'Произошла ошибка при записи аудио',
+          variant: 'destructive'
+        });
+      };
       
-      mediaRecorder.start();
+      // Start recording with time slicing for better data capture
+      mediaRecorder.start(100); // Record in 100ms chunks
       console.log('MediaRecorder started');
+      
+      // Auto-stop after 30 seconds to prevent infinite recording
+      recordingTimeoutRef.current = setTimeout(() => {
+        if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
+          stopVoiceRecording();
+        }
+      }, 30000);
       
     } catch (error) {
       console.error('Error starting voice recording:', error);
@@ -302,14 +363,28 @@ const VoiceChatAssistant = () => {
         variant: 'destructive'
       });
     }
-  }, [addMessage, toast, isVoiceMode, generateResponse, voiceState.volume]);
+  }, [addMessage, toast, isVoiceMode, generateResponse, voiceState.isListening]);
 
   const stopVoiceRecording = useCallback(() => {
     console.log('Stopping voice recording...');
-    const recorder = (window as any).currentRecorder;
-    if (recorder && recorder.state === 'recording') {
-      recorder.stop();
+    
+    // Clear timeout
+    if (recordingTimeoutRef.current) {
+      clearTimeout(recordingTimeoutRef.current);
+      recordingTimeoutRef.current = null;
     }
+    
+    // Stop recorder
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
+      mediaRecorderRef.current.stop();
+    }
+    
+    // Clean up stream
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach(track => track.stop());
+      streamRef.current = null;
+    }
+    
     setVoiceState(prev => ({ ...prev, isListening: false }));
   }, []);
 
@@ -491,26 +566,57 @@ const VoiceChatAssistant = () => {
               size="default"
               variant={voiceState.isListening ? "destructive" : "default"}
               className={cn(
-                "h-10 w-10 p-0 relative",
-                voiceState.isListening && "animate-pulse"
+                "h-10 w-10 p-0 relative transition-all duration-200",
+                voiceState.isListening && "animate-pulse scale-110"
               )}
-              onMouseDown={startVoiceRecording}
-              onMouseUp={stopVoiceRecording}
-              onMouseLeave={stopVoiceRecording}
+              onMouseDown={(e) => {
+                e.preventDefault();
+                if (!voiceState.isListening) {
+                  startVoiceRecording();
+                }
+              }}
+              onMouseUp={(e) => {
+                e.preventDefault();
+                if (voiceState.isListening) {
+                  stopVoiceRecording();
+                }
+              }}
+              onMouseLeave={(e) => {
+                e.preventDefault();
+                if (voiceState.isListening) {
+                  stopVoiceRecording();
+                }
+              }}
+              onTouchStart={(e) => {
+                e.preventDefault();
+                if (!voiceState.isListening) {
+                  startVoiceRecording();
+                }
+              }}
+              onTouchEnd={(e) => {
+                e.preventDefault();
+                if (voiceState.isListening) {
+                  stopVoiceRecording();
+                }
+              }}
+              disabled={voiceState.isSpeaking}
             >
               {voiceState.isListening ? (
-                <MicOff className="h-5 w-5" />
+                <MicOff className="h-5 w-5 text-white" />
               ) : (
                 <Mic className="h-5 w-5" />
               )}
               {voiceState.isListening && (
-                <div className="absolute inset-0 rounded-md bg-destructive/20 animate-ping" />
+                <div className="absolute inset-0 rounded-md bg-destructive/30 animate-ping" />
               )}
             </Button>
           </div>
           
           <p className="text-xs text-muted-foreground mt-2 text-center">
-            Нажмите и удерживайте кнопку микрофона для голосового ввода
+            {voiceState.isListening 
+              ? "🔴 Говорите... Отпустите кнопку для завершения"
+              : "Нажмите и удерживайте кнопку микрофона для голосового ввода"
+            }
           </p>
           
           {/* Command History */}
