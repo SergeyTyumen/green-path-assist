@@ -437,18 +437,18 @@ const VoiceChatAssistant = () => {
                   </div>
                 ) : (
                   <>
-                    <p className="text-sm leading-relaxed">{message.content}</p>
-                    <div className="flex items-center justify-between mt-2">
-                      <span className="text-xs opacity-70">
-                        {message.timestamp.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}
-                      </span>
-                      {message.isVoice && (
-                        <Badge variant="secondary" className="text-xs">
-                          <Mic className="h-3 w-3 mr-1" />
-                          Голос
-                        </Badge>
-                      )}
-                    </div>
+                     <div className="text-sm leading-relaxed">{message.content}</div>
+                     <div className="flex items-center justify-between mt-2">
+                       <span className="text-xs opacity-70">
+                         {message.timestamp.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}
+                       </span>
+                       {message.isVoice && (
+                         <Badge variant="secondary" className="text-xs inline-flex items-center">
+                           <Mic className="h-3 w-3 mr-1" />
+                           Голос
+                         </Badge>
+                       )}
+                     </div>
                   </>
                 )}
               </div>
