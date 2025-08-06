@@ -174,34 +174,78 @@ const VoiceChatAssistant = () => {
         return;
       }
 
+      // Check if we're running on HTTPS or localhost
+      const isSecureContext = window.isSecureContext;
+      console.log('Secure context (HTTPS/localhost):', isSecureContext);
+      
+      if (!isSecureContext) {
+        toast({
+          title: 'Небезопасное соединение',
+          description: 'Микрофон работает только через HTTPS или localhost',
+          variant: 'destructive'
+        });
+        return;
+      }
+
+      // Check if getUserMedia is available
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        toast({
+          title: 'Микрофон недоступен',
+          description: 'Ваш браузер не поддерживает доступ к микрофону',
+          variant: 'destructive'
+        });
+        return;
+      }
+
       // Check for microphone permission first
       try {
         const permission = await navigator.permissions.query({ name: 'microphone' as PermissionName });
         console.log('Microphone permission status:', permission.state);
         
         if (permission.state === 'denied') {
-          throw new Error('Microphone access denied');
+          toast({
+            title: 'Доступ запрещен',
+            description: 'Разрешите доступ к микрофону в настройках браузера (иконка замка в адресной строке)',
+            variant: 'destructive'
+          });
+          return;
         }
       } catch (permError) {
         console.warn('Could not check microphone permission:', permError);
       }
+
+      console.log('Requesting microphone access...');
+      
+      // Show requesting access message
+      toast({
+        title: 'Запрос доступа',
+        description: 'Разрешите доступ к микрофону во всплывающем окне',
+      });
       
       // Request microphone access with fallback settings
       let stream: MediaStream;
       try {
+        console.log('Trying with advanced audio settings...');
         stream = await navigator.mediaDevices.getUserMedia({ 
           audio: {
-            sampleRate: 16000,
+            sampleRate: 44100, // Standard sample rate
             channelCount: 1,
             echoCancellation: true,
             noiseSuppression: true,
             autoGainControl: true
           }
         });
+        console.log('Success with advanced settings');
       } catch (error) {
         console.warn('Failed with advanced settings, trying basic audio:', error);
-        // Fallback to basic audio request
-        stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        try {
+          // Fallback to basic audio request
+          stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+          console.log('Success with basic settings');
+        } catch (basicError) {
+          console.error('Failed with basic settings too:', basicError);
+          throw basicError;
+        }
       }
       
       console.log('Got media stream:', stream);
@@ -402,22 +446,35 @@ const VoiceChatAssistant = () => {
         }
       }, 30000);
       
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error starting voice recording:', error);
       console.error('Error details:', error.name, error.message);
       setVoiceState(prev => ({ ...prev, isListening: false }));
       
-      let errorMessage = 'Разрешите доступ к микрофону для голосового ввода';
+      let errorTitle = 'Ошибка доступа к микрофону';
+      let errorMessage = 'Неизвестная ошибка';
+      
       if (error.name === 'NotAllowedError') {
-        errorMessage = 'Доступ к микрофону запрещен. Разрешите доступ в настройках браузера';
+        errorTitle = 'Доступ запрещен';
+        errorMessage = 'Нажмите на иконку замка в адресной строке и разрешите доступ к микрофону';
       } else if (error.name === 'NotFoundError') {
-        errorMessage = 'Микрофон не найден. Проверьте подключение микрофона';
+        errorTitle = 'Микрофон не найден';
+        errorMessage = 'Проверьте подключение микрофона к компьютеру';
       } else if (error.name === 'NotReadableError') {
-        errorMessage = 'Микрофон занят другим приложением';
+        errorTitle = 'Микрофон занят';
+        errorMessage = 'Закройте другие приложения, которые могут использовать микрофон';
+      } else if (error.name === 'OverconstrainedError') {
+        errorTitle = 'Настройки не поддерживаются';
+        errorMessage = 'Ваш микрофон не поддерживает требуемые настройки';
+      } else if (error.name === 'SecurityError') {
+        errorTitle = 'Небезопасное соединение';
+        errorMessage = 'Микрофон работает только через HTTPS или localhost';
+      } else {
+        errorMessage = error.message || 'Проверьте настройки микрофона в браузере';
       }
       
       toast({
-        title: 'Ошибка доступа к микрофону',
+        title: errorTitle,
         description: errorMessage,
         variant: 'destructive'
       });
