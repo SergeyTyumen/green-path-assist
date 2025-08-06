@@ -173,55 +173,95 @@ const VoiceChatAssistant = () => {
         console.log('Already recording, ignoring request');
         return;
       }
-      
-      // Request microphone access with better settings
-      const stream = await navigator.mediaDevices.getUserMedia({ 
-        audio: {
-          sampleRate: 16000,
-          channelCount: 1,
-          echoCancellation: true,
-          noiseSuppression: true,
-          autoGainControl: true
+
+      // Check for microphone permission first
+      try {
+        const permission = await navigator.permissions.query({ name: 'microphone' as PermissionName });
+        console.log('Microphone permission status:', permission.state);
+        
+        if (permission.state === 'denied') {
+          throw new Error('Microphone access denied');
         }
-      });
+      } catch (permError) {
+        console.warn('Could not check microphone permission:', permError);
+      }
+      
+      // Request microphone access with fallback settings
+      let stream: MediaStream;
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({ 
+          audio: {
+            sampleRate: 16000,
+            channelCount: 1,
+            echoCancellation: true,
+            noiseSuppression: true,
+            autoGainControl: true
+          }
+        });
+      } catch (error) {
+        console.warn('Failed with advanced settings, trying basic audio:', error);
+        // Fallback to basic audio request
+        stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      }
+      
+      console.log('Got media stream:', stream);
+      console.log('Stream tracks:', stream.getTracks());
       
       streamRef.current = stream;
       audioChunksRef.current = [];
       
-      // Check if MediaRecorder supports webm
-      let mimeType = 'audio/webm; codecs=opus';
-      if (!MediaRecorder.isTypeSupported(mimeType)) {
-        mimeType = 'audio/webm';
-        if (!MediaRecorder.isTypeSupported(mimeType)) {
-          mimeType = 'audio/mp4';
-          if (!MediaRecorder.isTypeSupported(mimeType)) {
-            mimeType = '';
-          }
+      // Check if MediaRecorder supports webm and try different formats
+      const supportedTypes = [
+        'audio/webm; codecs=opus',
+        'audio/webm',
+        'audio/mp4',
+        'audio/ogg; codecs=opus',
+        'audio/wav'
+      ];
+      
+      let mimeType = '';
+      for (const type of supportedTypes) {
+        if (MediaRecorder.isTypeSupported(type)) {
+          mimeType = type;
+          break;
         }
       }
       
-      console.log('Using MIME type:', mimeType);
+      console.log('Using MIME type:', mimeType || 'default');
       
       // Initialize MediaRecorder
       const mediaRecorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
       mediaRecorderRef.current = mediaRecorder;
       
+      console.log('MediaRecorder created with state:', mediaRecorder.state);
+      
       setVoiceState(prev => ({ ...prev, isListening: true, isConnected: true }));
       addMessage('user', '🎤 Слушаю...', true);
       
       mediaRecorder.ondataavailable = (event) => {
-        console.log('Audio data available, size:', event.data.size);
+        console.log('Audio data available, size:', event.data.size, 'type:', event.data.type);
         if (event.data.size > 0) {
           audioChunksRef.current.push(event.data);
+          console.log('Added chunk, total chunks:', audioChunksRef.current.length);
+        } else {
+          console.warn('Received empty audio chunk');
         }
+      };
+      
+      mediaRecorder.onstart = () => {
+        console.log('MediaRecorder started successfully');
       };
       
       mediaRecorder.onstop = async () => {
         console.log('Recording stopped, processing audio...');
+        console.log('Final audio chunks count:', audioChunksRef.current.length);
         
         // Clean up stream
         if (streamRef.current) {
-          streamRef.current.getTracks().forEach(track => track.stop());
+          streamRef.current.getTracks().forEach(track => {
+            console.log('Stopping track:', track.kind, track.readyState);
+            track.stop();
+          });
           streamRef.current = null;
         }
         
@@ -229,24 +269,28 @@ const VoiceChatAssistant = () => {
         audioChunksRef.current = [];
         
         if (audioChunks.length === 0) {
-          console.warn('No audio data recorded');
+          console.warn('No audio chunks recorded');
           setVoiceState(prev => ({ ...prev, isListening: false }));
           setMessages(prev => prev.filter(m => m.content !== '🎤 Слушаю...'));
           toast({
             title: 'Нет аудио данных',
-            description: 'Говорите дольше и громче для лучшего распознавания',
+            description: 'Проверьте разрешения микрофона в браузере',
             variant: 'destructive'
           });
           return;
         }
         
         try {
+          // Calculate total size
+          const totalSize = audioChunks.reduce((total, chunk) => total + chunk.size, 0);
+          console.log('Total audio size:', totalSize, 'bytes');
+          
           // Convert audio to base64
           const audioBlob = new Blob(audioChunks, { type: mimeType || 'audio/webm' });
-          console.log('Audio blob size:', audioBlob.size);
+          console.log('Audio blob created, size:', audioBlob.size, 'type:', audioBlob.type);
           
-          if (audioBlob.size < 1000) {
-            throw new Error('Audio too short');
+          if (audioBlob.size < 100) {
+            throw new Error('Audio too short or empty');
           }
           
           const arrayBuffer = await audioBlob.arrayBuffer();
@@ -332,23 +376,27 @@ const VoiceChatAssistant = () => {
         }
       };
       
-      mediaRecorder.onerror = (event) => {
+      mediaRecorder.onerror = (event: Event) => {
         console.error('MediaRecorder error:', event);
+        const errorEvent = event as any;
+        console.error('MediaRecorder error details:', errorEvent.error);
         setVoiceState(prev => ({ ...prev, isListening: false }));
         setMessages(prev => prev.filter(m => m.content !== '🎤 Слушаю...'));
         toast({
           title: 'Ошибка записи',
-          description: 'Произошла ошибка при записи аудио',
+          description: 'Произошла ошибка при записи аудио: ' + (errorEvent.error?.message || 'Unknown error'),
           variant: 'destructive'
         });
       };
       
-      // Start recording with time slicing for better data capture
-      mediaRecorder.start(100); // Record in 100ms chunks
-      console.log('MediaRecorder started');
+      // Start recording with more frequent time slicing for better data capture
+      console.log('Starting MediaRecorder...');
+      mediaRecorder.start(250); // Record in 250ms chunks
+      console.log('MediaRecorder state after start:', mediaRecorder.state);
       
       // Auto-stop after 30 seconds to prevent infinite recording
       recordingTimeoutRef.current = setTimeout(() => {
+        console.log('Auto-stopping recording after timeout');
         if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
           stopVoiceRecording();
         }
@@ -356,10 +404,21 @@ const VoiceChatAssistant = () => {
       
     } catch (error) {
       console.error('Error starting voice recording:', error);
+      console.error('Error details:', error.name, error.message);
       setVoiceState(prev => ({ ...prev, isListening: false }));
+      
+      let errorMessage = 'Разрешите доступ к микрофону для голосового ввода';
+      if (error.name === 'NotAllowedError') {
+        errorMessage = 'Доступ к микрофону запрещен. Разрешите доступ в настройках браузера';
+      } else if (error.name === 'NotFoundError') {
+        errorMessage = 'Микрофон не найден. Проверьте подключение микрофона';
+      } else if (error.name === 'NotReadableError') {
+        errorMessage = 'Микрофон занят другим приложением';
+      }
+      
       toast({
         title: 'Ошибка доступа к микрофону',
-        description: 'Разрешите доступ к микрофону для голосового ввода',
+        description: errorMessage,
         variant: 'destructive'
       });
     }
