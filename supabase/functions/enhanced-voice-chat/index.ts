@@ -24,43 +24,41 @@ interface UserSettings {
   ai_settings: any;
 }
 
-async function callN8NVoiceAssistant(messages: AIMessage[], settings: UserSettings, userId: string): Promise<string> {
-  const n8nWebhookUrl = Deno.env.get('N8N_VOICE_ASSISTANT_WEBHOOK_URL');
-  if (!n8nWebhookUrl) {
-    throw new Error('N8N Voice Assistant webhook URL not configured');
+async function callOpenAIDirectly(messages: AIMessage[], settings: UserSettings): Promise<string> {
+  const openaiApiKey = Deno.env.get('OPENAI_API_KEY');
+  if (!openaiApiKey) {
+    throw new Error('OpenAI API key not configured');
   }
 
   try {
-    // Подготавливаем данные для отправки в n8n
-    const requestData = {
-      message: messages[messages.length - 1]?.content || '',
-      conversation_history: messages.slice(0, -1),
-      user_id: userId,
-      settings: settings
-    };
+    console.log('Sending request to OpenAI with messages:', messages.length);
 
-    console.log('Sending request to n8n:', { url: n8nWebhookUrl, data: requestData });
-
-    const response = await fetch(n8nWebhookUrl, {
+    const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: {
+        'Authorization': `Bearer ${openaiApiKey}`,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify(requestData)
+      body: JSON.stringify({
+        model: settings.ai_settings?.openai_model || 'gpt-4o-mini',
+        messages: messages,
+        temperature: settings.ai_settings?.temperature || 0.7,
+        max_tokens: settings.ai_settings?.max_tokens || 1000,
+      }),
     });
 
     if (!response.ok) {
       const errorText = await response.text();
-      throw new Error(`n8n webhook error: ${response.status} - ${errorText}`);
+      throw new Error(`OpenAI API error: ${response.status} - ${errorText}`);
     }
 
     const data = await response.json();
-    console.log('n8n response:', data);
+    console.log('OpenAI response received');
     
-    return data.response || data.message || 'Ответ получен от n8n';
+    return data.choices[0]?.message?.content || 'Извините, не удалось получить ответ';
   } catch (error) {
-    console.error('Error calling n8n webhook:', error);
-    throw new Error(`Ошибка вызова n8n: ${error.message}`);
+    console.error('Error calling OpenAI:', error);
+    throw new Error(`Ошибка вызова OpenAI: ${error.message}`);
   }
 }
 
@@ -145,8 +143,8 @@ serve(async (req) => {
       { role: 'user', content: message }
     ];
 
-    // Вызываем n8n voice assistant webhook
-    const aiResponse = await callN8NVoiceAssistant(messages, userSettings, user.id);
+    // Вызываем OpenAI напрямую
+    const aiResponse = await callOpenAIDirectly(messages, userSettings);
 
     // Сохраняем историю команд
     await supabase
