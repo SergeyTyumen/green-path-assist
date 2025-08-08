@@ -3,6 +3,9 @@ project_id = "nxyzmxqtzsvjezmkmkja"
 [functions.voice-chat]
 verify_jwt = false
 
+[functions.enhanced-voice-chat]
+verify_jwt = false
+
 [functions.ai-analyst] 
 verify_jwt = false
 
