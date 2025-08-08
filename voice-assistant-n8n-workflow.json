@@ -189,8 +189,7 @@
       "parameters": {
         "method": "POST",
         "url": "https://nxyzmxqtzsvjezmkmkja.supabase.co/rest/v1/tasks",
-        "authentication": "predefinedCredentialType",
-        "nodeCredentialType": "supabaseApi",
+        "authentication": "none",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
@@ -227,8 +226,7 @@
       "parameters": {
         "method": "GET",
         "url": "=https://nxyzmxqtzsvjezmkmkja.supabase.co/rest/v1/tasks?user_id=eq.{{ $json.user_id }}{{ $json.function_args.status === 'active' ? '&status=neq.completed' : $json.function_args.status === 'completed' ? '&status=eq.completed' : $json.function_args.status === 'overdue' ? '&due_date=lt.' + new Date().toISOString().split('T')[0] + '&status=neq.completed' : '' }}",
-        "authentication": "predefinedCredentialType",
-        "nodeCredentialType": "supabaseApi",
+        "authentication": "none",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
@@ -254,8 +252,7 @@
       "parameters": {
         "method": "GET",
         "url": "=https://nxyzmxqtzsvjezmkmkja.supabase.co/rest/v1/clients?user_id=eq.{{ $json.user_id }}{{ $json.function_args.status === 'active' ? '&conversion_stage=neq.Завершен' : '' }}",
-        "authentication": "predefinedCredentialType",
-        "nodeCredentialType": "supabaseApi",
+        "authentication": "none",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
@@ -281,8 +278,7 @@
       "parameters": {
         "method": "GET",
         "url": "=https://nxyzmxqtzsvjezmkmkja.supabase.co/rest/v1/clients?user_id=eq.{{ $json.user_id }}&created_at=gte.{{ $json.function_args.period === 'week' ? new Date(Date.now() - 7*24*60*60*1000).toISOString() : new Date(Date.now() - 30*24*60*60*1000).toISOString() }}",
-        "authentication": "predefinedCredentialType", 
-        "nodeCredentialType": "supabaseApi",
+        "authentication": "none", 
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
