@@ -1,0 +1,509 @@
+{
+  "name": "Голосовой помощник CRM - Исправленный",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "voice-assistant",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-trigger",
+      "name": "Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [240, 300],
+      "webhookId": "voice-assistant-webhook"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Извлекаем данные из входящего запроса\nconst requestData = $input.first().json;\nconst message = requestData.message || '';\nconst conversation_history = requestData.conversation_history || [];\nconst user_id = requestData.user_id || '';\n\n// Формируем контекст для OpenAI\nconst systemPrompt = `Ты голосовой помощник для CRM системы строительной компании. \nТвоя задача:\n1. Анализировать запросы пользователя и определять нужное действие\n2. Работать с задачами (создание, просмотр статусов)\n3. Предоставлять статистику по клиентам и лидам\n4. Отвечать коротко и по делу для голосового воспроизведения\n\nДоступные действия:\n- create_task: создать новую задачу\n- get_tasks: получить список задач (active, completed, overdue)\n- get_clients: получить информацию о клиентах\n- get_leads_stats: статистика по лидам за период\n\nОтвечай только на русском языке.`;\n\n// Формируем массив сообщений для OpenAI\nconst messages = [\n  { role: 'system', content: systemPrompt },\n  ...conversation_history,\n  { role: 'user', content: message }\n];\n\nreturn { \n  messages: messages,\n  user_id: user_id,\n  original_message: message\n};"
+      },
+      "id": "prepare-request",
+      "name": "Подготовка запроса",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "resource": "chat",
+        "operation": "create",
+        "model": "gpt-4o-mini",
+        "messages": "={{ $json.messages }}",
+        "temperature": 0.7,
+        "maxTokens": 500,
+        "tools": {
+          "values": [
+            {
+              "name": "create_task",
+              "description": "Создать новую задачу",
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "title": {
+                    "type": "string",
+                    "description": "Название задачи"
+                  },
+                  "description": {
+                    "type": "string", 
+                    "description": "Описание задачи"
+                  },
+                  "priority": {
+                    "type": "string",
+                    "enum": ["low", "medium", "high"],
+                    "description": "Приоритет задачи"
+                  },
+                  "due_date": {
+                    "type": "string",
+                    "description": "Срок выполнения в формате YYYY-MM-DD"
+                  }
+                },
+                "required": ["title", "description"]
+              }
+            },
+            {
+              "name": "get_tasks",
+              "description": "Получить список задач по статусу",
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "status": {
+                    "type": "string",
+                    "enum": ["active", "completed", "overdue", "all"],
+                    "description": "Статус задач для получения"
+                  }
+                },
+                "required": []
+              }
+            },
+            {
+              "name": "get_clients",
+              "description": "Получить информацию о клиентах",
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "status": {
+                    "type": "string",
+                    "enum": ["active", "all"],
+                    "description": "Статус клиентов"
+                  }
+                },
+                "required": []
+              }
+            },
+            {
+              "name": "get_leads_stats",
+              "description": "Получить статистику по лидам",
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "period": {
+                    "type": "string",
+                    "enum": ["week", "month"],
+                    "description": "Период для статистики"
+                  }
+                },
+                "required": ["period"]
+              }
+            }
+          ]
+        },
+        "toolChoice": "auto"
+      },
+      "id": "openai-request",
+      "name": "OpenAI Анализ",
+      "type": "n8n-nodes-base.openAi",
+      "typeVersion": 1,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "function_call_exists",
+              "leftValue": "={{ $json.choices && $json.choices[0] && $json.choices[0].message && $json.choices[0].message.tool_calls }}",
+              "rightValue": "",
+              "operator": {
+                "type": "object",
+                "operation": "exists"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "check-function-call",
+      "name": "Проверка вызова функции",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [900, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Извлекаем информацию о вызове функции\nconst openaiResponse = $input.first().json;\n\nif (!openaiResponse.choices || !openaiResponse.choices[0] || !openaiResponse.choices[0].message || !openaiResponse.choices[0].message.tool_calls || !openaiResponse.choices[0].message.tool_calls[0]) {\n  throw new Error('Нет данных о вызове функции');\n}\n\nconst functionCall = openaiResponse.choices[0].message.tool_calls[0];\nconst functionName = functionCall.function.name;\nlet functionArgs = {};\n\ntry {\n  functionArgs = JSON.parse(functionCall.function.arguments);\n} catch (e) {\n  console.log('Ошибка парсинга аргументов функции:', e);\n  functionArgs = {};\n}\n\n// Получаем user_id из предыдущего узла\nconst prepareData = $('prepare-request').first().json;\nconst userId = prepareData.user_id;\nconst originalMessage = prepareData.original_message;\n\nreturn {\n  function_name: functionName,\n  function_args: functionArgs,\n  user_id: userId,\n  original_message: originalMessage\n};"
+      },
+      "id": "extract-function-call",
+      "name": "Извлечение вызова функции",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1120, 200]
+    },
+    {
+      "parameters": {
+        "dataType": "string",
+        "value1": "={{ $json.function_name }}",
+        "rules": {
+          "rules": [
+            {
+              "value2": "create_task",
+              "output": 0
+            },
+            {
+              "value2": "get_tasks", 
+              "output": 1
+            },
+            {
+              "value2": "get_clients",
+              "output": 2
+            },
+            {
+              "value2": "get_leads_stats",
+              "output": 3
+            }
+          ]
+        }
+      },
+      "id": "route-functions",
+      "name": "Маршрутизация функций",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3,
+      "position": [1340, 200]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://nxyzmxqtzsvjezmkmkja.supabase.co/rest/v1/tasks",
+        "authentication": "none",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im54eXpteHF0enN2amV6bWtta2phIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc1MzMxMDQwMywiZXhwIjoyMDY4ODg2NDAzfQ.IOOXmFpmv1RnGp2PUAWy6Eb6IcV3BDm0dyNihHm3p9E"
+            },
+            {
+              "name": "apikey",
+              "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im54eXpteHF0enN2amV6bWtta2phIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTMzMTA0MDMsImV4cCI6MjA2ODg4NjQwM30.PlQCqVJcpDCVojXZ2VaaLiGTQUETaC9cVQe_owgjJ60"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Prefer",
+              "value": "return=minimal"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyContentType": "json",
+        "jsonBody": "={\n  \"title\": \"{{ $json.function_args.title || 'Новая задача' }}\",\n  \"description\": \"{{ $json.function_args.description || 'Описание' }}\",\n  \"status\": \"pending\",\n  \"priority\": \"{{ $json.function_args.priority || 'medium' }}\",\n  \"due_date\": \"{{ $json.function_args.due_date || null }}\",\n  \"user_id\": \"{{ $json.user_id }}\",\n  \"category\": \"general\"\n}",
+        "options": {}
+      },
+      "id": "create-task-supabase",
+      "name": "Создать задачу",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1560, 80]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "=https://nxyzmxqtzsvjezmkmkja.supabase.co/rest/v1/tasks?user_id=eq.{{ $json.user_id }}{{ $json.function_args.status === 'active' ? '&status=neq.completed' : $json.function_args.status === 'completed' ? '&status=eq.completed' : $json.function_args.status === 'overdue' ? '&due_date=lt.' + new Date().toISOString().split('T')[0] + '&status=neq.completed' : '' }}",
+        "authentication": "none",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im54eXpteHF0enN2amV6bWtta2phIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc1MzMxMDQwMywiZXhwIjoyMDY4ODg2NDAzfQ.IOOXmFpmv1RnGp2PUAWy6Eb6IcV3BDm0dyNihHm3p9E"
+            },
+            {
+              "name": "apikey", 
+              "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im54eXpteHF0enN2amV6bWtta2phIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTMzMTA0MDMsImV4cCI6MjA2ODg4NjQwM30.PlQCqVJcpDCVojXZ2VaaLiGTQUETaC9cVQe_owgjJ60"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "get-tasks-supabase",
+      "name": "Получить задачи",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1560, 200]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "=https://nxyzmxqtzsvjezmkmkja.supabase.co/rest/v1/clients?user_id=eq.{{ $json.user_id }}{{ $json.function_args.status === 'active' ? '&conversion_stage=neq.Завершен' : '' }}",
+        "authentication": "none",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im54eXpteHF0enN2amV6bWtta2phIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc1MzMxMDQwMywiZXhwIjoyMDY4ODg2NDAzfQ.IOOXmFpmv1RnGp2PUAWy6Eb6IcV3BDm0dyNihHm3p9E"
+            },
+            {
+              "name": "apikey",
+              "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im54eXpteHF0enN2amV6bWtta2phIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTMzMTA0MDMsImV4cCI6MjA2ODg4NjQwM30.PlQCqVJcpDCVojXZ2VaaLiGTQUETaC9cVQe_owgjJ60"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "get-clients-supabase",
+      "name": "Получить клиентов",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1560, 320]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "=https://nxyzmxqtzsvjezmkmkja.supabase.co/rest/v1/clients?user_id=eq.{{ $json.user_id }}&created_at=gte.{{ $json.function_args.period === 'week' ? new Date(Date.now() - 7*24*60*60*1000).toISOString() : new Date(Date.now() - 30*24*60*60*1000).toISOString() }}",
+        "authentication": "none", 
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im54eXpteHF0enN2amV6bWtta2phIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc1MzMxMDQwMywiZXhwIjoyMDY4ODg2NDAzfQ.IOOXmFpmv1RnGp2PUAWy6Eb6IcV3BDm0dyNihHm3p9E"
+            },
+            {
+              "name": "apikey",
+              "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im54eXpteHF0enN2amV6bWtta2phIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTMzMTA0MDMsImV4cCI6MjA2ODg4NjQwM30.PlQCqVJcpDCVojXZ2VaaLiGTQUETaC9cVQe_owgjJ60"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "get-leads-stats",
+      "name": "Статистика лидов",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1560, 440]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Формируем ответ на основе результата функции\nconst extractData = $('extract-function-call').first().json;\nconst functionName = extractData.function_name;\nlet response = '';\n\nconst inputData = $input.first().json;\n\nswitch(functionName) {\n  case 'create_task':\n    const taskArgs = extractData.function_args || {};\n    response = `Задача \"${taskArgs.title || 'Новая задача'}\" успешно создана.`;\n    break;\n    \n  case 'get_tasks':\n    const tasks = Array.isArray(inputData) ? inputData : [];\n    const taskStatus = (extractData.function_args && extractData.function_args.status) || 'all';\n    \n    if (tasks.length === 0) {\n      response = `Задач со статусом \"${taskStatus}\" не найдено.`;\n    } else {\n      const taskList = tasks.slice(0, 5).map(task => `${task.title || 'Без названия'} (${task.status || 'неизвестно'})`).join(', ');\n      response = `Найдено ${tasks.length} задач со статусом \"${taskStatus}\": ${taskList}${tasks.length > 5 ? ' и другие' : ''}.`;\n    }\n    break;\n    \n  case 'get_clients':\n    const clients = Array.isArray(inputData) ? inputData : [];\n    const clientStatus = (extractData.function_args && extractData.function_args.status) || 'all';\n    \n    if (clients.length === 0) {\n      response = `Клиентов со статусом \"${clientStatus}\" не найдено.`;\n    } else {\n      const clientList = clients.slice(0, 3).map(client => `${client.name || 'Без имени'} (${client.conversion_stage || 'неизвестно'})`).join(', ');\n      response = `Найдено ${clients.length} клиентов: ${clientList}${clients.length > 3 ? ' и другие' : ''}.`;\n    }\n    break;\n    \n  case 'get_leads_stats':\n    const leads = Array.isArray(inputData) ? inputData : [];\n    const period = (extractData.function_args && extractData.function_args.period) || 'неделю';\n    \n    // Группируем по статусам\n    const statusCounts = leads.reduce((acc, lead) => {\n      const stage = lead.conversion_stage || 'Неизвестно';\n      acc[stage] = (acc[stage] || 0) + 1;\n      return acc;\n    }, {});\n    \n    const periodText = period === 'week' ? 'неделю' : 'месяц';\n    response = `За ${periodText} пришло ${leads.length} лидов. `;\n    \n    if (statusCounts['Назначен замер']) response += `Замеров назначено: ${statusCounts['Назначен замер']}. `;\n    if (statusCounts['Готовим смету']) response += `Смет в работе: ${statusCounts['Готовим смету']}. `;\n    if (statusCounts['Вышли на договор']) response += `Договоров: ${statusCounts['Вышли на договор']}. `;\n    \n    break;\n    \n  default:\n    response = 'Функция выполнена успешно.';\n}\n\nreturn { response: response };"
+      },
+      "id": "format-function-response",
+      "name": "Формирование ответа функции",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1780, 200]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Просто возвращаем текстовый ответ от OpenAI\nconst openaiResponse = $input.first().json;\n\nif (!openaiResponse.choices || !openaiResponse.choices[0] || !openaiResponse.choices[0].message) {\n  return { response: 'Извините, не удалось получить ответ от AI.' };\n}\n\nconst response = openaiResponse.choices[0].message.content || 'Пустой ответ от AI.';\n\nreturn { response: response };"
+      },
+      "id": "format-text-response",
+      "name": "Формирование текстового ответа",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1120, 400]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"response\": \"{{ $json.response }}\",\n  \"success\": true,\n  \"timestamp\": \"{{ new Date().toISOString() }}\"\n}",
+        "options": {}
+      },
+      "id": "webhook-response",
+      "name": "Ответ Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [2000, 300]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "webhook-trigger": {
+      "main": [
+        [
+          {
+            "node": "prepare-request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "prepare-request": {
+      "main": [
+        [
+          {
+            "node": "openai-request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "openai-request": {
+      "main": [
+        [
+          {
+            "node": "check-function-call",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "check-function-call": {
+      "main": [
+        [
+          {
+            "node": "extract-function-call",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "format-text-response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "extract-function-call": {
+      "main": [
+        [
+          {
+            "node": "route-functions",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "route-functions": {
+      "main": [
+        [
+          {
+            "node": "create-task-supabase",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "get-tasks-supabase",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "get-clients-supabase",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "get-leads-stats",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "create-task-supabase": {
+      "main": [
+        [
+          {
+            "node": "format-function-response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "get-tasks-supabase": {
+      "main": [
+        [
+          {
+            "node": "format-function-response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "get-clients-supabase": {
+      "main": [
+        [
+          {
+            "node": "format-function-response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "get-leads-stats": {
+      "main": [
+        [
+          {
+            "node": "format-function-response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "format-function-response": {
+      "main": [
+        [
+          {
+            "node": "webhook-response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "format-text-response": {
+      "main": [
+        [
+          {
+            "node": "webhook-response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [],
+  "triggerCount": 0,
+  "updatedAt": "2024-01-01T00:00:00.000Z",
+  "versionId": "1"
+}
