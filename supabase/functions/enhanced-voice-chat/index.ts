@@ -24,57 +24,14 @@ interface UserSettings {
   ai_settings: any;
 }
 
-async function callN8NVoiceAssistant(messages: AIMessage[], settings: UserSettings, userId: string): Promise<string> {
-  const n8nWebhookUrl = Deno.env.get('N8N_VOICE_ASSISTANT_WEBHOOK_URL');
-  if (!n8nWebhookUrl) {
-    // Fallback к OpenAI если n8n не настроен
-    return await callOpenAIDirectly(messages, settings);
-  }
-
-  try {
-    console.log('Sending request to n8n webhook:', n8nWebhookUrl);
-
-    const requestData = {
-      message: messages[messages.length - 1]?.content || '',
-      conversation_history: messages.slice(0, -1),
-      user_id: userId,
-      settings: settings
-    };
-
-    const response = await fetch(n8nWebhookUrl, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(requestData)
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error('n8n webhook error:', response.status, errorText);
-      // Fallback к OpenAI при ошибке n8n
-      return await callOpenAIDirectly(messages, settings);
-    }
-
-    const data = await response.json();
-    console.log('n8n response:', data);
-    
-    return data.response || data.message || 'Ответ получен от n8n';
-  } catch (error) {
-    console.error('Error calling n8n webhook:', error);
-    // Fallback к OpenAI при ошибке n8n
-    return await callOpenAIDirectly(messages, settings);
-  }
-}
-
-async function callOpenAIDirectly(messages: AIMessage[], settings: UserSettings): Promise<string> {
+async function callOpenAIWithTools(messages: AIMessage[], settings: UserSettings, userId: string): Promise<string> {
   const openaiApiKey = Deno.env.get('OPENAI_API_KEY');
   if (!openaiApiKey) {
     throw new Error('OpenAI API key not configured');
   }
 
   try {
-    console.log('Sending request directly to OpenAI');
+    console.log('Sending request to OpenAI with tools support');
 
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
@@ -87,6 +44,69 @@ async function callOpenAIDirectly(messages: AIMessage[], settings: UserSettings)
         messages: messages,
         temperature: settings.ai_settings?.temperature || 0.7,
         max_tokens: settings.ai_settings?.max_tokens || 1000,
+        tools: [
+          {
+            type: "function",
+            function: {
+              name: "get_tasks",
+              description: "Получить список задач пользователя",
+              parameters: {
+                type: "object",
+                properties: {
+                  status: {
+                    type: "string",
+                    enum: ["active", "completed", "all"],
+                    description: "Статус задач для получения"
+                  }
+                }
+              }
+            }
+          },
+          {
+            type: "function", 
+            function: {
+              name: "create_task",
+              description: "Создать новую задачу",
+              parameters: {
+                type: "object",
+                properties: {
+                  title: {
+                    type: "string",
+                    description: "Название задачи"
+                  },
+                  description: {
+                    type: "string",
+                    description: "Описание задачи"
+                  },
+                  priority: {
+                    type: "string",
+                    enum: ["low", "medium", "high"],
+                    description: "Приоритет задачи"
+                  }
+                },
+                required: ["title", "description"]
+              }
+            }
+          },
+          {
+            type: "function",
+            function: {
+              name: "get_clients",
+              description: "Получить список клиентов",
+              parameters: {
+                type: "object",
+                properties: {
+                  status: {
+                    type: "string",
+                    enum: ["active", "all"],
+                    description: "Статус клиентов"
+                  }
+                }
+              }
+            }
+          }
+        ],
+        tool_choice: "auto"
       }),
     });
 
@@ -97,14 +117,147 @@ async function callOpenAIDirectly(messages: AIMessage[], settings: UserSettings)
 
     const data = await response.json();
     console.log('OpenAI response received');
+
+    // Проверяем, есть ли вызовы функций
+    const message = data.choices[0]?.message;
+    if (message?.tool_calls) {
+      const toolCall = message.tool_calls[0];
+      const functionName = toolCall.function.name;
+      const functionArgs = JSON.parse(toolCall.function.arguments);
+      
+      console.log('Function call detected:', functionName, functionArgs);
+      
+      // Выполняем функцию
+      const functionResult = await executeFunction(functionName, functionArgs, userId);
+      
+      // Отправляем результат обратно в OpenAI для финального ответа
+      const finalMessages = [
+        ...messages,
+        message,
+        {
+          role: "tool",
+          tool_call_id: toolCall.id,
+          content: JSON.stringify(functionResult)
+        }
+      ];
+
+      const finalResponse = await fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${openaiApiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: settings.ai_settings?.openai_model || 'gpt-4o-mini',
+          messages: finalMessages,
+          temperature: settings.ai_settings?.temperature || 0.7,
+          max_tokens: settings.ai_settings?.max_tokens || 1000,
+        }),
+      });
+
+      const finalData = await finalResponse.json();
+      return finalData.choices[0]?.message?.content || 'Функция выполнена';
+    }
     
-    return data.choices[0]?.message?.content || 'Извините, не удалось получить ответ';
+    return message?.content || 'Извините, не удалось получить ответ';
   } catch (error) {
     console.error('Error calling OpenAI:', error);
     throw new Error(`Ошибка вызова OpenAI: ${error.message}`);
   }
 }
 
+async function executeFunction(functionName: string, args: any, userId: string): Promise<any> {
+  console.log(`Executing function: ${functionName} with args:`, args);
+  
+  switch (functionName) {
+    case 'get_tasks':
+      return await getTasks(userId, args.status || 'all');
+    
+    case 'create_task':
+      return await createTask(userId, args);
+      
+    case 'get_clients':
+      return await getClients(userId, args.status || 'all');
+      
+    default:
+      return { error: `Unknown function: ${functionName}` };
+  }
+}
+
+async function getTasks(userId: string, status: string) {
+  try {
+    let query = supabase.from('tasks').select('*').eq('user_id', userId);
+    
+    if (status === 'active') {
+      query = query.neq('status', 'completed');
+    } else if (status === 'completed') {
+      query = query.eq('status', 'completed');
+    }
+    
+    const { data, error } = await query.order('created_at', { ascending: false }).limit(10);
+    
+    if (error) throw error;
+    
+    return {
+      success: true,
+      count: data?.length || 0,
+      tasks: data || []
+    };
+  } catch (error) {
+    console.error('Error getting tasks:', error);
+    return { success: false, error: error.message };
+  }
+}
+
+async function createTask(userId: string, taskData: any) {
+  try {
+    const { data, error } = await supabase
+      .from('tasks')
+      .insert({
+        user_id: userId,
+        title: taskData.title,
+        description: taskData.description,
+        priority: taskData.priority || 'medium',
+        status: 'pending',
+        category: 'general'
+      })
+      .select()
+      .single();
+    
+    if (error) throw error;
+    
+    return {
+      success: true,
+      task: data
+    };
+  } catch (error) {
+    console.error('Error creating task:', error);
+    return { success: false, error: error.message };
+  }
+}
+
+async function getClients(userId: string, status: string) {
+  try {
+    let query = supabase.from('clients').select('*').eq('user_id', userId);
+    
+    if (status === 'active') {
+      query = query.neq('conversion_stage', 'Завершен');
+    }
+    
+    const { data, error } = await query.order('created_at', { ascending: false }).limit(10);
+    
+    if (error) throw error;
+    
+    return {
+      success: true,
+      count: data?.length || 0,
+      clients: data || []
+    };
+  } catch (error) {
+    console.error('Error getting clients:', error);
+    return { success: false, error: error.message };
+  }
+}
 async function getUserSettings(userId: string): Promise<UserSettings> {
   const { data, error } = await supabase
     .from('profiles')
@@ -186,8 +339,8 @@ serve(async (req) => {
       { role: 'user', content: message }
     ];
 
-    // Вызываем n8n voice assistant webhook (с fallback на OpenAI)
-    const aiResponse = await callN8NVoiceAssistant(messages, userSettings, user.id);
+    // Вызываем OpenAI с поддержкой функций для работы с базой данных
+    const aiResponse = await callOpenAIWithTools(messages, userSettings, user.id);
 
     // Сохраняем историю команд
     await supabase
