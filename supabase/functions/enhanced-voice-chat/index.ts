@@ -24,6 +24,49 @@ interface UserSettings {
   ai_settings: any;
 }
 
+async function callN8NVoiceAssistant(messages: AIMessage[], settings: UserSettings, userId: string): Promise<string> {
+  const n8nWebhookUrl = Deno.env.get('N8N_VOICE_ASSISTANT_WEBHOOK_URL');
+  if (!n8nWebhookUrl) {
+    // Fallback к OpenAI если n8n не настроен
+    return await callOpenAIDirectly(messages, settings);
+  }
+
+  try {
+    console.log('Sending request to n8n webhook:', n8nWebhookUrl);
+
+    const requestData = {
+      message: messages[messages.length - 1]?.content || '',
+      conversation_history: messages.slice(0, -1),
+      user_id: userId,
+      settings: settings
+    };
+
+    const response = await fetch(n8nWebhookUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(requestData)
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('n8n webhook error:', response.status, errorText);
+      // Fallback к OpenAI при ошибке n8n
+      return await callOpenAIDirectly(messages, settings);
+    }
+
+    const data = await response.json();
+    console.log('n8n response:', data);
+    
+    return data.response || data.message || 'Ответ получен от n8n';
+  } catch (error) {
+    console.error('Error calling n8n webhook:', error);
+    // Fallback к OpenAI при ошибке n8n
+    return await callOpenAIDirectly(messages, settings);
+  }
+}
+
 async function callOpenAIDirectly(messages: AIMessage[], settings: UserSettings): Promise<string> {
   const openaiApiKey = Deno.env.get('OPENAI_API_KEY');
   if (!openaiApiKey) {
@@ -31,7 +74,7 @@ async function callOpenAIDirectly(messages: AIMessage[], settings: UserSettings)
   }
 
   try {
-    console.log('Sending request to OpenAI with messages:', messages.length);
+    console.log('Sending request directly to OpenAI');
 
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
@@ -143,8 +186,8 @@ serve(async (req) => {
       { role: 'user', content: message }
     ];
 
-    // Вызываем OpenAI напрямую
-    const aiResponse = await callOpenAIDirectly(messages, userSettings);
+    // Вызываем n8n voice assistant webhook (с fallback на OpenAI)
+    const aiResponse = await callN8NVoiceAssistant(messages, userSettings, user.id);
 
     // Сохраняем историю команд
     await supabase
