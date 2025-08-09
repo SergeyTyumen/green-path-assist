@@ -103,7 +103,22 @@ export default function Suppliers() {
             База поставщиков материалов и управление заказами
           </p>
         </div>
-        <div className="flex flex-col sm:flex-row gap-2 shrink-0">
+        {/* Мобильная версия - в две строки */}
+        <div className="flex flex-col gap-3 shrink-0 sm:hidden">
+          <Button variant="outline" className="w-full gap-2">
+            <Bot className="h-4 w-4 shrink-0" />
+            <span>ИИ-заявка</span>
+          </Button>
+          <SupplierDialog>
+            <Button className="w-full bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 gap-2">
+              <Plus className="h-4 w-4 shrink-0" />
+              <span>Добавить</span>
+            </Button>
+          </SupplierDialog>
+        </div>
+
+        {/* Десктопная версия - в одну строку */}
+        <div className="hidden sm:flex sm:flex-row gap-2 shrink-0">
           <Button variant="outline" className="gap-2 min-w-0">
             <Bot className="h-4 w-4 shrink-0" />
             <span className="truncate">ИИ-заявка</span>

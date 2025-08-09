@@ -224,7 +224,29 @@ export default function Nomenclature() {
                         </div>
                       </div>
 
-                      <div className="flex flex-col sm:flex-row sm:items-center gap-2 shrink-0">
+                      {/* Мобильная версия - две строки */}
+                      <div className="flex flex-col gap-2 shrink-0 sm:hidden">
+                        {(material.stock === 0 || material.stock <= material.min_stock) && (
+                          <Button variant="outline" size="sm" className="w-full gap-2">
+                            <Truck className="h-4 w-4 shrink-0" />
+                            <span>Заказать</span>
+                          </Button>
+                        )}
+                        
+                        <div className="flex gap-1 justify-center">
+                          <Button variant="ghost" size="sm" className="min-w-[44px] min-h-[44px] p-0">
+                            <Eye className="h-4 w-4" />
+                          </Button>
+                          <MaterialDialog material={material}>
+                            <Button variant="ghost" size="sm" className="min-w-[44px] min-h-[44px] p-0">
+                              <Edit className="h-4 w-4" />
+                            </Button>
+                          </MaterialDialog>
+                        </div>
+                      </div>
+
+                      {/* Десктопная версия - одна строка */}
+                      <div className="hidden sm:flex sm:flex-col sm:items-center gap-2 shrink-0">
                         {(material.stock === 0 || material.stock <= material.min_stock) ? (
                           <Button variant="outline" size="sm" className="gap-2 min-w-0">
                             <Truck className="h-4 w-4 shrink-0" />
@@ -354,7 +376,7 @@ export default function Nomenclature() {
                         </div>
                       </div>
 
-                      <div className="flex gap-1 shrink-0">
+                      <div className="flex gap-1 shrink-0 justify-center sm:justify-end">
                         <Button variant="ghost" size="sm" className="min-w-[44px] min-h-[44px] p-0">
                           <Eye className="h-4 w-4" />
                         </Button>
