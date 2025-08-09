@@ -35,7 +35,7 @@ export function useTasks() {
 
       if (error) throw error;
       
-      // Обновляем статус просроченных задач
+      // Обновляем статус просроченных задач (только для не выполненных задач)
       const tasksWithUpdatedStatus = (data || []).map(task => {
         if (task.due_date && task.status !== 'completed' && task.status !== 'overdue') {
           const dueDate = new Date(task.due_date);
@@ -43,7 +43,7 @@ export function useTasks() {
           today.setHours(0, 0, 0, 0);
           
           if (dueDate < today) {
-            // Обновляем статус в базе данных
+            // Обновляем статус в базе данных только если задача не выполнена
             updateTaskStatus(task.id, 'overdue');
             return { ...task, status: 'overdue' as const };
           }
