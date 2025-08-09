@@ -330,68 +330,70 @@ export default function Estimates() {
         <div className="grid gap-4">
           {filteredEstimates.map((estimate) => (
             <Card key={estimate.id} className="hover:shadow-md transition-shadow">
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between">
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-3 mb-2">
-                      <h3 className="text-lg font-semibold text-foreground">
-                        {estimate.title}
-                      </h3>
-                      {getStatusBadge(estimate.status)}
-                    </div>
-                    
-                    <div className="space-y-1">
-                      <p className="text-sm font-medium text-foreground">
-                        {getClientName(estimate.client_id)}
-                      </p>
-                      <div className="flex items-center gap-4 text-xs text-muted-foreground">
-                        <span>Создана: {new Date(estimate.created_at).toLocaleDateString('ru-RU')}</span>
-                        <span>Позиций: {estimate.items?.length || 0}</span>
-                        {estimate.valid_until && (
-                          <span>Действительна до: {new Date(estimate.valid_until).toLocaleDateString('ru-RU')}</span>
-                        )}
+              <CardContent className="p-4 md:p-6">
+                <div className="space-y-4">
+                  <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 mb-2">
+                        <h3 className="text-lg font-semibold text-foreground break-words">
+                          {estimate.title}
+                        </h3>
+                        {getStatusBadge(estimate.status)}
                       </div>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-4">
-                    <div className="text-right">
-                      <div className="text-2xl font-bold text-foreground">
-                        {estimate.total_amount.toLocaleString('ru-RU')}₽
-                      </div>
-                      <div className="text-xs text-muted-foreground">
-                        Общая сумма
+                      
+                      <div className="space-y-1">
+                        <p className="text-sm font-medium text-foreground break-words">
+                          {getClientName(estimate.client_id)}
+                        </p>
+                        <div className="flex flex-wrap items-center gap-2 sm:gap-4 text-xs text-muted-foreground">
+                          <span>Создана: {new Date(estimate.created_at).toLocaleDateString('ru-RU')}</span>
+                          <span>Позиций: {estimate.items?.length || 0}</span>
+                          {estimate.valid_until && (
+                            <span>Действительна до: {new Date(estimate.valid_until).toLocaleDateString('ru-RU')}</span>
+                          )}
+                        </div>
                       </div>
                     </div>
 
-                    <div className="flex gap-1">
-                      <Button 
-                        variant="ghost" 
-                        size="sm" 
-                        className="h-8 w-8 p-0"
-                        onClick={() => handleViewEstimate(estimate)}
-                      >
-                        <Eye className="h-4 w-4" />
-                      </Button>
-                      <Button 
-                        variant="ghost" 
-                        size="sm" 
-                        className="h-8 w-8 p-0"
-                        onClick={() => handleEditEstimate(estimate)}
-                      >
-                        <Edit className="h-4 w-4" />
-                      </Button>
-                      <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-                        <Copy className="h-4 w-4" />
-                      </Button>
-                      <Button 
-                        variant="ghost" 
-                        size="sm" 
-                        className="h-8 w-8 p-0 text-destructive hover:text-destructive"
-                        onClick={() => handleDeleteEstimate(estimate.id)}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
+                    <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+                      <div className="text-left sm:text-right">
+                        <div className="text-xl sm:text-2xl font-bold text-foreground">
+                          {estimate.total_amount.toLocaleString('ru-RU')}₽
+                        </div>
+                        <div className="text-xs text-muted-foreground">
+                          Общая сумма
+                        </div>
+                      </div>
+
+                      <div className="flex flex-row gap-1 shrink-0">
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          className="min-w-[44px] min-h-[44px] p-0"
+                          onClick={() => handleViewEstimate(estimate)}
+                        >
+                          <Eye className="h-4 w-4" />
+                        </Button>
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          className="min-w-[44px] min-h-[44px] p-0"
+                          onClick={() => handleEditEstimate(estimate)}
+                        >
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                        <Button variant="ghost" size="sm" className="min-w-[44px] min-h-[44px] p-0">
+                          <Copy className="h-4 w-4" />
+                        </Button>
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          className="min-w-[44px] min-h-[44px] p-0 text-destructive hover:text-destructive"
+                          onClick={() => handleDeleteEstimate(estimate.id)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
                     </div>
                   </div>
                 </div>
