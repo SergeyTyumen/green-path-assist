@@ -77,11 +77,11 @@ export default function Nomenclature() {
   }
 
   return (
-    <div className="p-6 space-y-6">
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-3xl font-bold text-foreground">Номенклатура</h1>
-          <p className="text-muted-foreground mt-1">
+    <div className="p-4 md:p-6 space-y-6">
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
+        <div className="min-w-0">
+          <h1 className="text-2xl sm:text-3xl font-bold text-foreground break-words">Номенклатура</h1>
+          <p className="text-muted-foreground mt-1 text-sm sm:text-base">
             Материалы и услуги для составления смет
           </p>
         </div>
@@ -101,15 +101,15 @@ export default function Nomenclature() {
 
         {/* Материалы */}
         <TabsContent value="materials" className="space-y-6">
-          <div className="flex justify-between items-center">
-            <div>
-              <h2 className="text-xl font-semibold">Материалы</h2>
+          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
+            <div className="min-w-0">
+              <h2 className="text-lg sm:text-xl font-semibold break-words">Материалы</h2>
               <p className="text-sm text-muted-foreground">Управление складскими остатками</p>
             </div>
             <MaterialDialog>
-              <Button className="bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 gap-2">
-                <Plus className="h-4 w-4" />
-                Добавить материал
+              <Button className="bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 gap-2 min-w-0">
+                <Plus className="h-4 w-4 shrink-0" />
+                <span className="truncate">Добавить материал</span>
               </Button>
             </MaterialDialog>
           </div>
@@ -193,53 +193,55 @@ export default function Nomenclature() {
           <div className="grid gap-4">
             {filteredMaterials.map((material) => (
               <Card key={material.id} className="hover:shadow-md transition-shadow">
-                <CardContent className="p-6">
-                  <div className="flex items-center justify-between">
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-3 mb-2">
-                        <h3 className="text-lg font-semibold text-foreground">
-                          {material.name}
-                        </h3>
-                        {getStatusBadge(material)}
-                        <Badge variant="outline" className="text-xs">
-                          {material.category}
-                        </Badge>
-                      </div>
-                      
-                      <div className="space-y-1">
-                        <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                          <span>Цена: ₽{material.price.toLocaleString('ru-RU')} за {material.unit}</span>
-                          <span>Остаток: {material.stock} {material.unit}</span>
-                          <span>Мин. остаток: {material.min_stock} {material.unit}</span>
+                <CardContent className="p-4 md:p-6">
+                  <div className="space-y-4">
+                    <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex flex-wrap items-center gap-2 mb-2">
+                          <h3 className="text-lg font-semibold text-foreground break-words">
+                            {material.name}
+                          </h3>
+                          {getStatusBadge(material)}
+                          <Badge variant="outline" className="text-xs">
+                            {material.category}
+                          </Badge>
                         </div>
                         
-                        <div className="flex items-center gap-4 text-xs text-muted-foreground">
-                          <div className="flex items-center gap-1">
-                            <Truck className="h-3 w-3" />
-                            {material.supplier || 'Не указан'}
+                        <div className="space-y-1">
+                          <div className="flex flex-wrap items-center gap-2 sm:gap-4 text-sm text-muted-foreground">
+                            <span>Цена: ₽{material.price.toLocaleString('ru-RU')} за {material.unit}</span>
+                            <span>Остаток: {material.stock} {material.unit}</span>
+                            <span>Мин. остаток: {material.min_stock} {material.unit}</span>
                           </div>
-                          <span>Обновлено: {new Date(material.last_updated).toLocaleDateString('ru-RU')}</span>
+                          
+                          <div className="flex flex-wrap items-center gap-2 sm:gap-4 text-xs text-muted-foreground">
+                            <div className="flex items-center gap-1">
+                              <Truck className="h-3 w-3 shrink-0" />
+                              <span className="overflow-wrap-anywhere">{material.supplier || 'Не указан'}</span>
+                            </div>
+                            <span>Обновлено: {new Date(material.last_updated).toLocaleDateString('ru-RU')}</span>
+                          </div>
                         </div>
                       </div>
-                    </div>
 
-                    <div className="flex items-center gap-4">
-                      {(material.stock === 0 || material.stock <= material.min_stock) ? (
-                        <Button variant="outline" size="sm" className="gap-2">
-                          <Truck className="h-4 w-4" />
-                          Заказать
-                        </Button>
-                      ) : null}
-
-                      <div className="flex gap-1">
-                        <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-                          <Eye className="h-4 w-4" />
-                        </Button>
-                        <MaterialDialog material={material}>
-                          <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-                            <Edit className="h-4 w-4" />
+                      <div className="flex flex-col sm:flex-row sm:items-center gap-2 shrink-0">
+                        {(material.stock === 0 || material.stock <= material.min_stock) ? (
+                          <Button variant="outline" size="sm" className="gap-2 min-w-0">
+                            <Truck className="h-4 w-4 shrink-0" />
+                            <span className="truncate">Заказать</span>
                           </Button>
-                        </MaterialDialog>
+                        ) : null}
+
+                        <div className="flex gap-1">
+                          <Button variant="ghost" size="sm" className="min-w-[44px] min-h-[44px] p-0">
+                            <Eye className="h-4 w-4" />
+                          </Button>
+                          <MaterialDialog material={material}>
+                            <Button variant="ghost" size="sm" className="min-w-[44px] min-h-[44px] p-0">
+                              <Edit className="h-4 w-4" />
+                            </Button>
+                          </MaterialDialog>
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -271,15 +273,15 @@ export default function Nomenclature() {
 
         {/* Услуги */}
         <TabsContent value="services" className="space-y-6">
-          <div className="flex justify-between items-center">
-            <div>
-              <h2 className="text-xl font-semibold">Услуги</h2>
+          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
+            <div className="min-w-0">
+              <h2 className="text-lg sm:text-xl font-semibold break-words">Услуги</h2>
               <p className="text-sm text-muted-foreground">Каталог предоставляемых услуг</p>
             </div>
             <ServiceDialog>
-              <Button className="bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 gap-2">
-                <Plus className="h-4 w-4" />
-                Добавить услугу
+              <Button className="bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 gap-2 min-w-0">
+                <Plus className="h-4 w-4 shrink-0" />
+                <span className="truncate">Добавить услугу</span>
               </Button>
             </ServiceDialog>
           </div>
@@ -318,48 +320,50 @@ export default function Nomenclature() {
           <div className="grid gap-4">
             {filteredServices.map((service) => (
               <Card key={service.id} className="hover:shadow-md transition-shadow">
-                <CardContent className="p-6">
-                  <div className="flex items-center justify-between">
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-3 mb-2">
-                        <h3 className="text-lg font-semibold text-foreground">
-                          {service.name}
-                        </h3>
-                        <Badge variant="outline" className="text-xs">
-                          {service.category}
-                        </Badge>
-                      </div>
-                      
-                      <div className="space-y-1">
-                        <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                          <span>Цена: ₽{service.price.toLocaleString('ru-RU')} за {service.unit}</span>
-                          <div className="flex items-center gap-1">
-                            <Clock className="h-3 w-3" />
-                            <span>{service.duration_hours}ч</span>
+                <CardContent className="p-4 md:p-6">
+                  <div className="space-y-4">
+                    <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex flex-wrap items-center gap-2 mb-2">
+                          <h3 className="text-lg font-semibold text-foreground break-words">
+                            {service.name}
+                          </h3>
+                          <Badge variant="outline" className="text-xs">
+                            {service.category}
+                          </Badge>
+                        </div>
+                        
+                        <div className="space-y-1">
+                          <div className="flex flex-wrap items-center gap-2 sm:gap-4 text-sm text-muted-foreground">
+                            <span>Цена: ₽{service.price.toLocaleString('ru-RU')} за {service.unit}</span>
+                            <div className="flex items-center gap-1">
+                              <Clock className="h-3 w-3 shrink-0" />
+                              <span>{service.duration_hours}ч</span>
+                            </div>
+                          </div>
+                          
+                          {service.description && (
+                            <p className="text-xs text-muted-foreground break-words">
+                              {service.description}
+                            </p>
+                          )}
+                          
+                          <div className="text-xs text-muted-foreground">
+                            <span>Обновлено: {new Date(service.updated_at).toLocaleDateString('ru-RU')}</span>
                           </div>
                         </div>
-                        
-                        {service.description && (
-                          <p className="text-xs text-muted-foreground">
-                            {service.description}
-                          </p>
-                        )}
-                        
-                        <div className="text-xs text-muted-foreground">
-                          <span>Обновлено: {new Date(service.updated_at).toLocaleDateString('ru-RU')}</span>
-                        </div>
                       </div>
-                    </div>
 
-                    <div className="flex gap-1">
-                      <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-                        <Eye className="h-4 w-4" />
-                      </Button>
-                      <ServiceDialog service={service}>
-                        <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-                          <Edit className="h-4 w-4" />
+                      <div className="flex gap-1 shrink-0">
+                        <Button variant="ghost" size="sm" className="min-w-[44px] min-h-[44px] p-0">
+                          <Eye className="h-4 w-4" />
                         </Button>
-                      </ServiceDialog>
+                        <ServiceDialog service={service}>
+                          <Button variant="ghost" size="sm" className="min-w-[44px] min-h-[44px] p-0">
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                        </ServiceDialog>
+                      </div>
                     </div>
                   </div>
                 </CardContent>
