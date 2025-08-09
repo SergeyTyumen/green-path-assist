@@ -277,29 +277,31 @@ export default function Estimates() {
   });
 
   return (
-    <div className="p-6 space-y-6">
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-3xl font-bold text-foreground">Сметы</h1>
-          <p className="text-muted-foreground mt-1">
+    <div className="max-w-full w-full p-4 sm:p-6 space-y-6">
+      <div className="flex flex-wrap justify-between items-center gap-4">
+        <div className="min-w-0 flex-1">
+          <h1 className="text-2xl sm:text-3xl font-bold text-foreground break-words">Сметы</h1>
+          <p className="text-muted-foreground mt-1 text-sm sm:text-base">
             Управление сметами и расчетами проектов
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2 min-w-0">
           <Button 
             variant="outline" 
-            className="gap-2"
+            className="gap-2 min-h-[44px]"
             onClick={() => navigate('/ai-estimator')}
           >
             <Brain className="h-4 w-4" />
-            ИИ-расчет
+            <span className="hidden sm:inline">ИИ-расчет</span>
+            <span className="sm:hidden">ИИ</span>
           </Button>
           <Button 
             onClick={handleCreateEstimate}
-            className="bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 gap-2"
+            className="bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 gap-2 min-h-[44px]"
           >
             <Plus className="h-4 w-4" />
-            Создать смету
+            <span className="hidden sm:inline">Создать смету</span>
+            <span className="sm:hidden">Создать</span>
           </Button>
         </div>
       </div>

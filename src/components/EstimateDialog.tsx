@@ -182,15 +182,15 @@ export function EstimateDialog({ isOpen, onClose, estimate, onSave }: EstimateDi
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-full w-full sm:max-w-6xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>
+          <DialogTitle className="text-lg sm:text-xl break-words">
             {estimate ? "Редактировать смету" : "Создать смету"}
           </DialogTitle>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-6">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-4">
             <div className="space-y-2">
               <Label htmlFor="title">Название сметы</Label>
               <Input
@@ -244,17 +244,19 @@ export function EstimateDialog({ isOpen, onClose, estimate, onSave }: EstimateDi
             </div>
           </div>
 
-          <div className="space-y-6">
-            <div className="flex justify-between items-center">
-              <h3 className="text-lg font-semibold">Позиции сметы</h3>
-              <div className="flex gap-2">
-                <Button type="button" onClick={() => setItems([...items, { type: 'service', name: '', quantity: 1, unit_price: 0, unit: 'м²', total: 0 }])} size="sm" variant="outline">
-                  <Plus className="h-4 w-4 mr-2" />
-                  Добавить услугу
+          <div className="space-y-4 sm:space-y-6">
+            <div className="flex flex-wrap justify-between items-center gap-2">
+              <h3 className="text-base sm:text-lg font-semibold min-w-0 break-words">Позиции сметы</h3>
+              <div className="flex flex-wrap gap-2 min-w-0">
+                <Button type="button" onClick={() => setItems([...items, { type: 'service', name: '', quantity: 1, unit_price: 0, unit: 'м²', total: 0 }])} size="sm" variant="outline" className="min-h-[44px]">
+                  <Plus className="h-4 w-4 mr-1" />
+                  <span className="hidden sm:inline">Добавить услугу</span>
+                  <span className="sm:hidden">Услуга</span>
                 </Button>
-                <Button type="button" onClick={() => setItems([...items, { type: 'material', name: '', quantity: 1, unit_price: 0, unit: 'м³', total: 0 }])} size="sm" variant="outline">
-                  <Plus className="h-4 w-4 mr-2" />
-                  Добавить материал
+                <Button type="button" onClick={() => setItems([...items, { type: 'material', name: '', quantity: 1, unit_price: 0, unit: 'м³', total: 0 }])} size="sm" variant="outline" className="min-h-[44px]">
+                  <Plus className="h-4 w-4 mr-1" />
+                  <span className="hidden sm:inline">Добавить материал</span>
+                  <span className="sm:hidden">Материал</span>
                 </Button>
               </div>
             </div>
@@ -273,15 +275,15 @@ export function EstimateDialog({ isOpen, onClose, estimate, onSave }: EstimateDi
                     Нет услуг в смете
                   </div>
                 ) : (
-                  <div className="overflow-x-auto">
-                    <Table>
+                  <div className="overflow-x-auto -webkit-overflow-scrolling-touch">
+                    <Table className="min-w-0">
                       <TableHeader>
                         <TableRow>
-                          <TableHead>Наименование</TableHead>
-                          <TableHead>Объем</TableHead>
-                          <TableHead>Ед. изм</TableHead>
-                          <TableHead>Цена за ед.</TableHead>
-                          <TableHead>Сумма</TableHead>
+                          <TableHead className="min-w-[200px]">Наименование</TableHead>
+                          <TableHead className="min-w-[80px]">Объем</TableHead>
+                          <TableHead className="min-w-[70px]">Ед. изм</TableHead>
+                          <TableHead className="min-w-[100px]">Цена за ед.</TableHead>
+                          <TableHead className="min-w-[100px]">Сумма</TableHead>
                           <TableHead className="w-[50px]"></TableHead>
                         </TableRow>
                       </TableHeader>
@@ -508,11 +510,11 @@ export function EstimateDialog({ isOpen, onClose, estimate, onSave }: EstimateDi
             )}
           </div>
 
-          <div className="flex justify-end gap-2">
-            <Button type="button" variant="outline" onClick={onClose}>
+          <div className="sticky bottom-0 left-0 right-0 bg-background border-t p-4 -mx-4 sm:-mx-6 flex flex-wrap justify-end gap-2">
+            <Button type="button" variant="outline" onClick={onClose} className="min-h-[44px] min-w-[100px]">
               Отмена
             </Button>
-            <Button type="submit">
+            <Button type="submit" className="min-h-[44px] min-w-[100px]">
               {estimate ? "Сохранить" : "Создать"}
             </Button>
           </div>

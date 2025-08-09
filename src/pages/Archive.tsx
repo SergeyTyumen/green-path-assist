@@ -132,11 +132,11 @@ export default function Archive() {
     .reduce((sum, p) => sum + p.totalAmount, 0);
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="max-w-full w-full p-4 sm:p-6 space-y-6">
       <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-3xl font-bold text-foreground">Архив проектов</h1>
-          <p className="text-muted-foreground mt-1">
+        <div className="min-w-0 flex-1">
+          <h1 className="text-2xl sm:text-3xl font-bold text-foreground break-words">Архив проектов</h1>
+          <p className="text-muted-foreground mt-1 text-sm sm:text-base break-words">
             Завершенные и отмененные проекты
           </p>
         </div>
@@ -188,7 +188,7 @@ export default function Archive() {
       {/* Поиск и фильтры */}
       <Card>
         <CardContent className="p-4">
-          <div className="flex gap-4">
+          <div className="flex flex-col sm:flex-row gap-4">
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input
@@ -198,30 +198,32 @@ export default function Archive() {
                 className="pl-9"
               />
             </div>
-            <Select value={selectedStatus} onValueChange={setSelectedStatus}>
-              <SelectTrigger className="w-40">
-                <SelectValue placeholder="Статус" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Все статусы</SelectItem>
-                <SelectItem value="completed">Завершен</SelectItem>
-                <SelectItem value="cancelled">Отменен</SelectItem>
-                <SelectItem value="on-hold">Приостановлен</SelectItem>
-              </SelectContent>
-            </Select>
-            <Select value={selectedCategory} onValueChange={setSelectedCategory}>
-              <SelectTrigger className="w-40">
-                <SelectValue placeholder="Категория" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Все категории</SelectItem>
-                <SelectItem value="landscaping">Ландшафт</SelectItem>
-                <SelectItem value="irrigation">Автополив</SelectItem>
-                <SelectItem value="lawn">Газон</SelectItem>
-                <SelectItem value="lighting">Освещение</SelectItem>
-                <SelectItem value="drainage">Дренаж</SelectItem>
-              </SelectContent>
-            </Select>
+            <div className="flex flex-wrap gap-2">
+              <Select value={selectedStatus} onValueChange={setSelectedStatus}>
+                <SelectTrigger className="w-full sm:w-40">
+                  <SelectValue placeholder="Статус" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Все статусы</SelectItem>
+                  <SelectItem value="completed">Завершен</SelectItem>
+                  <SelectItem value="cancelled">Отменен</SelectItem>
+                  <SelectItem value="on-hold">Приостановлен</SelectItem>
+                </SelectContent>
+              </Select>
+              <Select value={selectedCategory} onValueChange={setSelectedCategory}>
+                <SelectTrigger className="w-full sm:w-40">
+                  <SelectValue placeholder="Категория" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Все категории</SelectItem>
+                  <SelectItem value="landscaping">Ландшафт</SelectItem>
+                  <SelectItem value="irrigation">Автополив</SelectItem>
+                  <SelectItem value="lawn">Газон</SelectItem>
+                  <SelectItem value="lighting">Освещение</SelectItem>
+                  <SelectItem value="drainage">Дренаж</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
         </CardContent>
       </Card>
@@ -229,44 +231,44 @@ export default function Archive() {
       {/* Список проектов */}
       <div className="grid gap-4">
         {filteredProjects.map((project) => (
-          <Card key={project.id} className="hover:shadow-md transition-shadow">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-3 mb-2">
-                    <h3 className="text-lg font-semibold text-foreground">
+          <Card key={project.id} className="hover:shadow-md transition-shadow max-w-full">
+            <CardContent className="p-4 sm:p-6">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-[minmax(0,1fr)_auto]">
+                <div className="min-w-0">
+                  <div className="flex flex-wrap items-center gap-2 mb-2">
+                    <h3 className="text-base sm:text-lg font-semibold text-foreground break-words overflow-wrap-anywhere line-clamp-2">
                       {project.name}
                     </h3>
                     {getStatusBadge(project.status)}
                     {getCategoryBadge(project.category)}
                   </div>
                   
-                  <div className="space-y-1">
-                    <div className="flex items-center gap-4 text-sm">
+                  <div className="space-y-2">
+                    <div className="flex flex-wrap items-center gap-2 text-xs sm:text-sm">
                       <div className="flex items-center gap-1">
-                        <User className="h-4 w-4 text-muted-foreground" />
-                        <span className="font-medium text-foreground">{project.client}</span>
+                        <User className="h-3 w-3 sm:h-4 sm:w-4 text-muted-foreground" />
+                        <span className="font-medium text-foreground break-words overflow-wrap-anywhere">{project.client}</span>
                       </div>
-                      <span className="text-muted-foreground">• {project.contractor}</span>
+                      <span className="text-muted-foreground break-words overflow-wrap-anywhere">• {project.contractor}</span>
                     </div>
                     
-                    <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                    <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
                       <div className="flex items-center gap-1">
                         <Calendar className="h-3 w-3" />
-                        Начат: {new Date(project.startDate).toLocaleDateString('ru-RU')}
+                        <span className="whitespace-nowrap">Начат: {new Date(project.startDate).toLocaleDateString('ru-RU')}</span>
                       </div>
                       {project.completionDate && (
-                        <span>Завершен: {new Date(project.completionDate).toLocaleDateString('ru-RU')}</span>
+                        <span className="whitespace-nowrap">Завершен: {new Date(project.completionDate).toLocaleDateString('ru-RU')}</span>
                       )}
-                      {project.estimateId && <span>Смета: {project.estimateId}</span>}
-                      {project.proposalId && <span>КП: {project.proposalId}</span>}
+                      {project.estimateId && <span className="whitespace-nowrap">Смета: {project.estimateId}</span>}
+                      {project.proposalId && <span className="whitespace-nowrap">КП: {project.proposalId}</span>}
                     </div>
                   </div>
                 </div>
 
-                <div className="flex items-center gap-4">
-                  <div className="text-right">
-                    <div className="text-2xl font-bold text-foreground">
+                <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 min-w-0">
+                  <div className="text-left sm:text-right">
+                    <div className="text-xl sm:text-2xl font-bold text-foreground">
                       ₽{project.totalAmount.toLocaleString('ru-RU')}
                     </div>
                     <div className="text-xs text-muted-foreground">
@@ -274,11 +276,11 @@ export default function Archive() {
                     </div>
                   </div>
 
-                  <div className="flex gap-1">
-                    <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                  <div className="flex gap-2">
+                    <Button variant="ghost" size="sm" className="h-[44px] w-[44px] p-0">
                       <Eye className="h-4 w-4" />
                     </Button>
-                    <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                    <Button variant="ghost" size="sm" className="h-[44px] w-[44px] p-0">
                       <Download className="h-4 w-4" />
                     </Button>
                   </div>
