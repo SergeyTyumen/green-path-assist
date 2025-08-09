@@ -39,8 +39,7 @@ const navigationItems = [
   { title: "Задачи", url: "/tasks", icon: CheckSquare },
   { title: "Архив проектов", url: "/archive", icon: Archive },
   { title: "ИИ-помощники", url: "/ai-assistants", icon: Bot },
-  { title: "Голосовой помощник", url: "/voice-assistant", icon: Mic },
-  { title: "Чат с ИИ-помощником", url: "/voice-chat", icon: MessageCircle },
+  { title: "Голосовой помощник", url: "/voice-chat", icon: Mic },
   { title: "Настройки голоса", url: "/voice-settings", icon: Settings },
 ];
 
