@@ -1,19 +1,19 @@
 project_id = "nxyzmxqtzsvjezmkmkja"
 
 [functions.voice-chat]
-verify_jwt = false
+verify_jwt = true
 
 [functions.enhanced-voice-chat]
-verify_jwt = false
+verify_jwt = true
 
 [functions.ai-analyst] 
-verify_jwt = false
+verify_jwt = true
 
 [functions.competitor-analysis]
-verify_jwt = false
+verify_jwt = true
 
 [functions.text-to-speech]
-verify_jwt = false
+verify_jwt = true
 
 [functions.speech-to-text]
-verify_jwt = false
+verify_jwt = true
