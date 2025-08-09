@@ -125,8 +125,8 @@ export default function Tasks() {
       {/* Поиск и фильтры */}
       <Card>
         <CardContent className="p-4">
-          <div className="flex gap-4">
-            <div className="relative flex-1">
+          <div className="flex flex-col sm:flex-row gap-4">
+            <div className="relative flex-1 min-w-0">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input
                 placeholder="Поиск по названию, клиенту или проекту..."
@@ -135,42 +135,44 @@ export default function Tasks() {
                 className="pl-9"
               />
             </div>
-            <Select value={selectedStatus} onValueChange={setSelectedStatus}>
-              <SelectTrigger className="w-40">
-                <SelectValue placeholder="Статус" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Все статусы</SelectItem>
-                <SelectItem value="pending">Ожидает</SelectItem>
-                <SelectItem value="in-progress">В работе</SelectItem>
-                <SelectItem value="completed">Выполнена</SelectItem>
-                <SelectItem value="overdue">Просрочена</SelectItem>
-              </SelectContent>
-            </Select>
-            <Select value={selectedPriority} onValueChange={setSelectedPriority}>
-              <SelectTrigger className="w-40">
-                <SelectValue placeholder="Приоритет" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Все приоритеты</SelectItem>
-                <SelectItem value="high">Высокий</SelectItem>
-                <SelectItem value="medium">Средний</SelectItem>
-                <SelectItem value="low">Низкий</SelectItem>
-              </SelectContent>
-            </Select>
-            <Select value={selectedClient} onValueChange={setSelectedClient}>
-              <SelectTrigger className="w-48">
-                <SelectValue placeholder="Клиент" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Все клиенты</SelectItem>
-                {clients.map((client) => (
-                  <SelectItem key={client.id} value={client.id}>
-                    {client.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-4 sm:w-auto">
+              <Select value={selectedStatus} onValueChange={setSelectedStatus}>
+                <SelectTrigger className="w-full sm:w-40">
+                  <SelectValue placeholder="Статус" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Все статусы</SelectItem>
+                  <SelectItem value="pending">Ожидает</SelectItem>
+                  <SelectItem value="in-progress">В работе</SelectItem>
+                  <SelectItem value="completed">Выполнена</SelectItem>
+                  <SelectItem value="overdue">Просрочена</SelectItem>
+                </SelectContent>
+              </Select>
+              <Select value={selectedPriority} onValueChange={setSelectedPriority}>
+                <SelectTrigger className="w-full sm:w-40">
+                  <SelectValue placeholder="Приоритет" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Все приоритеты</SelectItem>
+                  <SelectItem value="high">Высокий</SelectItem>
+                  <SelectItem value="medium">Средний</SelectItem>
+                  <SelectItem value="low">Низкий</SelectItem>
+                </SelectContent>
+              </Select>
+              <Select value={selectedClient} onValueChange={setSelectedClient}>
+                <SelectTrigger className="w-full sm:w-48">
+                  <SelectValue placeholder="Клиент" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Все клиенты</SelectItem>
+                  {clients.map((client) => (
+                    <SelectItem key={client.id} value={client.id}>
+                      {client.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
         </CardContent>
       </Card>
@@ -209,45 +211,51 @@ export default function Tasks() {
           {activeTasks.map((task) => (
           <Card key={task.id} className="hover:shadow-md transition-shadow">
             <CardContent className="p-6">
-              <div className="flex items-start justify-between">
+              <div className="flex flex-col lg:flex-row lg:items-start gap-4">
                 <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-3 mb-2">
+                  <div className="flex flex-wrap items-center gap-2 mb-2">
                     {getCategoryIcon(task.category)}
-                    <h3 className="text-lg font-semibold text-foreground">
+                    <h3 className="text-lg font-semibold text-foreground overflow-wrap-anywhere">
                       {task.title}
                     </h3>
-                    {getStatusBadge(task.status)}
-                    {getPriorityBadge(task.priority)}
+                    <div className="flex flex-wrap gap-2">
+                      {getStatusBadge(task.status)}
+                      {getPriorityBadge(task.priority)}
+                    </div>
                   </div>
                   
-                  <p className="text-sm text-muted-foreground mb-3">
+                  <p className="text-sm text-muted-foreground mb-3 overflow-wrap-anywhere">
                     {task.description}
                   </p>
                   
                   <div className="space-y-1">
                     <div className="flex items-center gap-4 text-sm">
-                      <span className="font-medium text-foreground">Клиент: {getClientName(task.client_id)}</span>
+                      <span className="font-medium text-foreground overflow-wrap-anywhere">
+                        Клиент: {getClientName(task.client_id)}
+                      </span>
                     </div>
                     
-                    <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                    <div className="flex flex-wrap items-center gap-4 text-xs text-muted-foreground">
                       <div className="flex items-center gap-1">
-                        <User className="h-3 w-3" />
-                        {task.assignee || 'Не назначен'}
+                        <User className="h-3 w-3 flex-shrink-0" />
+                        <span className="overflow-wrap-anywhere">{task.assignee || 'Не назначен'}</span>
                       </div>
                       <div className="flex items-center gap-1">
-                        <Calendar className="h-3 w-3" />
-                        Срок: {task.due_date ? new Date(task.due_date).toLocaleDateString('ru-RU') : 'Не установлен'}
+                        <Calendar className="h-3 w-3 flex-shrink-0" />
+                        <span className="whitespace-nowrap">
+                          Срок: {task.due_date ? new Date(task.due_date).toLocaleDateString('ru-RU') : 'Не установлен'}
+                        </span>
                       </div>
-                      <span>Создана: {new Date(task.created_at).toLocaleDateString('ru-RU')}</span>
+                      <span className="whitespace-nowrap">Создана: {new Date(task.created_at).toLocaleDateString('ru-RU')}</span>
                     </div>
                   </div>
                 </div>
 
-                <div className="flex gap-1">
+                <div className="flex flex-row lg:flex-col gap-1 min-touch-target">
                   <TaskDialog
                     task={task}
                     trigger={
-                      <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                      <Button variant="ghost" size="sm" className="min-touch-target flex-1 lg:flex-none">
                         <Edit className="h-4 w-4" />
                       </Button>
                     }
@@ -256,7 +264,7 @@ export default function Tasks() {
                     <Button 
                       variant="ghost" 
                       size="sm" 
-                      className="h-8 w-8 p-0"
+                      className="min-touch-target flex-1 lg:flex-none"
                       onClick={() => handleCompleteTask(task)}
                     >
                       <CheckSquare className="h-4 w-4" />
@@ -264,7 +272,7 @@ export default function Tasks() {
                   )}
                   <AlertDialog>
                     <AlertDialogTrigger asChild>
-                      <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-destructive hover:text-destructive">
+                      <Button variant="ghost" size="sm" className="min-touch-target flex-1 lg:flex-none text-destructive hover:text-destructive">
                         <Trash2 className="h-4 w-4" />
                       </Button>
                     </AlertDialogTrigger>
@@ -325,51 +333,57 @@ export default function Tasks() {
             {completedTasks.map((task) => (
               <Card key={task.id} className="hover:shadow-md transition-shadow opacity-75">
                 <CardContent className="p-6">
-                  <div className="flex items-start justify-between">
+                  <div className="flex flex-col lg:flex-row lg:items-start gap-4">
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-3 mb-2">
+                      <div className="flex flex-wrap items-center gap-2 mb-2">
                         {getCategoryIcon(task.category)}
-                        <h3 className="text-lg font-semibold text-foreground line-through">
+                        <h3 className="text-lg font-semibold text-foreground line-through overflow-wrap-anywhere">
                           {task.title}
                         </h3>
-                        {getStatusBadge(task.status)}
-                        {getPriorityBadge(task.priority)}
+                        <div className="flex flex-wrap gap-2">
+                          {getStatusBadge(task.status)}
+                          {getPriorityBadge(task.priority)}
+                        </div>
                       </div>
                       
-                      <p className="text-sm text-muted-foreground mb-3">
+                      <p className="text-sm text-muted-foreground mb-3 overflow-wrap-anywhere">
                         {task.description}
                       </p>
                       
                       <div className="space-y-1">
                         <div className="flex items-center gap-4 text-sm">
-                          <span className="font-medium text-foreground">Клиент: {getClientName(task.client_id)}</span>
+                          <span className="font-medium text-foreground overflow-wrap-anywhere">
+                            Клиент: {getClientName(task.client_id)}
+                          </span>
                         </div>
                         
-                        <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                        <div className="flex flex-wrap items-center gap-4 text-xs text-muted-foreground">
                           <div className="flex items-center gap-1">
-                            <User className="h-3 w-3" />
-                            {task.assignee || 'Не назначен'}
+                            <User className="h-3 w-3 flex-shrink-0" />
+                            <span className="overflow-wrap-anywhere">{task.assignee || 'Не назначен'}</span>
                           </div>
                           <div className="flex items-center gap-1">
-                            <Calendar className="h-3 w-3" />
-                            Выполнена: {new Date(task.updated_at).toLocaleDateString('ru-RU')}
+                            <Calendar className="h-3 w-3 flex-shrink-0" />
+                            <span className="whitespace-nowrap">
+                              Выполнена: {new Date(task.updated_at).toLocaleDateString('ru-RU')}
+                            </span>
                           </div>
                         </div>
                       </div>
                     </div>
 
-                    <div className="flex gap-1">
+                    <div className="flex flex-row lg:flex-col gap-1 min-touch-target">
                       <TaskDialog
                         task={task}
                         trigger={
-                          <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                          <Button variant="ghost" size="sm" className="min-touch-target flex-1 lg:flex-none">
                             <Edit className="h-4 w-4" />
                           </Button>
                         }
                       />
                       <AlertDialog>
                         <AlertDialogTrigger asChild>
-                          <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-destructive hover:text-destructive">
+                          <Button variant="ghost" size="sm" className="min-touch-target flex-1 lg:flex-none text-destructive hover:text-destructive">
                             <Trash2 className="h-4 w-4" />
                           </Button>
                         </AlertDialogTrigger>

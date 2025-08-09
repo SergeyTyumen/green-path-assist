@@ -85,19 +85,20 @@ export default function Proposals() {
 
   return (
     <div className="p-6 space-y-6">
-      <div className="flex justify-between items-center">
-        <div>
+      <div className="flex flex-col gap-4 sm:flex-row sm:justify-between sm:items-center">
+        <div className="min-w-0">
           <h1 className="text-3xl font-bold text-foreground">Коммерческие предложения</h1>
           <p className="text-muted-foreground mt-1">
             Управление КП и отправка клиентам
           </p>
         </div>
-        <div className="flex gap-2">
-          <Button variant="outline" className="gap-2">
+        <div className="flex flex-wrap gap-2 sm:flex-nowrap">
+          <Button variant="outline" className="gap-2 min-touch-target">
             <Bot className="h-4 w-4" />
-            ИИ-генерация
+            <span className="hidden sm:inline">ИИ-генерация</span>
+            <span className="sm:hidden">ИИ</span>
           </Button>
-          <Button className="bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 gap-2">
+          <Button className="bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 gap-2 min-touch-target">
             <Plus className="h-4 w-4" />
             Создать КП
           </Button>
@@ -126,9 +127,9 @@ export default function Proposals() {
         {filteredProposals.map((proposal) => (
           <Card key={proposal.id} className="hover:shadow-md transition-shadow">
             <CardContent className="p-6">
-              <div className="flex items-center justify-between">
+              <div className="flex flex-col lg:flex-row lg:items-center gap-4">
                 <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-3 mb-2">
+                  <div className="flex flex-wrap items-center gap-2 mb-2">
                     <h3 className="text-lg font-semibold text-foreground">
                       {proposal.id}
                     </h3>
@@ -136,26 +137,30 @@ export default function Proposals() {
                   </div>
                   
                   <div className="space-y-1">
-                    <p className="text-sm font-medium text-foreground">
+                    <p className="text-sm font-medium text-foreground overflow-wrap-anywhere">
                       {proposal.client}
                     </p>
-                    <p className="text-sm text-muted-foreground">
+                    <p className="text-sm text-muted-foreground overflow-wrap-anywhere">
                       {proposal.project}
                     </p>
-                    <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                    <div className="flex flex-wrap items-center gap-2 sm:gap-4 text-xs text-muted-foreground">
                       {proposal.sentAt && (
-                        <span>Отправлено: {new Date(proposal.sentAt).toLocaleDateString('ru-RU')}</span>
+                        <span className="whitespace-nowrap">
+                          Отправлено: {new Date(proposal.sentAt).toLocaleDateString('ru-RU')}
+                        </span>
                       )}
-                      <span>Действительно до: {new Date(proposal.validUntil).toLocaleDateString('ru-RU')}</span>
+                      <span className="whitespace-nowrap">
+                        Действительно до: {new Date(proposal.validUntil).toLocaleDateString('ru-RU')}
+                      </span>
                       {proposal.estimateId && (
-                        <span>Смета: {proposal.estimateId}</span>
+                        <span className="whitespace-nowrap">Смета: {proposal.estimateId}</span>
                       )}
                     </div>
                   </div>
                 </div>
 
-                <div className="flex items-center gap-4">
-                  <div className="text-right">
+                <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
+                  <div className="text-left sm:text-right">
                     <div className="text-2xl font-bold text-foreground">
                       ₽{proposal.amount.toLocaleString('ru-RU')}
                     </div>
@@ -164,18 +169,18 @@ export default function Proposals() {
                     </div>
                   </div>
 
-                  <div className="flex gap-1">
-                    <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                  <div className="flex flex-wrap gap-1">
+                    <Button variant="ghost" size="sm" className="min-touch-target">
                       <Eye className="h-4 w-4" />
                     </Button>
-                    <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                    <Button variant="ghost" size="sm" className="min-touch-target">
                       <Edit className="h-4 w-4" />
                     </Button>
-                    <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                    <Button variant="ghost" size="sm" className="min-touch-target">
                       <Download className="h-4 w-4" />
                     </Button>
                     {proposal.status === "draft" && (
-                      <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                      <Button variant="ghost" size="sm" className="min-touch-target">
                         <Send className="h-4 w-4" />
                       </Button>
                     )}
