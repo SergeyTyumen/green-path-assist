@@ -30,6 +30,7 @@ export function ClientStatusManager({ client, onClientUpdate }: ClientStatusMana
     { value: "in-progress", label: "В работе", color: "bg-yellow-100 text-yellow-700" },
     { value: "proposal-sent", label: "КП отправлено", color: "bg-purple-100 text-purple-700" },
     { value: "call-scheduled", label: "Созвон назначен", color: "bg-orange-100 text-orange-700" },
+    { value: "contract-signing", label: "Подписание договора", color: "bg-indigo-100 text-indigo-700" },
     { value: "postponed", label: "Отложено", color: "bg-gray-100 text-gray-700" },
     { value: "closed", label: "Закрыт", color: "bg-green-100 text-green-700" }
   ];

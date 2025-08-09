@@ -3,6 +3,7 @@ export type ClientStatus =
   | "in-progress" 
   | "proposal-sent" 
   | "call-scheduled" 
+  | "contract-signing"
   | "postponed" 
   | "closed";
 
