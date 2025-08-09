@@ -138,117 +138,120 @@ export default function Suppliers() {
       <div className="grid gap-4">
         {filteredSuppliers.map((supplier) => (
           <Card key={supplier.id} className="hover:shadow-md transition-shadow">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-3 mb-2">
-                    <h3 className="text-lg font-semibold text-foreground">
-                      {supplier.name}
-                    </h3>
-                    {getStatusBadge(supplier.status)}
-                  </div>
-                  
-                    <div className="space-y-2">
-                    <div className="flex flex-wrap gap-1">
-                      {supplier.categories.map((category, index) => (
-                        <Badge key={index} variant="secondary" className="text-xs">
-                          {category}
-                        </Badge>
-                      ))}
+            <CardContent className="p-4 md:p-6">
+              <div className="space-y-4">
+                <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 mb-2">
+                      <h3 className="text-lg font-semibold text-foreground break-words">
+                        {supplier.name}
+                      </h3>
+                      {getStatusBadge(supplier.status)}
                     </div>
                     
-                    {supplier.tags && supplier.tags.length > 0 && (
+                    <div className="space-y-2">
                       <div className="flex flex-wrap gap-1">
-                        {supplier.tags.map((tag, index) => (
-                          <Badge 
-                            key={index} 
-                            className={`text-xs text-white ${getTagColor(tag)}`}
-                          >
-                            {tag}
+                        {supplier.categories.map((category, index) => (
+                          <Badge key={index} variant="secondary" className="text-xs">
+                            {category}
                           </Badge>
                         ))}
                       </div>
-                    )}
-                    
-                    <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                      {supplier.location && (
-                        <div className="flex items-center gap-1">
-                          <MapPin className="h-4 w-4" />
-                          {supplier.location}
+                      
+                      {supplier.tags && supplier.tags.length > 0 && (
+                        <div className="flex flex-wrap gap-1">
+                          {supplier.tags.map((tag, index) => (
+                            <Badge 
+                              key={index} 
+                              className={`text-xs text-white ${getTagColor(tag)}`}
+                            >
+                              {tag}
+                            </Badge>
+                          ))}
                         </div>
                       )}
-                      <div className="flex items-center gap-1">
-                        <span className="font-medium">🏢 {supplier.entity_type}</span>
+                      
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 text-sm text-muted-foreground">
+                        {supplier.location && (
+                          <div className="flex items-center gap-1 break-words">
+                            <MapPin className="h-4 w-4 shrink-0" />
+                            <span className="overflow-wrap-anywhere">{supplier.location}</span>
+                          </div>
+                        )}
+                        <div className="flex items-center gap-1">
+                          <span className="font-medium">🏢 {supplier.entity_type}</span>
+                        </div>
+                        {supplier.contact_person && (
+                          <div className="flex items-center gap-1 break-words">
+                            <span className="overflow-wrap-anywhere">👤 {supplier.contact_person}</span>
+                          </div>
+                        )}
+                        {supplier.email && (
+                          <div className="flex items-center gap-1 break-words">
+                            <Mail className="h-4 w-4 shrink-0" />
+                            <span className="overflow-wrap-anywhere">{supplier.email}</span>
+                          </div>
+                        )}
+                        {supplier.rating && supplier.rating > 0 && (
+                          <div className="flex items-center gap-1">
+                            <Star className="h-4 w-4 fill-yellow-400 text-yellow-400 shrink-0" />
+                            {supplier.rating}
+                          </div>
+                        )}
                       </div>
-                      {supplier.contact_person && (
-                        <div className="flex items-center gap-1">
-                          <span>👤 {supplier.contact_person}</span>
+                      
+                      {supplier.phones && supplier.phones.length > 0 && (
+                        <div className="space-y-1">
+                          {supplier.phones.map((phone, index) => (
+                            <div key={index} className="flex flex-wrap items-center gap-2">
+                              <ClickablePhone 
+                                phone={phone.number} 
+                                messenger={phone.messenger || undefined}
+                                variant="text"
+                                className="text-sm"
+                              />
+                              <Badge variant="outline" className="text-xs">
+                                {phone.type === 'mobile' ? 'Мобильный' : 'Городской'}
+                              </Badge>
+                              {phone.messenger && !["none", ""].includes(phone.messenger) && (
+                                <Badge variant="secondary" className="text-xs">
+                                  {phone.messenger}
+                                </Badge>
+                              )}
+                            </div>
+                          ))}
                         </div>
                       )}
-                       {supplier.phones && supplier.phones.length > 0 && (
-                         <div className="space-y-1">
-                           {supplier.phones.map((phone, index) => (
-                             <div key={index} className="flex items-center gap-2">
-                               <ClickablePhone 
-                                 phone={phone.number} 
-                                 messenger={phone.messenger || undefined}
-                                 variant="text"
-                                 className="text-sm"
-                               />
-                               <Badge variant="outline" className="text-xs">
-                                 {phone.type === 'mobile' ? 'Мобильный' : 'Городской'}
-                               </Badge>
-                               {phone.messenger && !["none", ""].includes(phone.messenger) && (
-                                 <Badge variant="secondary" className="text-xs">
-                                   {phone.messenger}
-                                 </Badge>
-                               )}
-                             </div>
-                           ))}
-                         </div>
-                       )}
-                      {supplier.email && (
-                        <div className="flex items-center gap-1">
-                          <Mail className="h-4 w-4" />
-                          {supplier.email}
-                        </div>
-                      )}
-                      {supplier.rating && supplier.rating > 0 && (
-                        <div className="flex items-center gap-1">
-                          <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
-                          {supplier.rating}
-                        </div>
-                      )}
-                    </div>
-                    
-                    <div className="text-xs text-muted-foreground">
-                      {supplier.orders_count !== undefined && (
-                        <span>Заказов выполнено: {supplier.orders_count}</span>
-                      )}
-                      <span> • Обновлено: {new Date(supplier.updated_at).toLocaleDateString('ru-RU')}</span>
+                      
+                      <div className="text-xs text-muted-foreground">
+                        {supplier.orders_count !== undefined && (
+                          <span>Заказов выполнено: {supplier.orders_count}</span>
+                        )}
+                        <span> • Обновлено: {new Date(supplier.updated_at).toLocaleDateString('ru-RU')}</span>
+                      </div>
                     </div>
                   </div>
-                </div>
 
-                <div className="flex gap-1">
-                  <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-                    <Eye className="h-4 w-4" />
-                  </Button>
-                  <SupplierDialog supplier={supplier}>
-                    <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-                      <Edit className="h-4 w-4" />
+                  <div className="flex flex-row sm:flex-col gap-1 sm:gap-2 shrink-0">
+                    <Button variant="ghost" size="sm" className="min-w-[44px] min-h-[44px] p-0">
+                      <Eye className="h-4 w-4" />
                     </Button>
-                  </SupplierDialog>
-                  {supplier.phones && supplier.phones.length > 0 && (
-                    <Button 
-                      variant="ghost" 
-                      size="sm" 
-                      className="h-8 w-8 p-0"
-                      onClick={() => window.open(`tel:${supplier.phones[0].number}`)}
-                    >
-                      <Phone className="h-4 w-4" />
-                    </Button>
-                  )}
+                    <SupplierDialog supplier={supplier}>
+                      <Button variant="ghost" size="sm" className="min-w-[44px] min-h-[44px] p-0">
+                        <Edit className="h-4 w-4" />
+                      </Button>
+                    </SupplierDialog>
+                    {supplier.phones && supplier.phones.length > 0 && (
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        className="min-w-[44px] min-h-[44px] p-0"
+                        onClick={() => window.open(`tel:${supplier.phones[0].number}`)}
+                      >
+                        <Phone className="h-4 w-4" />
+                      </Button>
+                    )}
+                  </div>
                 </div>
               </div>
             </CardContent>
