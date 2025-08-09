@@ -276,6 +276,54 @@ export type Database = {
         }
         Relationships: []
       }
+      contracts: {
+        Row: {
+          amount: number | null
+          client_id: string | null
+          content: string | null
+          created_at: string
+          id: string
+          sent_at: string | null
+          signed_at: string | null
+          status: string
+          template_name: string
+          title: string
+          updated_at: string
+          user_id: string
+          valid_until: string | null
+        }
+        Insert: {
+          amount?: number | null
+          client_id?: string | null
+          content?: string | null
+          created_at?: string
+          id?: string
+          sent_at?: string | null
+          signed_at?: string | null
+          status?: string
+          template_name?: string
+          title: string
+          updated_at?: string
+          user_id: string
+          valid_until?: string | null
+        }
+        Update: {
+          amount?: number | null
+          client_id?: string | null
+          content?: string | null
+          created_at?: string
+          id?: string
+          sent_at?: string | null
+          signed_at?: string | null
+          status?: string
+          template_name?: string
+          title?: string
+          updated_at?: string
+          user_id?: string
+          valid_until?: string | null
+        }
+        Relationships: []
+      }
       estimate_items: {
         Row: {
           created_at: string
@@ -855,6 +903,39 @@ export type Database = {
           priority?: string
           status?: string
           title?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      templates: {
+        Row: {
+          content: string
+          created_at: string
+          id: string
+          is_default: boolean | null
+          name: string
+          type: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          content: string
+          created_at?: string
+          id?: string
+          is_default?: boolean | null
+          name: string
+          type: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          id?: string
+          is_default?: boolean | null
+          name?: string
+          type?: string
           updated_at?: string
           user_id?: string
         }

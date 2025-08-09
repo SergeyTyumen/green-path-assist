@@ -5,10 +5,13 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
+import { Separator } from '@/components/ui/separator';
 import { ArrowRight, CheckCircle } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
+import { ProposalManager } from './ProposalManager';
+import { ContractManager } from './ContractManager';
 
 interface Client {
   id: string;
@@ -159,100 +162,106 @@ export function ClientStatusManager({ client, onClientUpdate }: ClientStatusMana
   const hasStatusChanged = newStatus !== client.status;
 
   return (
-    <Card>
-      <CardHeader className="pb-3">
-        <CardTitle className="text-base">Управление статусом</CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        <div className="flex items-center gap-3">
-          <div className="text-sm">
-            <span className="text-muted-foreground">Текущий статус:</span>
-            <Badge className={getCurrentStatusConfig().color + " ml-2"}>
-              {getCurrentStatusConfig().label}
-            </Badge>
-          </div>
-        </div>
-
-        <div className="space-y-3">
-          <div>
-            <label className="text-sm font-medium">Изменить статус:</label>
-            <Select value={newStatus} onValueChange={handleStatusChange}>
-              <SelectTrigger className="mt-1">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {statusOptions.map((status) => (
-                  <SelectItem key={status.value} value={status.value}>
-                    <div className="flex items-center gap-2">
-                      <div className={`w-2 h-2 rounded-full ${status.color.split(' ')[0]}`} />
-                      {status.label}
-                    </div>
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+    <div className="space-y-6">
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base">Управление статусом</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex items-center gap-3">
+            <div className="text-sm">
+              <span className="text-muted-foreground">Текущий статус:</span>
+              <Badge className={getCurrentStatusConfig().color + " ml-2"}>
+                {getCurrentStatusConfig().label}
+              </Badge>
+            </div>
           </div>
 
-          {showClosureReason && (
-            <div className="space-y-3 p-3 bg-muted/50 rounded-lg">
-              <Label className="text-sm font-medium">Причина закрытия сделки:</Label>
-              <Select value={closureReason} onValueChange={setClosureReason}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Выберите причину" />
+          <div className="space-y-3">
+            <div>
+              <label className="text-sm font-medium">Изменить статус:</label>
+              <Select value={newStatus} onValueChange={handleStatusChange}>
+                <SelectTrigger className="mt-1">
+                  <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {closureReasons.map((reason) => (
-                    <SelectItem key={reason} value={reason}>
-                      {reason}
+                  {statusOptions.map((status) => (
+                    <SelectItem key={status.value} value={status.value}>
+                      <div className="flex items-center gap-2">
+                        <div className={`w-2 h-2 rounded-full ${status.color.split(' ')[0]}`} />
+                        {status.label}
+                      </div>
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
-              
-              {(closureReason === 'Другое' || closureReason === '') && (
-                <div>
-                  <Label className="text-sm">Укажите свою причину:</Label>
-                  <Textarea
-                    value={customReason}
-                    onChange={(e) => setCustomReason(e.target.value)}
-                    placeholder="Опишите причину закрытия сделки..."
-                    className="mt-1"
-                    rows={3}
-                  />
-                </div>
-              )}
             </div>
-          )}
 
-          {hasStatusChanged && (
-            <div className="space-y-3">
-              <div className="flex items-center gap-2 text-sm text-muted-foreground p-3 bg-muted/50 rounded-lg">
-                <Badge className={getCurrentStatusConfig().color}>
-                  {getCurrentStatusConfig().label}
-                </Badge>
-                <ArrowRight className="h-3 w-3" />
-                <Badge className={getNewStatusConfig().color}>
-                  {getNewStatusConfig().label}
-                </Badge>
+            {showClosureReason && (
+              <div className="space-y-3 p-3 bg-muted/50 rounded-lg">
+                <Label className="text-sm font-medium">Причина закрытия сделки:</Label>
+                <Select value={closureReason} onValueChange={setClosureReason}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Выберите причину" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {closureReasons.map((reason) => (
+                      <SelectItem key={reason} value={reason}>
+                        {reason}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                
+                {(closureReason === 'Другое' || closureReason === '') && (
+                  <div>
+                    <Label className="text-sm">Укажите свою причину:</Label>
+                    <Textarea
+                      value={customReason}
+                      onChange={(e) => setCustomReason(e.target.value)}
+                      placeholder="Опишите причину закрытия сделки..."
+                      className="mt-1"
+                      rows={3}
+                    />
+                  </div>
+                )}
               </div>
-              
-              <Button 
-                onClick={updateClientStatus}
-                disabled={updating}
-                className="w-full"
-                size="sm"
-              >
-                <CheckCircle className="h-4 w-4 mr-2" />
-                {updating ? 'Обновление...' : 'Применить изменение статуса'}
-              </Button>
-            </div>
-          )}
-        </div>
+            )}
 
-        <div className="text-xs text-muted-foreground">
-          Последнее обновление: {new Date(client.updated_at).toLocaleDateString('ru-RU')} в {new Date(client.updated_at).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}
-        </div>
-      </CardContent>
-    </Card>
+            {hasStatusChanged && (
+              <div className="space-y-3">
+                <div className="flex items-center gap-2 text-sm text-muted-foreground p-3 bg-muted/50 rounded-lg">
+                  <Badge className={getCurrentStatusConfig().color}>
+                    {getCurrentStatusConfig().label}
+                  </Badge>
+                  <ArrowRight className="h-3 w-3" />
+                  <Badge className={getNewStatusConfig().color}>
+                    {getNewStatusConfig().label}
+                  </Badge>
+                </div>
+                
+                <Button 
+                  onClick={updateClientStatus}
+                  disabled={updating}
+                  className="w-full"
+                  size="sm"
+                >
+                  <CheckCircle className="h-4 w-4 mr-2" />
+                  {updating ? 'Обновление...' : 'Применить изменение статуса'}
+                </Button>
+              </div>
+            )}
+          </div>
+
+          <div className="text-xs text-muted-foreground">
+            Последнее обновление: {new Date(client.updated_at).toLocaleDateString('ru-RU')} в {new Date(client.updated_at).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}
+          </div>
+        </CardContent>
+      </Card>
+
+      <ProposalManager clientId={client.id} clientName={client.name} />
+      
+      <ContractManager clientId={client.id} clientName={client.name} />
+    </div>
   );
 }

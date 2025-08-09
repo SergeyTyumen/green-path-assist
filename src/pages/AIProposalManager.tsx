@@ -413,6 +413,9 @@ const AIProposalManager = () => {
                     </Select>
                   </div>
                 </div>
+                <Button className="w-full mt-4">
+                  Сохранить настройки
+                </Button>
               </div>
             </CardContent>
           </Card>
