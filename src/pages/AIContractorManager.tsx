@@ -157,6 +157,14 @@ const AIContractorManager = () => {
     <div className="p-6 max-w-6xl mx-auto">
       <div className="mb-8">
         <div className="flex items-center gap-3 mb-4">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => window.history.back()}
+            className="mr-2"
+          >
+            ← Назад
+          </Button>
           <div className="h-12 w-12 rounded-lg bg-cyan-500 flex items-center justify-center">
             <Settings className="h-6 w-6 text-white" />
           </div>

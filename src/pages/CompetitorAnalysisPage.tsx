@@ -97,6 +97,14 @@ const CompetitorAnalysisPage = () => {
       {/* Header */}
       <div className="mb-8">
         <div className="flex items-center gap-3 mb-4">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => window.history.back()}
+            className="mr-2"
+          >
+            ← Назад
+          </Button>
           <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-red-500 to-orange-600 flex items-center justify-center">
             <Crosshair className="h-6 w-6 text-white" />
           </div>
