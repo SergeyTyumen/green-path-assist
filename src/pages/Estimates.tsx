@@ -1,4 +1,4 @@
-import { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -19,6 +19,7 @@ import { useEstimates, Estimate } from "@/hooks/useEstimates";
 import { EstimateDialog } from "@/components/EstimateDialog";
 import { useClients } from "@/hooks/useClients";
 import { toast } from "sonner";
+import { supabase } from '@/integrations/supabase/client';
 
 export default function Estimates() {
   const [searchTerm, setSearchTerm] = useState("");
@@ -26,7 +27,7 @@ export default function Estimates() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const navigate = useNavigate();
 
-  const { estimates, loading, createEstimate, updateEstimate, deleteEstimate } = useEstimates();
+  const { estimates, loading, createEstimate, updateEstimate, deleteEstimate, refetch } = useEstimates();
   const { clients } = useClients();
 
   const getStatusBadge = (status: Estimate["status"]) => {
@@ -61,21 +62,68 @@ export default function Estimates() {
   };
 
   const handleSaveEstimate = async (estimateData: any, items: any[]) => {
+    console.log('Saving estimate with data:', estimateData, 'and items:', items);
     try {
       if (selectedEstimate) {
         // Обновление сметы
         await updateEstimate(selectedEstimate.id, estimateData);
+        
+        // Удаляем старые позиции
+        const { error: deleteError } = await supabase
+          .from('estimate_items')
+          .delete()
+          .eq('estimate_id', selectedEstimate.id);
+        
+        if (deleteError) throw deleteError;
+        
+        // Создаем новые позиции
+        if (items.length > 0) {
+          const { error: insertError } = await supabase
+            .from('estimate_items')
+            .insert(
+              items.map(item => ({
+                estimate_id: selectedEstimate.id,
+                material_id: item.material_id,
+                quantity: item.quantity,
+                unit_price: item.unit_price,
+                total: item.total
+              }))
+            );
+          
+          if (insertError) throw insertError;
+        }
+        
         toast.success("Смета успешно обновлена");
       } else {
         // Создание новой сметы
         const newEstimate = await createEstimate(estimateData);
         if (newEstimate && items.length > 0) {
-          // Здесь можно добавить логику создания элементов сметы
-          // Пока что просто показываем успешное сообщение
+          console.log('Creating estimate items for estimate:', newEstimate.id);
+          const { error: itemsError } = await supabase
+            .from('estimate_items')
+            .insert(
+              items.map(item => ({
+                estimate_id: newEstimate.id,
+                material_id: item.material_id,
+                quantity: item.quantity,
+                unit_price: item.unit_price,
+                total: item.total
+              }))
+            );
+          
+          if (itemsError) {
+            console.error('Error creating estimate items:', itemsError);
+            throw itemsError;
+          }
+          console.log('Successfully created estimate items');
         }
         toast.success("Смета успешно создана");
       }
+      
+      // Обновляем список смет
+      refetch();
     } catch (error) {
+      console.error('Error saving estimate:', error);
       toast.error("Произошла ошибка при сохранении сметы");
     }
   };

@@ -45,13 +45,15 @@ export function EstimateDialog({ isOpen, onClose, estimate, onSave }: EstimateDi
 
   useEffect(() => {
     if (estimate) {
+      console.log('Loading estimate data:', estimate);
       setTitle(estimate.title);
       setClientId(estimate.client_id || "");
       setStatus(estimate.status);
       setValidUntil(estimate.valid_until || "");
       
       // Преобразуем существующие items
-      if (estimate.items) {
+      console.log('Estimate items:', estimate.items);
+      if (estimate.items && estimate.items.length > 0) {
         const convertedItems: EstimateItemInput[] = estimate.items.map(item => {
           let itemDetails;
           let type: 'material' | 'service' = 'material';
