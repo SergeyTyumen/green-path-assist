@@ -95,23 +95,23 @@ export default function Suppliers() {
   }
 
   return (
-    <div className="p-6 space-y-6">
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-3xl font-bold text-foreground">Поставщики</h1>
-          <p className="text-muted-foreground mt-1">
+    <div className="p-4 md:p-6 space-y-6">
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
+        <div className="min-w-0">
+          <h1 className="text-2xl sm:text-3xl font-bold text-foreground break-words">Поставщики</h1>
+          <p className="text-muted-foreground mt-1 text-sm sm:text-base">
             База поставщиков материалов и управление заказами
           </p>
         </div>
-        <div className="flex gap-2">
-          <Button variant="outline" className="gap-2">
-            <Bot className="h-4 w-4" />
-            ИИ-заявка
+        <div className="flex flex-col sm:flex-row gap-2 shrink-0">
+          <Button variant="outline" className="gap-2 min-w-0">
+            <Bot className="h-4 w-4 shrink-0" />
+            <span className="truncate">ИИ-заявка</span>
           </Button>
           <SupplierDialog>
-            <Button className="bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 gap-2">
-              <Plus className="h-4 w-4" />
-              Добавить поставщика
+            <Button className="bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 gap-2 min-w-0">
+              <Plus className="h-4 w-4 shrink-0" />
+              <span className="truncate">Добавить поставщика</span>
             </Button>
           </SupplierDialog>
         </div>
