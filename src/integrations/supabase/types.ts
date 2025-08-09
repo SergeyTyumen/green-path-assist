@@ -186,6 +186,48 @@ export type Database = {
         }
         Relationships: []
       }
+      closed_deals: {
+        Row: {
+          client_id: string
+          client_name: string
+          closure_date: string
+          closure_reason: string
+          created_at: string
+          deal_amount: number | null
+          id: string
+          notes: string | null
+          project_area: number | null
+          services: string[] | null
+          user_id: string
+        }
+        Insert: {
+          client_id: string
+          client_name: string
+          closure_date?: string
+          closure_reason: string
+          created_at?: string
+          deal_amount?: number | null
+          id?: string
+          notes?: string | null
+          project_area?: number | null
+          services?: string[] | null
+          user_id: string
+        }
+        Update: {
+          client_id?: string
+          client_name?: string
+          closure_date?: string
+          closure_reason?: string
+          created_at?: string
+          deal_amount?: number | null
+          id?: string
+          notes?: string | null
+          project_area?: number | null
+          services?: string[] | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       contractor_profiles: {
         Row: {
           company_name: string

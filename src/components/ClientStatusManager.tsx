@@ -3,6 +3,8 @@ import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Textarea } from '@/components/ui/textarea';
+import { Label } from '@/components/ui/label';
 import { ArrowRight, CheckCircle } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
@@ -13,6 +15,10 @@ interface Client {
   name: string;
   status: string;
   updated_at: string;
+  budget?: number;
+  project_area?: number;
+  services?: string[];
+  notes?: string;
 }
 
 interface ClientStatusManagerProps {
@@ -23,6 +29,9 @@ interface ClientStatusManagerProps {
 export function ClientStatusManager({ client, onClientUpdate }: ClientStatusManagerProps) {
   const [newStatus, setNewStatus] = useState(client.status);
   const [updating, setUpdating] = useState(false);
+  const [showClosureReason, setShowClosureReason] = useState(false);
+  const [closureReason, setClosureReason] = useState('');
+  const [customReason, setCustomReason] = useState('');
   const { user } = useAuth();
 
   const statusOptions = [
@@ -31,8 +40,19 @@ export function ClientStatusManager({ client, onClientUpdate }: ClientStatusMana
     { value: "proposal-sent", label: "КП отправлено", color: "bg-purple-100 text-purple-700" },
     { value: "call-scheduled", label: "Созвон назначен", color: "bg-orange-100 text-orange-700" },
     { value: "contract-signing", label: "Подписание договора", color: "bg-indigo-100 text-indigo-700" },
+    { value: "completed", label: "Выполнен", color: "bg-green-100 text-green-700" },
     { value: "postponed", label: "Отложено", color: "bg-gray-100 text-gray-700" },
-    { value: "closed", label: "Закрыт", color: "bg-green-100 text-green-700" }
+    { value: "closed", label: "Закрыт", color: "bg-red-100 text-red-700" }
+  ];
+
+  const closureReasons = [
+    "Не прошли по цене",
+    "Выбрали другого подрядчика",
+    "Отложили проект",
+    "Не устроили сроки",
+    "Не устроило качество предложения",
+    "Изменились обстоятельства",
+    "Другое"
   ];
 
   const getCurrentStatusConfig = () => {
@@ -43,8 +63,25 @@ export function ClientStatusManager({ client, onClientUpdate }: ClientStatusMana
     return statusOptions.find(s => s.value === newStatus) || statusOptions[0];
   };
 
+  const handleStatusChange = (status: string) => {
+    setNewStatus(status);
+    if (status === 'closed') {
+      setShowClosureReason(true);
+    } else {
+      setShowClosureReason(false);
+      setClosureReason('');
+      setCustomReason('');
+    }
+  };
+
   const updateClientStatus = async () => {
     if (newStatus === client.status || !user) return;
+
+    // Проверяем обязательность причины для статуса "закрыт"
+    if (newStatus === 'closed' && !closureReason && !customReason) {
+      toast.error('Укажите причину закрытия сделки');
+      return;
+    }
 
     setUpdating(true);
     try {
@@ -61,16 +98,42 @@ export function ClientStatusManager({ client, onClientUpdate }: ClientStatusMana
 
       if (updateError) throw updateError;
 
+      // Если статус "закрыт", сохраняем в таблицу закрытых сделок
+      if (newStatus === 'closed') {
+        const finalReason = customReason || closureReason;
+        
+        const { error: closedDealError } = await supabase
+          .from('closed_deals')
+          .insert({
+            user_id: user.id,
+            client_id: client.id,
+            client_name: client.name,
+            closure_reason: finalReason,
+            deal_amount: client.budget,
+            project_area: client.project_area,
+            services: client.services || [],
+            notes: client.notes
+          });
+
+        if (closedDealError) throw closedDealError;
+      }
+
       // Добавляем запись в историю комментариев
       const oldStatusLabel = getCurrentStatusConfig().label;
       const newStatusLabel = getNewStatusConfig().label;
+      
+      let commentContent = `Статус изменен с "${oldStatusLabel}" на "${newStatusLabel}"`;
+      if (newStatus === 'closed') {
+        const finalReason = customReason || closureReason;
+        commentContent += `. Причина закрытия: ${finalReason}`;
+      }
       
       const { error: commentError } = await supabase
         .from('client_comments')
         .insert({
           client_id: client.id,
           user_id: user.id,
-          content: `Статус изменен с "${oldStatusLabel}" на "${newStatusLabel}"`,
+          content: commentContent,
           comment_type: 'status_change',
           author_name: user.email || 'Пользователь'
         });
@@ -79,6 +142,11 @@ export function ClientStatusManager({ client, onClientUpdate }: ClientStatusMana
 
       onClientUpdate(updatedClient);
       toast.success('Статус клиента обновлен');
+      
+      // Сбрасываем состояние формы
+      setShowClosureReason(false);
+      setClosureReason('');
+      setCustomReason('');
     } catch (error) {
       console.error('Error updating client status:', error);
       toast.error('Ошибка при обновлении статуса');
@@ -108,7 +176,7 @@ export function ClientStatusManager({ client, onClientUpdate }: ClientStatusMana
         <div className="space-y-3">
           <div>
             <label className="text-sm font-medium">Изменить статус:</label>
-            <Select value={newStatus} onValueChange={setNewStatus}>
+            <Select value={newStatus} onValueChange={handleStatusChange}>
               <SelectTrigger className="mt-1">
                 <SelectValue />
               </SelectTrigger>
@@ -124,6 +192,37 @@ export function ClientStatusManager({ client, onClientUpdate }: ClientStatusMana
               </SelectContent>
             </Select>
           </div>
+
+          {showClosureReason && (
+            <div className="space-y-3 p-3 bg-muted/50 rounded-lg">
+              <Label className="text-sm font-medium">Причина закрытия сделки:</Label>
+              <Select value={closureReason} onValueChange={setClosureReason}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Выберите причину" />
+                </SelectTrigger>
+                <SelectContent>
+                  {closureReasons.map((reason) => (
+                    <SelectItem key={reason} value={reason}>
+                      {reason}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              
+              {(closureReason === 'Другое' || closureReason === '') && (
+                <div>
+                  <Label className="text-sm">Укажите свою причину:</Label>
+                  <Textarea
+                    value={customReason}
+                    onChange={(e) => setCustomReason(e.target.value)}
+                    placeholder="Опишите причину закрытия сделки..."
+                    className="mt-1"
+                    rows={3}
+                  />
+                </div>
+              )}
+            </div>
+          )}
 
           {hasStatusChanged && (
             <div className="space-y-3">

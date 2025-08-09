@@ -4,6 +4,7 @@ export type ClientStatus =
   | "proposal-sent" 
   | "call-scheduled" 
   | "contract-signing"
+  | "completed"
   | "postponed" 
   | "closed";
 
