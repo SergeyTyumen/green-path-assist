@@ -115,7 +115,7 @@ export function ClientDetailDialog({ client, isOpen, onClose, onEdit, onClientUp
             </TabsTrigger>
             <TabsTrigger value="status" className="flex items-center gap-2">
               <Settings className="h-4 w-4" />
-              Управление
+              Управление сделкой
             </TabsTrigger>
             <TabsTrigger value="history" className="flex items-center gap-2">
               <MessageSquare className="h-4 w-4" />
