@@ -22,42 +22,16 @@ import {
   TrendingUp
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-
-interface Proposal {
-  id: string;
-  clientName: string;
-  title: string;
-  amount: number;
-  status: 'draft' | 'sent' | 'viewed' | 'accepted' | 'rejected';
-  sentDate?: Date;
-  validUntil: Date;
-}
+import { useProposals } from '@/hooks/useProposals';
+import { useClients } from '@/hooks/useClients';
 
 const AIProposalManager = () => {
   const { toast } = useToast();
-  const [proposals, setProposals] = useState<Proposal[]>([
-    {
-      id: '1',
-      clientName: 'ООО "Стройком"',
-      title: 'Ремонт офисных помещений',
-      amount: 850000,
-      status: 'sent',
-      sentDate: new Date('2024-01-10'),
-      validUntil: new Date('2024-01-25')
-    },
-    {
-      id: '2',
-      clientName: 'Иванов И.И.',
-      title: 'Ремонт квартиры',
-      amount: 450000,
-      status: 'viewed',
-      sentDate: new Date('2024-01-12'),
-      validUntil: new Date('2024-01-27')
-    }
-  ]);
+  const { proposals, loading, createProposal, updateProposal } = useProposals();
+  const { clients } = useClients();
 
   const [newProposal, setNewProposal] = useState({
-    clientName: '',
+    clientId: '',
     title: '',
     description: '',
     services: [],
@@ -70,8 +44,7 @@ const AIProposalManager = () => {
     switch (status) {
       case 'draft': return 'bg-gray-100 text-gray-800';
       case 'sent': return 'bg-blue-100 text-blue-800';
-      case 'viewed': return 'bg-yellow-100 text-yellow-800';
-      case 'accepted': return 'bg-green-100 text-green-800';
+      case 'approved': return 'bg-green-100 text-green-800';
       case 'rejected': return 'bg-red-100 text-red-800';
       default: return 'bg-gray-100 text-gray-800';
     }
@@ -80,35 +53,79 @@ const AIProposalManager = () => {
   const getStatusText = (status: string) => {
     switch (status) {
       case 'draft': return 'Черновик';
-      case 'sent': return 'Отправлено';
-      case 'viewed': return 'Просмотрено';
-      case 'accepted': return 'Принято';
+      case 'sent': return 'Отправлено клиенту';
+      case 'approved': return 'Одобрено';
       case 'rejected': return 'Отклонено';
       default: return status;
     }
   };
 
-  const generateProposal = async () => {
-    setGenerating(true);
-    
-    // Симуляция генерации КП с помощью ИИ
-    setTimeout(() => {
-      toast({
-        title: "КП сгенерировано",
-        description: "ИИ успешно создал коммерческое предложение"
-      });
-      setGenerating(false);
-    }, 3000);
+  const getClientName = (clientId: string) => {
+    const client = clients.find(c => c.id === clientId);
+    return client ? client.name : 'Неизвестный клиент';
   };
 
-  const sendProposal = (id: string) => {
-    setProposals(prev => prev.map(p => 
-      p.id === id ? { ...p, status: 'sent', sentDate: new Date() } : p
-    ));
-    toast({
-      title: "КП отправлено",
-      description: "Коммерческое предложение отправлено клиенту"
-    });
+  const generateProposal = async () => {
+    if (!newProposal.clientId || !newProposal.title) {
+      toast({
+        title: "Ошибка",
+        description: "Заполните все обязательные поля",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    setGenerating(true);
+    
+    try {
+      await createProposal({
+        client_id: newProposal.clientId,
+        title: newProposal.title,
+        status: 'draft' as const,
+        amount: 0,
+        expires_at: new Date(Date.now() + newProposal.validDays * 24 * 60 * 60 * 1000).toISOString()
+      });
+      
+      setNewProposal({
+        clientId: '',
+        title: '',
+        description: '',
+        services: [],
+        validDays: 14
+      });
+      
+      toast({
+        title: "КП создано",
+        description: "Коммерческое предложение успешно создано"
+      });
+    } catch (error) {
+      toast({
+        title: "Ошибка",
+        description: "Не удалось создать КП",
+        variant: "destructive"
+      });
+    } finally {
+      setGenerating(false);
+    }
+  };
+
+  const sendProposal = async (id: string) => {
+    try {
+      await updateProposal(id, { 
+        status: 'sent',
+        sent_at: new Date().toISOString()
+      });
+      toast({
+        title: "КП отправлено",
+        description: "Коммерческое предложение отправлено клиенту"
+      });
+    } catch (error) {
+      toast({
+        title: "Ошибка",
+        description: "Не удалось отправить КП",
+        variant: "destructive"
+      });
+    }
   };
 
   return (
@@ -166,26 +183,34 @@ const AIProposalManager = () => {
               <CardContent className="space-y-4">
                 <div className="space-y-2">
                   <Label>Клиент</Label>
-                  <Select>
+                  <Select value={newProposal.clientId} onValueChange={(value) => setNewProposal(prev => ({ ...prev, clientId: value }))}>
                     <SelectTrigger>
                       <SelectValue placeholder="Выберите клиента" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="client1">ООО "Стройком"</SelectItem>
-                      <SelectItem value="client2">Иванов И.И.</SelectItem>
-                      <SelectItem value="client3">ИП Петров А.С.</SelectItem>
+                      {clients.map(client => (
+                        <SelectItem key={client.id} value={client.id}>
+                          {client.name}
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </div>
 
                 <div className="space-y-2">
                   <Label>Название проекта</Label>
-                  <Input placeholder="Введите название проекта" />
+                  <Input 
+                    value={newProposal.title}
+                    onChange={(e) => setNewProposal(prev => ({ ...prev, title: e.target.value }))}
+                    placeholder="Введите название проекта" 
+                  />
                 </div>
 
                 <div className="space-y-2">
                   <Label>Описание работ</Label>
                   <Textarea 
+                    value={newProposal.description}
+                    onChange={(e) => setNewProposal(prev => ({ ...prev, description: e.target.value }))}
                     placeholder="Опишите требуемые работы..."
                     rows={4}
                   />
@@ -194,7 +219,11 @@ const AIProposalManager = () => {
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label>Срок действия (дней)</Label>
-                    <Input type="number" defaultValue={14} />
+                    <Input 
+                      type="number" 
+                      value={newProposal.validDays}
+                      onChange={(e) => setNewProposal(prev => ({ ...prev, validDays: parseInt(e.target.value) || 14 }))}
+                    />
                   </div>
                   <div className="space-y-2">
                     <Label>Приоритет</Label>
@@ -279,41 +308,59 @@ const AIProposalManager = () => {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {proposals.map((proposal) => (
-                    <TableRow key={proposal.id}>
-                      <TableCell className="font-medium">{proposal.clientName}</TableCell>
-                      <TableCell>{proposal.title}</TableCell>
-                      <TableCell>{proposal.amount.toLocaleString()} ₽</TableCell>
-                      <TableCell>
-                        <Badge className={getStatusColor(proposal.status)}>
-                          {getStatusText(proposal.status)}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        {proposal.sentDate ? proposal.sentDate.toLocaleDateString() : '-'}
-                      </TableCell>
-                      <TableCell>{proposal.validUntil.toLocaleDateString()}</TableCell>
-                      <TableCell>
-                        <div className="flex gap-2">
-                          <Button variant="ghost" size="sm">
-                            <Eye className="h-4 w-4" />
-                          </Button>
-                          <Button variant="ghost" size="sm">
-                            <Edit className="h-4 w-4" />
-                          </Button>
-                          {proposal.status === 'draft' && (
-                            <Button 
-                              variant="ghost" 
-                              size="sm"
-                              onClick={() => sendProposal(proposal.id)}
-                            >
-                              <Send className="h-4 w-4" />
-                            </Button>
-                          )}
-                        </div>
+                {loading ? (
+                    <TableRow>
+                      <TableCell colSpan={7} className="text-center py-4">
+                        Загрузка...
                       </TableCell>
                     </TableRow>
-                  ))}
+                  ) : proposals.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={7} className="text-center py-4 text-muted-foreground">
+                        Нет коммерческих предложений
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    proposals.map((proposal) => (
+                      <TableRow key={proposal.id}>
+                        <TableCell className="font-medium">
+                          {proposal.client_id ? getClientName(proposal.client_id) : 'Без клиента'}
+                        </TableCell>
+                        <TableCell>{proposal.title}</TableCell>
+                        <TableCell>{proposal.amount.toLocaleString()} ₽</TableCell>
+                        <TableCell>
+                          <Badge className={getStatusColor(proposal.status)}>
+                            {getStatusText(proposal.status)}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          {proposal.sent_at ? new Date(proposal.sent_at).toLocaleDateString('ru-RU') : '-'}
+                        </TableCell>
+                        <TableCell>
+                          {proposal.expires_at ? new Date(proposal.expires_at).toLocaleDateString('ru-RU') : '-'}
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex gap-2">
+                            <Button variant="ghost" size="sm">
+                              <Eye className="h-4 w-4" />
+                            </Button>
+                            <Button variant="ghost" size="sm">
+                              <Edit className="h-4 w-4" />
+                            </Button>
+                            {proposal.status === 'draft' && (
+                              <Button 
+                                variant="ghost" 
+                                size="sm"
+                                onClick={() => sendProposal(proposal.id)}
+                              >
+                                <Send className="h-4 w-4" />
+                              </Button>
+                            )}
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
                 </TableBody>
               </Table>
             </CardContent>
