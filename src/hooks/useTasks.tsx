@@ -34,12 +34,40 @@ export function useTasks() {
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      setTasks((data || []) as Task[]);
+      
+      // Обновляем статус просроченных задач
+      const tasksWithUpdatedStatus = (data || []).map(task => {
+        if (task.due_date && task.status !== 'completed' && task.status !== 'overdue') {
+          const dueDate = new Date(task.due_date);
+          const today = new Date();
+          today.setHours(0, 0, 0, 0);
+          
+          if (dueDate < today) {
+            // Обновляем статус в базе данных
+            updateTaskStatus(task.id, 'overdue');
+            return { ...task, status: 'overdue' as const };
+          }
+        }
+        return task;
+      });
+      
+      setTasks(tasksWithUpdatedStatus as Task[]);
     } catch (error) {
       console.error('Error fetching tasks:', error);
       toast.error('Ошибка при загрузке задач');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const updateTaskStatus = async (taskId: string, status: string) => {
+    try {
+      await supabase
+        .from('tasks')
+        .update({ status, updated_at: new Date().toISOString() })
+        .eq('id', taskId);
+    } catch (error) {
+      console.error('Error updating task status:', error);
     }
   };
 
