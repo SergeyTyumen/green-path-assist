@@ -56,9 +56,123 @@ export default function Estimates() {
     setIsDialogOpen(true);
   };
 
-  const handleViewEstimate = (estimate: Estimate) => {
-    setSelectedEstimate(estimate);
-    setIsDialogOpen(true);
+  const handleViewEstimate = async (estimate: Estimate) => {
+    await generateEstimatePDF(estimate);
+  };
+
+  const generateEstimatePDF = async (estimate: Estimate) => {
+    try {
+      const jsPDF = (await import('jspdf')).default;
+      const html2canvas = (await import('html2canvas')).default;
+      
+      // Создаем временный элемент для рендера PDF
+      const element = document.createElement('div');
+      element.style.position = 'absolute';
+      element.style.left = '-9999px';
+      element.style.top = '0';
+      element.style.width = '210mm'; // A4 width
+      element.style.backgroundColor = 'white';
+      element.style.padding = '20mm';
+      element.style.fontFamily = 'Arial, sans-serif';
+      
+      const clientName = getClientName(estimate.client_id);
+      
+      element.innerHTML = `
+        <div style="margin-bottom: 30px; border-bottom: 2px solid #333; padding-bottom: 15px;">
+          <h1 style="margin: 0; font-size: 24px; color: #333;">СМЕТА №${estimate.id.slice(-8).toUpperCase()}</h1>
+          <p style="margin: 5px 0; color: #666;">${estimate.title}</p>
+          <p style="margin: 5px 0; color: #666;">Клиент: ${clientName}</p>
+          <p style="margin: 5px 0; color: #666;">Дата: ${new Date(estimate.created_at).toLocaleDateString('ru-RU')}</p>
+          ${estimate.valid_until ? `<p style="margin: 5px 0; color: #666;">Действительна до: ${new Date(estimate.valid_until).toLocaleDateString('ru-RU')}</p>` : ''}
+        </div>
+        
+        <table style="width: 100%; border-collapse: collapse; margin-bottom: 30px;">
+          <thead>
+            <tr style="background-color: #f5f5f5;">
+              <th style="border: 1px solid #ddd; padding: 12px; text-align: left; font-weight: bold;">№</th>
+              <th style="border: 1px solid #ddd; padding: 12px; text-align: left; font-weight: bold;">Наименование</th>
+              <th style="border: 1px solid #ddd; padding: 12px; text-align: center; font-weight: bold;">Кол-во</th>
+              <th style="border: 1px solid #ddd; padding: 12px; text-align: right; font-weight: bold;">Цена</th>
+              <th style="border: 1px solid #ddd; padding: 12px; text-align: right; font-weight: bold;">Сумма</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${estimate.items && estimate.items.length > 0 ? 
+              estimate.items.map((item, index) => `
+                <tr>
+                  <td style="border: 1px solid #ddd; padding: 10px; text-align: center;">${index + 1}</td>
+                  <td style="border: 1px solid #ddd; padding: 10px;">Позиция ${index + 1}</td>
+                  <td style="border: 1px solid #ddd; padding: 10px; text-align: center;">${item.quantity}</td>
+                  <td style="border: 1px solid #ddd; padding: 10px; text-align: right;">${item.unit_price.toLocaleString('ru-RU')} ₽</td>
+                  <td style="border: 1px solid #ddd; padding: 10px; text-align: right;">${item.total.toLocaleString('ru-RU')} ₽</td>
+                </tr>
+              `).join('') 
+              : 
+              '<tr><td colspan="5" style="border: 1px solid #ddd; padding: 20px; text-align: center; color: #999;">Позиции не добавлены</td></tr>'
+            }
+          </tbody>
+        </table>
+        
+        <div style="text-align: right; margin-top: 30px;">
+          <div style="font-size: 18px; font-weight: bold; color: #333;">
+            Итого: ${estimate.total_amount.toLocaleString('ru-RU')} ₽
+          </div>
+        </div>
+        
+        <div style="margin-top: 50px; padding-top: 20px; border-top: 1px solid #ddd; font-size: 12px; color: #666;">
+          <p>Дата создания: ${new Date().toLocaleString('ru-RU')}</p>
+          <p>Статус: ${getStatusLabel(estimate.status)}</p>
+        </div>
+      `;
+      
+      document.body.appendChild(element);
+      
+      const canvas = await html2canvas(element, {
+        scale: 2,
+        backgroundColor: '#ffffff',
+        useCORS: true,
+        allowTaint: true
+      });
+      
+      document.body.removeChild(element);
+      
+      const imgData = canvas.toDataURL('image/png');
+      const pdf = new jsPDF('p', 'mm', 'a4');
+      
+      const imgWidth = 210;
+      const pageHeight = 295;
+      const imgHeight = (canvas.height * imgWidth) / canvas.width;
+      let heightLeft = imgHeight;
+      
+      let position = 0;
+      
+      pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+      heightLeft -= pageHeight;
+      
+      while (heightLeft >= 0) {
+        position = heightLeft - imgHeight;
+        pdf.addPage();
+        pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+        heightLeft -= pageHeight;
+      }
+      
+      pdf.save(`Смета_${estimate.title}_${new Date().toLocaleDateString('ru-RU').replace(/\./g, '-')}.pdf`);
+      toast.success('PDF смета сгенерирована и скачана');
+      
+    } catch (error) {
+      console.error('Error generating PDF:', error);
+      toast.error('Ошибка при генерации PDF');
+    }
+  };
+
+  const getStatusLabel = (status: string) => {
+    const labels = {
+      'draft': 'Черновик',
+      'sent': 'Отправлена',
+      'approved': 'Утверждена',
+      'rejected': 'Отклонена'
+    };
+    return labels[status as keyof typeof labels] || status;
   };
 
   const handleSaveEstimate = async (estimateData: any, items: any[]) => {
