@@ -396,6 +396,28 @@ export default function Clients() {
           setSelectedClient(null);
         }}
         onEdit={handleEditClient}
+        onClientUpdate={(updatedClient) => {
+          // Обновляем данные клиента в хуке
+          updateClient(updatedClient.id, {
+            name: updatedClient.name,
+            phone: updatedClient.phone,
+            email: updatedClient.email,
+            address: updatedClient.address,
+            services: updatedClient.services,
+            status: updatedClient.status,
+            notes: updatedClient.notes,
+            project_area: updatedClient.project_area,
+            budget: updatedClient.budget,
+            project_description: updatedClient.project_description,
+            next_action: updatedClient.next_action,
+            last_contact: updatedClient.last_contact
+          });
+          // Обновляем selectedClient с правильным типом
+          const updatedSelectedClient = clients.find(c => c.id === updatedClient.id);
+          if (updatedSelectedClient) {
+            setSelectedClient({...updatedSelectedClient, ...updatedClient});
+          }
+        }}
       />
 
       <AddClientDialog
