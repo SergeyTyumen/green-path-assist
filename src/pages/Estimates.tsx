@@ -55,6 +55,11 @@ export default function Estimates() {
     setIsDialogOpen(true);
   };
 
+  const handleViewEstimate = (estimate: Estimate) => {
+    setSelectedEstimate(estimate);
+    setIsDialogOpen(true);
+  };
+
   const handleSaveEstimate = async (estimateData: any, items: any[]) => {
     try {
       if (selectedEstimate) {
@@ -181,7 +186,12 @@ export default function Estimates() {
                     </div>
 
                     <div className="flex gap-1">
-                      <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        className="h-8 w-8 p-0"
+                        onClick={() => handleViewEstimate(estimate)}
+                      >
                         <Eye className="h-4 w-4" />
                       </Button>
                       <Button 
