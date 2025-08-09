@@ -156,47 +156,48 @@ export default function Clients() {
   }
 
   return (
-    <div className="p-6 space-y-6">
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-3xl font-bold text-foreground">Клиенты и заявки</h1>
-          <p className="text-muted-foreground mt-1">
+    <div className="p-3 sm:p-6 space-y-4 sm:space-y-6 max-w-full overflow-x-hidden">
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
+        <div className="min-w-0">
+          <h1 className="text-2xl sm:text-3xl font-bold text-foreground">Клиенты и заявки</h1>
+          <p className="text-muted-foreground mt-1 text-sm sm:text-base">
             Управление клиентской базой и заявками
           </p>
         </div>
-        <div className="flex gap-2">
-          <Button variant="outline" className="gap-2" onClick={handleAIAssistant}>
+        <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+          <Button variant="outline" className="gap-2 min-h-[44px]" onClick={handleAIAssistant}>
             <Bot className="h-4 w-4" />
-            ИИ-помощник
+            <span className="sm:inline">ИИ-помощник</span>
           </Button>
           <Button 
-            className="bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 gap-2"
+            className="bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 gap-2 min-h-[44px]"
             onClick={() => setShowAddDialog(true)}
           >
             <Plus className="h-4 w-4" />
-            Добавить клиента
+            <span className="sm:inline">Добавить клиента</span>
           </Button>
         </div>
       </div>
 
       {/* Фильтры и поиск */}
       <Card className="bg-gradient-to-r from-card to-card/50">
-        <CardContent className="p-4">
-          <div className="flex flex-col sm:flex-row gap-4">
-            <div className="relative flex-1">
+        <CardContent className="p-3 sm:p-4">
+          <div className="flex flex-col gap-4">
+            <div className="relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
                 placeholder="Поиск по имени, телефону или email..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10"
+                className="pl-10 min-h-[44px]"
               />
             </div>
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
               <Button 
                 variant={statusFilter === "all" ? "default" : "outline"}
                 size="sm"
                 onClick={() => setStatusFilter("all")}
+                className="min-h-[40px] text-xs sm:text-sm"
               >
                 Все
               </Button>
@@ -204,6 +205,7 @@ export default function Clients() {
                 variant={statusFilter === "new" ? "default" : "outline"}
                 size="sm"
                 onClick={() => setStatusFilter("new")}
+                className="min-h-[40px] text-xs sm:text-sm"
               >
                 Новые
               </Button>
@@ -211,12 +213,13 @@ export default function Clients() {
                 variant={statusFilter === "in-progress" ? "default" : "outline"}
                 size="sm"
                 onClick={() => setStatusFilter("in-progress")}
+                className="min-h-[40px] text-xs sm:text-sm"
               >
                 В работе
               </Button>
               <Dialog open={showFiltersDialog} onOpenChange={setShowFiltersDialog}>
                 <DialogTrigger asChild>
-                  <Button variant="outline" size="sm">
+                  <Button variant="outline" size="sm" className="min-h-[40px] text-xs sm:text-sm">
                     <Filter className="h-4 w-4 mr-1" />
                     Фильтры
                   </Button>
@@ -283,48 +286,48 @@ export default function Clients() {
       </Card>
 
       {/* Список клиентов */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 sm:gap-6">
         {filteredClients.map((client) => (
-          <Card key={client.id} className="bg-gradient-to-br from-card to-card/50 hover:shadow-lg transition-all duration-200 border border-border/50">
-            <CardHeader className="pb-3">
-              <div className="flex justify-between items-start">
-                <div>
-                  <CardTitle className="text-lg font-semibold text-foreground">
+          <Card key={client.id} className="bg-gradient-to-br from-card to-card/50 hover:shadow-lg transition-all duration-200 border border-border/50 overflow-hidden">
+            <CardHeader className="pb-3 p-4 sm:p-6">
+              <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-3">
+                <div className="min-w-0 flex-1">
+                  <CardTitle className="text-lg font-semibold text-foreground truncate">
                     {client.name}
                   </CardTitle>
                   <Badge className={getStatusConfig(client.status).className}>
                     {getStatusConfig(client.status).label}
                   </Badge>
                 </div>
-                <div className="text-right text-sm text-muted-foreground">
+                <div className="text-left sm:text-right text-sm text-muted-foreground shrink-0 space-y-1">
                   <div>Бюджет: ₽{client.budget?.toLocaleString()}</div>
                   <div>Площадь: {client.project_area}м²</div>
                 </div>
               </div>
             </CardHeader>
-            <CardContent className="space-y-4">
+            <CardContent className="space-y-4 p-4 sm:p-6 pt-0">
               <div className="space-y-2">
                 <ClickablePhone 
                   phone={client.phone} 
                   variant="text" 
-                  className="text-sm text-muted-foreground"
+                  className="text-sm text-muted-foreground min-h-[44px] flex items-center"
                 />
                 {client.email && (
-                  <div className="flex items-center gap-2 text-sm">
-                    <Mail className="h-4 w-4 text-muted-foreground" />
-                    <span>{client.email}</span>
+                  <div className="flex items-center gap-2 text-sm min-h-[32px]">
+                    <Mail className="h-4 w-4 text-muted-foreground shrink-0" />
+                    <span className="truncate">{client.email}</span>
                   </div>
                 )}
                 {client.address && (
-                  <div className="flex items-center gap-2 text-sm">
-                    <MapPin className="h-4 w-4 text-muted-foreground" />
+                  <div className="flex items-center gap-2 text-sm min-h-[32px]">
+                    <MapPin className="h-4 w-4 text-muted-foreground shrink-0" />
                     <span className="truncate">{client.address}</span>
                   </div>
                 )}
                  {client.last_contact && (
-                  <div className="flex items-center gap-2 text-sm">
-                    <Calendar className="h-4 w-4 text-muted-foreground" />
-                    <span>Последний контакт: {new Date(client.last_contact).toLocaleDateString()}</span>
+                  <div className="flex items-center gap-2 text-sm min-h-[32px]">
+                    <Calendar className="h-4 w-4 text-muted-foreground shrink-0" />
+                    <span className="truncate">Последний контакт: {new Date(client.last_contact).toLocaleDateString()}</span>
                   </div>
                 )}
               </div>
@@ -358,18 +361,18 @@ export default function Clients() {
                 </div>
               )}
 
-              <div className="flex gap-2 pt-2">
-                <Button size="sm" variant="outline" onClick={() => handleViewClient(client)}>
+              <div className="flex flex-col sm:flex-row gap-2 pt-2">
+                <Button size="sm" variant="outline" onClick={() => handleViewClient(client)} className="min-h-[40px] justify-start">
                   <Eye className="h-4 w-4 mr-1" />
-                  Просмотр
+                  <span className="sm:inline">Просмотр</span>
                 </Button>
-                <Button size="sm" variant="outline" onClick={() => handleEditClient(client)}>
+                <Button size="sm" variant="outline" onClick={() => handleEditClient(client)} className="min-h-[40px] justify-start">
                   <Edit className="h-4 w-4 mr-1" />
-                  Редактировать
+                  <span className="sm:inline">Редактировать</span>
                 </Button>
-                <Button size="sm" onClick={() => handleCreateEstimate(client)}>
+                <Button size="sm" onClick={() => handleCreateEstimate(client)} className="min-h-[40px] justify-start">
                   <FileText className="h-4 w-4 mr-1" />
-                  Создать смету
+                  <span className="sm:inline">Создать смету</span>
                 </Button>
               </div>
             </CardContent>

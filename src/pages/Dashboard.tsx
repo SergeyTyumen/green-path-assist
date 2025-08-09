@@ -131,11 +131,11 @@ export default function Dashboard() {
   }
 
   return (
-    <div className="p-6 space-y-6">
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-3xl font-bold text-foreground">Дашборд</h1>
-          <p className="text-muted-foreground mt-1">
+    <div className="p-3 sm:p-6 space-y-4 sm:space-y-6 max-w-full overflow-x-hidden">
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
+        <div className="min-w-0">
+          <h1 className="text-2xl sm:text-3xl font-bold text-foreground">Дашборд</h1>
+          <p className="text-muted-foreground mt-1 text-sm sm:text-base">
             Обзор активности и ключевые метрики
           </p>
         </div>
@@ -202,7 +202,7 @@ export default function Dashboard() {
       </div>
 
       {/* Статистика */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
         {stats.map((stat, index) => (
           <Card key={index} className="relative overflow-hidden bg-gradient-to-br from-card to-card/50 border border-border/50">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -221,7 +221,7 @@ export default function Dashboard() {
         ))}
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
         {/* Последние клиенты */}
         <Card className="bg-gradient-to-br from-card to-card/50">
           <CardHeader>

@@ -86,7 +86,7 @@ export function ClientDetailDialog({ client, isOpen, onClose, onEdit, onClientUp
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-4xl max-h-[90vh]">
+      <DialogContent className="max-w-4xl max-h-[95vh] h-[95vh] sm:h-auto sm:max-h-[90vh] w-[95vw] sm:w-auto overflow-hidden">
         <DialogHeader>
           <div className="flex items-center justify-between">
             <DialogTitle className="flex items-center gap-2">
@@ -107,24 +107,27 @@ export function ClientDetailDialog({ client, isOpen, onClose, onEdit, onClientUp
           </div>
         </DialogHeader>
 
-        <Tabs defaultValue="overview" className="flex-1">
-          <TabsList className="grid w-full grid-cols-3">
-            <TabsTrigger value="overview" className="flex items-center gap-2">
-              <User className="h-4 w-4" />
-              Обзор
+        <Tabs defaultValue="overview" className="flex-1 flex flex-col overflow-hidden">
+          <TabsList className="grid w-full grid-cols-3 h-auto">
+            <TabsTrigger value="overview" className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm py-2">
+              <User className="h-3 w-3 sm:h-4 sm:w-4" />
+              <span className="hidden sm:inline">Обзор</span>
+              <span className="sm:hidden">Инфо</span>
             </TabsTrigger>
-            <TabsTrigger value="status" className="flex items-center gap-2">
-              <Settings className="h-4 w-4" />
-              Управление сделкой
+            <TabsTrigger value="status" className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm py-2">
+              <Settings className="h-3 w-3 sm:h-4 sm:w-4" />
+              <span className="hidden sm:inline">Управление сделкой</span>
+              <span className="sm:hidden">Сделка</span>
             </TabsTrigger>
-            <TabsTrigger value="history" className="flex items-center gap-2">
-              <MessageSquare className="h-4 w-4" />
-              История
+            <TabsTrigger value="history" className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm py-2">
+              <MessageSquare className="h-3 w-3 sm:h-4 sm:w-4" />
+              <span className="hidden sm:inline">История</span>
+              <span className="sm:hidden">Чат</span>
             </TabsTrigger>
           </TabsList>
 
-          <TabsContent value="overview" className="mt-4">
-            <ScrollArea className="h-[60vh] pr-4">
+          <TabsContent value="overview" className="mt-4 flex-1 overflow-hidden">
+            <ScrollArea className="h-full pr-2 sm:pr-4">
               <div className="space-y-6">
                 {/* Статус и основная информация */}
                 <div className="flex items-center justify-between">
@@ -241,8 +244,8 @@ export function ClientDetailDialog({ client, isOpen, onClose, onEdit, onClientUp
             </ScrollArea>
           </TabsContent>
 
-          <TabsContent value="status" className="mt-4">
-            <ScrollArea className="h-[60vh] pr-4">
+          <TabsContent value="status" className="mt-4 flex-1 overflow-hidden">
+            <ScrollArea className="h-full pr-2 sm:pr-4">
               <ClientStatusManager 
                 client={client} 
                 onClientUpdate={handleClientUpdate}
@@ -250,8 +253,8 @@ export function ClientDetailDialog({ client, isOpen, onClose, onEdit, onClientUp
             </ScrollArea>
           </TabsContent>
 
-          <TabsContent value="history" className="mt-4">
-            <ScrollArea className="h-[60vh] pr-4">
+          <TabsContent value="history" className="mt-4 flex-1 overflow-hidden">
+            <ScrollArea className="h-full pr-2 sm:pr-4">
               <ClientCommentManager 
                 clientId={client.id} 
                 clientName={client.name}
@@ -260,12 +263,12 @@ export function ClientDetailDialog({ client, isOpen, onClose, onEdit, onClientUp
           </TabsContent>
         </Tabs>
 
-        <div className="flex gap-2 pt-4 border-t">
-          <Button className="flex-1">
+        <div className="flex flex-col sm:flex-row gap-2 pt-4 border-t shrink-0">
+          <Button className="flex-1 min-h-[44px]">
             <FileText className="h-4 w-4 mr-2" />
             Создать смету
           </Button>
-          <Button variant="outline" className="flex-1">
+          <Button variant="outline" className="flex-1 min-h-[44px]">
             <Phone className="h-4 w-4 mr-2" />
             Позвонить
           </Button>

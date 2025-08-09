@@ -7,6 +7,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import { X, Plus, Bot, Loader2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
@@ -154,7 +155,7 @@ export function AddClientDialog({ isOpen, onClose, onSave, client }: AddClientDi
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-2xl max-h-[95vh] h-[95vh] sm:h-auto sm:max-h-[90vh] w-[95vw] sm:w-auto overflow-hidden">
         <DialogHeader>
           <div className="flex items-center justify-between">
             <DialogTitle>
@@ -166,7 +167,8 @@ export function AddClientDialog({ isOpen, onClose, onSave, client }: AddClientDi
           </div>
         </DialogHeader>
 
-        <div className="space-y-6">
+        <ScrollArea className="flex-1 pr-2 sm:pr-4">
+          <div className="space-y-6 pb-4">
           {/* Основная информация */}
           <div className="space-y-4">
             <h3 className="font-semibold">Основная информация</h3>
@@ -336,21 +338,23 @@ export function AddClientDialog({ isOpen, onClose, onSave, client }: AddClientDi
             </div>
           </div>
 
-          {/* Кнопки */}
-          <div className="flex gap-2 pt-4 border-t">
-            <Button variant="outline" onClick={handleClose} disabled={loading}>
-              Отмена
-            </Button>
-            <Button onClick={handleSubmit} disabled={loading || !formData.name || !formData.phone}>
-              {loading ? (
-                <>Сохранение...</>
-              ) : (
-                <>
-                  {client ? 'Обновить' : 'Добавить'} клиента
-                </>
-              )}
-            </Button>
           </div>
+        </ScrollArea>
+        
+        {/* Кнопки */}
+        <div className="flex flex-col sm:flex-row gap-2 pt-4 border-t shrink-0">
+          <Button variant="outline" onClick={handleClose} disabled={loading} className="min-h-[44px]">
+            Отмена
+          </Button>
+          <Button onClick={handleSubmit} disabled={loading || !formData.name || !formData.phone} className="min-h-[44px]">
+            {loading ? (
+              <>Сохранение...</>
+            ) : (
+              <>
+                {client ? 'Обновить' : 'Добавить'} клиента
+              </>
+            )}
+          </Button>
         </div>
       </DialogContent>
     </Dialog>
