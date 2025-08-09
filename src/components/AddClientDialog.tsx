@@ -7,7 +7,9 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
-import { X, Plus } from 'lucide-react';
+import { X, Plus, Bot, Loader2 } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/hooks/useAuth';
 
 interface Client {
   id: string;
@@ -51,6 +53,7 @@ const statusOptions = [
 ];
 
 export function AddClientDialog({ isOpen, onClose, onSave, client }: AddClientDialogProps) {
+  const { user } = useAuth();
   const [formData, setFormData] = useState(() => ({
     name: client?.name || '',
     phone: client?.phone || '',
@@ -66,6 +69,7 @@ export function AddClientDialog({ isOpen, onClose, onSave, client }: AddClientDi
   }));
 
   const [loading, setLoading] = useState(false);
+  const [generatingAction, setGeneratingAction] = useState(false);
 
   const handleServiceToggle = (serviceId: string) => {
     setFormData(prev => ({
@@ -74,6 +78,40 @@ export function AddClientDialog({ isOpen, onClose, onSave, client }: AddClientDi
         ? prev.services.filter(s => s !== serviceId)
         : [...prev.services, serviceId]
     }));
+  };
+
+  const generateNextAction = async () => {
+    if (!user || !formData.name || !formData.status) {
+      return;
+    }
+
+    setGeneratingAction(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('generate-next-action', {
+        body: {
+          clientData: {
+            ...formData,
+            id: client?.id,
+            project_area: formData.project_area ? parseInt(formData.project_area.toString()) : undefined,
+            budget: formData.budget ? parseFloat(formData.budget.toString()) : undefined
+          },
+          userId: user.id
+        }
+      });
+
+      if (error) throw error;
+
+      if (data?.success && data?.nextAction) {
+        setFormData(prev => ({
+          ...prev,
+          next_action: data.nextAction
+        }));
+      }
+    } catch (error) {
+      console.error('Error generating next action:', error);
+    } finally {
+      setGeneratingAction(false);
+    }
   };
 
   const handleSubmit = async () => {
@@ -260,7 +298,24 @@ export function AddClientDialog({ isOpen, onClose, onSave, client }: AddClientDi
             <h3 className="font-semibold">Дополнительная информация</h3>
             
             <div>
-              <Label htmlFor="next_action">Следующее действие</Label>
+              <div className="flex items-center justify-between mb-2">
+                <Label htmlFor="next_action">Следующее действие</Label>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={generateNextAction}
+                  disabled={generatingAction || !formData.name || !formData.status}
+                  className="gap-2"
+                >
+                  {generatingAction ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Bot className="h-4 w-4" />
+                  )}
+                  {generatingAction ? 'Генерация...' : 'ИИ-генерация'}
+                </Button>
+              </div>
               <Input
                 id="next_action"
                 value={formData.next_action}
