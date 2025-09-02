@@ -7,13 +7,81 @@ export type Json =
   | Json[]
 
 export type Database = {
-  // Allows to automatically instanciate createClient with right options
+  // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
     PostgrestVersion: "12.2.12 (cd3cf9e)"
   }
   public: {
     Tables: {
+      channel_accounts: {
+        Row: {
+          channel_id: string
+          created_at: string
+          display_name: string
+          external_account_id: string
+          id: string
+          settings: Json | null
+          updated_at: string
+        }
+        Insert: {
+          channel_id: string
+          created_at?: string
+          display_name: string
+          external_account_id: string
+          id?: string
+          settings?: Json | null
+          updated_at?: string
+        }
+        Update: {
+          channel_id?: string
+          created_at?: string
+          display_name?: string
+          external_account_id?: string
+          id?: string
+          settings?: Json | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "channel_accounts_channel_id_fkey"
+            columns: ["channel_id"]
+            isOneToOne: false
+            referencedRelation: "channels"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      channels: {
+        Row: {
+          created_at: string
+          credentials: Json | null
+          id: string
+          is_active: boolean
+          name: string
+          type: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          credentials?: Json | null
+          id?: string
+          is_active?: boolean
+          name: string
+          type: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          credentials?: Json | null
+          id?: string
+          is_active?: boolean
+          name?: string
+          type?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       client_comments: {
         Row: {
           author_name: string
@@ -228,6 +296,78 @@ export type Database = {
         }
         Relationships: []
       }
+      contact_identities: {
+        Row: {
+          channel_id: string
+          contact_id: string
+          created_at: string
+          external_user_id: string
+          id: string
+          meta: Json | null
+        }
+        Insert: {
+          channel_id: string
+          contact_id: string
+          created_at?: string
+          external_user_id: string
+          id?: string
+          meta?: Json | null
+        }
+        Update: {
+          channel_id?: string
+          contact_id?: string
+          created_at?: string
+          external_user_id?: string
+          id?: string
+          meta?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contact_identities_channel_id_fkey"
+            columns: ["channel_id"]
+            isOneToOne: false
+            referencedRelation: "channels"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contact_identities_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      contacts: {
+        Row: {
+          created_at: string
+          email: string | null
+          id: string
+          name: string
+          phone: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          email?: string | null
+          id?: string
+          name: string
+          phone?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          email?: string | null
+          id?: string
+          name?: string
+          phone?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       contractor_profiles: {
         Row: {
           company_name: string
@@ -323,6 +463,67 @@ export type Database = {
           valid_until?: string | null
         }
         Relationships: []
+      }
+      conversations: {
+        Row: {
+          assigned_to: string | null
+          channel_account_id: string
+          channel_id: string
+          contact_id: string
+          created_at: string
+          id: string
+          last_message_at: string | null
+          status: string
+          tags: string[] | null
+          updated_at: string
+        }
+        Insert: {
+          assigned_to?: string | null
+          channel_account_id: string
+          channel_id: string
+          contact_id: string
+          created_at?: string
+          id?: string
+          last_message_at?: string | null
+          status?: string
+          tags?: string[] | null
+          updated_at?: string
+        }
+        Update: {
+          assigned_to?: string | null
+          channel_account_id?: string
+          channel_id?: string
+          contact_id?: string
+          created_at?: string
+          id?: string
+          last_message_at?: string | null
+          status?: string
+          tags?: string[] | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "conversations_channel_account_id_fkey"
+            columns: ["channel_account_id"]
+            isOneToOne: false
+            referencedRelation: "channel_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "conversations_channel_id_fkey"
+            columns: ["channel_id"]
+            isOneToOne: false
+            referencedRelation: "channels"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "conversations_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       estimate_items: {
         Row: {
@@ -488,6 +689,103 @@ export type Database = {
         }
         Relationships: []
       }
+      message_attachments: {
+        Row: {
+          created_at: string
+          id: string
+          message_id: string
+          mime_type: string | null
+          size: number | null
+          storage_key: string
+          url: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          message_id: string
+          mime_type?: string | null
+          size?: number | null
+          storage_key: string
+          url?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          message_id?: string
+          mime_type?: string | null
+          size?: number | null
+          storage_key?: string
+          url?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "message_attachments_message_id_fkey"
+            columns: ["message_id"]
+            isOneToOne: false
+            referencedRelation: "messages"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      messages: {
+        Row: {
+          author_user_id: string | null
+          conversation_id: string
+          created_at: string
+          delivered_at: string | null
+          direction: string
+          id: string
+          payload: Json | null
+          provider: string
+          provider_message_id: string | null
+          read_at: string | null
+          sent_at: string | null
+          status: string
+          text: string | null
+          updated_at: string
+        }
+        Insert: {
+          author_user_id?: string | null
+          conversation_id: string
+          created_at?: string
+          delivered_at?: string | null
+          direction: string
+          id?: string
+          payload?: Json | null
+          provider: string
+          provider_message_id?: string | null
+          read_at?: string | null
+          sent_at?: string | null
+          status?: string
+          text?: string | null
+          updated_at?: string
+        }
+        Update: {
+          author_user_id?: string | null
+          conversation_id?: string
+          created_at?: string
+          delivered_at?: string | null
+          direction?: string
+          id?: string
+          payload?: Json | null
+          provider?: string
+          provider_message_id?: string | null
+          read_at?: string | null
+          sent_at?: string | null
+          status?: string
+          text?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "messages_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "conversations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       norms: {
         Row: {
           active: boolean
@@ -531,6 +829,47 @@ export type Database = {
             columns: ["material_id"]
             isOneToOne: false
             referencedRelation: "materials_norms"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      outbox_queue: {
+        Row: {
+          attempts: number
+          created_at: string
+          id: string
+          last_error: string | null
+          message_id: string
+          next_retry_at: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          attempts?: number
+          created_at?: string
+          id?: string
+          last_error?: string | null
+          message_id: string
+          next_retry_at?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          attempts?: number
+          created_at?: string
+          id?: string
+          last_error?: string | null
+          message_id?: string
+          next_retry_at?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "outbox_queue_message_id_fkey"
+            columns: ["message_id"]
+            isOneToOne: false
+            referencedRelation: "messages"
             referencedColumns: ["id"]
           },
         ]
@@ -1001,6 +1340,33 @@ export type Database = {
         }
         Relationships: []
       }
+      webhook_log: {
+        Row: {
+          error_message: string | null
+          id: string
+          processing_status: string
+          provider: string
+          raw_data: Json
+          received_at: string
+        }
+        Insert: {
+          error_message?: string | null
+          id?: string
+          processing_status?: string
+          provider: string
+          raw_data: Json
+          received_at?: string
+        }
+        Update: {
+          error_message?: string | null
+          id?: string
+          processing_status?: string
+          provider?: string
+          raw_data?: Json
+          received_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
@@ -1008,8 +1374,8 @@ export type Database = {
     Functions: {
       has_role: {
         Args: {
-          _user_id: string
           _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
         }
         Returns: boolean
       }
