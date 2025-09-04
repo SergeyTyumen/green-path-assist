@@ -14,6 +14,78 @@ export type Database = {
   }
   public: {
     Tables: {
+      ai_assistant_settings: {
+        Row: {
+          assistant_type: string
+          created_at: string
+          id: string
+          is_active: boolean
+          settings: Json
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          assistant_type: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          settings?: Json
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          assistant_type?: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          settings?: Json
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      ai_prompts: {
+        Row: {
+          assistant_type: string
+          content: string
+          created_at: string
+          id: string
+          is_active: boolean
+          is_default: boolean
+          name: string
+          prompt_type: string
+          updated_at: string
+          user_id: string
+          variables: Json | null
+        }
+        Insert: {
+          assistant_type: string
+          content: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          is_default?: boolean
+          name: string
+          prompt_type?: string
+          updated_at?: string
+          user_id: string
+          variables?: Json | null
+        }
+        Update: {
+          assistant_type?: string
+          content?: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          is_default?: boolean
+          name?: string
+          prompt_type?: string
+          updated_at?: string
+          user_id?: string
+          variables?: Json | null
+        }
+        Relationships: []
+      }
       channel_accounts: {
         Row: {
           channel_id: string
