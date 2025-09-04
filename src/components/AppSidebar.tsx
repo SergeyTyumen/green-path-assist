@@ -41,6 +41,7 @@ const navigationItems = [
   { title: "ИИ-помощники", url: "/ai-assistants", icon: Bot },
   { title: "Голосовой помощник", url: "/voice-chat", icon: Mic },
   { title: "Настройки голоса", url: "/voice-settings", icon: Settings },
+  { title: "Настройки ИИ", url: "/ai-assistants-settings", icon: Settings },
 ];
 
 export function AppSidebar() {
