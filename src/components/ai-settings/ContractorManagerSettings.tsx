@@ -1,24 +1,24 @@
-import { useState, useEffect } from "react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Label } from "@/components/ui/label";
-import { Button } from "@/components/ui/button";
-import { Switch } from "@/components/ui/switch";
-import { Input } from "@/components/ui/input";
-import { useAISettings } from "@/hooks/useAISettings";
-import { Save, Users } from "lucide-react";
+import React, { useState, useEffect } from 'react';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Switch } from '@/components/ui/switch';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
+import { useAISettings } from '@/hooks/useAISettings';
+import { Save, Settings } from 'lucide-react';
 
-export const ContractorManagerSettings = () => {
-  const { settings, loading, saveSettings } = useAISettings('contractor');
+export const ContractorManagerSettings: React.FC = () => {
+  const { settings, loading, saveSettings } = useAISettings('contractor-manager');
   
   const [formData, setFormData] = useState({
-    auto_contractor_matching: true,
-    skill_verification: true,
-    rating_system: true,
-    background_checks: false,
-    payment_escrow: true,
-    min_rating_threshold: 4.0,
-    max_project_value: 500000,
-    contract_templates: true
+    search_radius: 30,
+    min_experience: 2,
+    min_rating: 4.0,
+    portfolio_required: true,
+    insurance_required: true,
+    progress_check_frequency: 'every_2_days',
+    auto_assign: false
   });
 
   useEffect(() => {
@@ -31,71 +31,81 @@ export const ContractorManagerSettings = () => {
     await saveSettings(formData);
   };
 
-  if (loading) return <div>Загрузка...</div>;
+  if (loading) {
+    return <div className="flex items-center justify-center p-6">Загрузка...</div>;
+  }
 
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-2">
-        <Users className="h-5 w-5 text-primary" />
-        <h3 className="text-lg font-semibold">Настройки AI Менеджера подрядчиков</h3>
+        <Settings className="h-5 w-5 text-cyan-500" />
+        <h3 className="text-lg font-semibold">Настройки ИИ-Подрядчик-Менеджера</h3>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">Поиск и отбор</CardTitle>
-            <CardDescription>Автоматизация поиска подрядчиков</CardDescription>
+            <CardTitle className="text-base">Критерии отбора</CardTitle>
+            <CardDescription>Требования к подрядчикам</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="flex items-center justify-between">
-              <div className="space-y-0.5">
-                <Label>Автоподбор подрядчиков</Label>
-                <p className="text-xs text-muted-foreground">
-                  Автоматический поиск по критериям
-                </p>
-              </div>
-              <Switch
-                checked={formData.auto_contractor_matching}
-                onCheckedChange={(checked) => setFormData({...formData, auto_contractor_matching: checked})}
-              />
-            </div>
-
-            <div className="flex items-center justify-between">
-              <div className="space-y-0.5">
-                <Label>Проверка навыков</Label>
-                <p className="text-xs text-muted-foreground">
-                  Верификация профессиональных навыков
-                </p>
-              </div>
-              <Switch
-                checked={formData.skill_verification}
-                onCheckedChange={(checked) => setFormData({...formData, skill_verification: checked})}
-              />
-            </div>
-
-            <div className="flex items-center justify-between">
-              <div className="space-y-0.5">
-                <Label>Система рейтингов</Label>
-                <p className="text-xs text-muted-foreground">
-                  Оценка работы подрядчиков
-                </p>
-              </div>
-              <Switch
-                checked={formData.rating_system}
-                onCheckedChange={(checked) => setFormData({...formData, rating_system: checked})}
+            <div className="space-y-2">
+              <Label>Радиус поиска (км)</Label>
+              <Input
+                type="number"
+                value={formData.search_radius}
+                onChange={(e) => setFormData({...formData, search_radius: parseInt(e.target.value)})}
+                min={5}
+                max={200}
               />
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="min_rating">Минимальный рейтинг</Label>
+              <Label>Минимальный опыт (лет)</Label>
               <Input
-                id="min_rating"
                 type="number"
-                value={formData.min_rating_threshold}
-                onChange={(e) => setFormData({...formData, min_rating_threshold: parseFloat(e.target.value)})}
+                value={formData.min_experience}
+                onChange={(e) => setFormData({...formData, min_experience: parseInt(e.target.value)})}
                 min={1}
-                max={5}
-                step={0.1}
+                max={20}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label>Минимальный рейтинг</Label>
+              <Input
+                type="number"
+                step="0.1"
+                value={formData.min_rating}
+                onChange={(e) => setFormData({...formData, min_rating: parseFloat(e.target.value)})}
+                min={3.0}
+                max={5.0}
+              />
+            </div>
+
+            <div className="flex items-center justify-between">
+              <div className="space-y-0.5">
+                <Label>Обязательное портфолио</Label>
+                <p className="text-xs text-muted-foreground">
+                  Требовать наличие портфолио работ
+                </p>
+              </div>
+              <Switch
+                checked={formData.portfolio_required}
+                onCheckedChange={(checked) => setFormData({...formData, portfolio_required: checked})}
+              />
+            </div>
+
+            <div className="flex items-center justify-between">
+              <div className="space-y-0.5">
+                <Label>Обязательная страховка</Label>
+                <p className="text-xs text-muted-foreground">
+                  Требовать страхование ответственности
+                </p>
+              </div>
+              <Switch
+                checked={formData.insurance_required}
+                onCheckedChange={(checked) => setFormData({...formData, insurance_required: checked})}
               />
             </div>
           </CardContent>
@@ -104,56 +114,37 @@ export const ContractorManagerSettings = () => {
         <Card>
           <CardHeader>
             <CardTitle className="text-base">Управление проектами</CardTitle>
-            <CardDescription>Настройки работы с проектами</CardDescription>
+            <CardDescription>Настройки контроля выполнения</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="max_value">Максимальная стоимость проекта (₽)</Label>
-              <Input
-                id="max_value"
-                type="number"
-                value={formData.max_project_value}
-                onChange={(e) => setFormData({...formData, max_project_value: parseInt(e.target.value)})}
-                min={0}
-              />
+              <Label>Частота контроля прогресса</Label>
+              <Select 
+                value={formData.progress_check_frequency} 
+                onValueChange={(value) => setFormData({...formData, progress_check_frequency: value})}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="daily">Ежедневно</SelectItem>
+                  <SelectItem value="every_2_days">Каждые 2 дня</SelectItem>
+                  <SelectItem value="weekly">Еженедельно</SelectItem>
+                  <SelectItem value="biweekly">Раз в 2 недели</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
 
             <div className="flex items-center justify-between">
               <div className="space-y-0.5">
-                <Label>Эскроу платежи</Label>
+                <Label>Автоматическое назначение</Label>
                 <p className="text-xs text-muted-foreground">
-                  Безопасные расчеты через депозит
+                  Автоматически назначать лучшего подрядчика
                 </p>
               </div>
               <Switch
-                checked={formData.payment_escrow}
-                onCheckedChange={(checked) => setFormData({...formData, payment_escrow: checked})}
-              />
-            </div>
-
-            <div className="flex items-center justify-between">
-              <div className="space-y-0.5">
-                <Label>Шаблоны договоров</Label>
-                <p className="text-xs text-muted-foreground">
-                  Автогенерация договоров
-                </p>
-              </div>
-              <Switch
-                checked={formData.contract_templates}
-                onCheckedChange={(checked) => setFormData({...formData, contract_templates: checked})}
-              />
-            </div>
-
-            <div className="flex items-center justify-between">
-              <div className="space-y-0.5">
-                <Label>Проверка документов</Label>
-                <p className="text-xs text-muted-foreground">
-                  Верификация удостоверений
-                </p>
-              </div>
-              <Switch
-                checked={formData.background_checks}
-                onCheckedChange={(checked) => setFormData({...formData, background_checks: checked})}
+                checked={formData.auto_assign}
+                onCheckedChange={(checked) => setFormData({...formData, auto_assign: checked})}
               />
             </div>
           </CardContent>

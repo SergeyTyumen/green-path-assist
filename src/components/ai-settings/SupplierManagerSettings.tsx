@@ -1,24 +1,23 @@
-import { useState, useEffect } from "react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Label } from "@/components/ui/label";
-import { Button } from "@/components/ui/button";
-import { Switch } from "@/components/ui/switch";
-import { Input } from "@/components/ui/input";
-import { useAISettings } from "@/hooks/useAISettings";
-import { Save, Building } from "lucide-react";
+import React, { useState, useEffect } from 'react';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Switch } from '@/components/ui/switch';
+import { Slider } from '@/components/ui/slider';
+import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
+import { useAISettings } from '@/hooks/useAISettings';
+import { Save, Settings } from 'lucide-react';
 
-export const SupplierManagerSettings = () => {
-  const { settings, loading, saveSettings } = useAISettings('supplier');
+export const SupplierManagerSettings: React.FC = () => {
+  const { settings, loading, saveSettings } = useAISettings('supplier-manager');
   
   const [formData, setFormData] = useState({
-    auto_supplier_matching: true,
-    price_comparison: true,
-    quality_scoring: true,
-    delivery_tracking: true,
-    payment_reminders: true,
-    min_order_threshold: 5000,
-    preferred_payment_terms: 30,
-    auto_reorder_enabled: false
+    search_radius: 50,
+    min_suppliers: 3,
+    price_weight: 40,
+    quality_weight: 35,
+    delivery_weight: 25,
+    auto_request: true
   });
 
   useEffect(() => {
@@ -31,71 +30,56 @@ export const SupplierManagerSettings = () => {
     await saveSettings(formData);
   };
 
-  if (loading) return <div>Загрузка...</div>;
+  if (loading) {
+    return <div className="flex items-center justify-center p-6">Загрузка...</div>;
+  }
 
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-2">
-        <Building className="h-5 w-5 text-primary" />
-        <h3 className="text-lg font-semibold">Настройки AI Менеджера поставщиков</h3>
+        <Settings className="h-5 w-5 text-teal-500" />
+        <h3 className="text-lg font-semibold">Настройки ИИ-Поставщик-Менеджера</h3>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">Автоматизация</CardTitle>
-            <CardDescription>Автоматические процессы работы с поставщиками</CardDescription>
+            <CardTitle className="text-base">Параметры поиска</CardTitle>
+            <CardDescription>Настройки поиска поставщиков</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="flex items-center justify-between">
-              <div className="space-y-0.5">
-                <Label>Автоподбор поставщиков</Label>
-                <p className="text-xs text-muted-foreground">
-                  Автоматический поиск подходящих поставщиков
-                </p>
-              </div>
-              <Switch
-                checked={formData.auto_supplier_matching}
-                onCheckedChange={(checked) => setFormData({...formData, auto_supplier_matching: checked})}
+            <div className="space-y-2">
+              <Label>Радиус поиска (км)</Label>
+              <Input
+                type="number"
+                value={formData.search_radius}
+                onChange={(e) => setFormData({...formData, search_radius: parseInt(e.target.value)})}
+                min={10}
+                max={500}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label>Минимум поставщиков</Label>
+              <Input
+                type="number"
+                value={formData.min_suppliers}
+                onChange={(e) => setFormData({...formData, min_suppliers: parseInt(e.target.value)})}
+                min={1}
+                max={10}
               />
             </div>
 
             <div className="flex items-center justify-between">
               <div className="space-y-0.5">
-                <Label>Сравнение цен</Label>
+                <Label>Автоматические запросы</Label>
                 <p className="text-xs text-muted-foreground">
-                  Автоматическое сравнение предложений
+                  Автоматически отправлять запросы найденным поставщикам
                 </p>
               </div>
               <Switch
-                checked={formData.price_comparison}
-                onCheckedChange={(checked) => setFormData({...formData, price_comparison: checked})}
-              />
-            </div>
-
-            <div className="flex items-center justify-between">
-              <div className="space-y-0.5">
-                <Label>Оценка качества</Label>
-                <p className="text-xs text-muted-foreground">
-                  Система оценки поставщиков
-                </p>
-              </div>
-              <Switch
-                checked={formData.quality_scoring}
-                onCheckedChange={(checked) => setFormData({...formData, quality_scoring: checked})}
-              />
-            </div>
-
-            <div className="flex items-center justify-between">
-              <div className="space-y-0.5">
-                <Label>Автозаказы</Label>
-                <p className="text-xs text-muted-foreground">
-                  Автоматическое пополнение запасов
-                </p>
-              </div>
-              <Switch
-                checked={formData.auto_reorder_enabled}
-                onCheckedChange={(checked) => setFormData({...formData, auto_reorder_enabled: checked})}
+                checked={formData.auto_request}
+                onCheckedChange={(checked) => setFormData({...formData, auto_request: checked})}
               />
             </div>
           </CardContent>
@@ -103,57 +87,48 @@ export const SupplierManagerSettings = () => {
 
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">Условия сотрудничества</CardTitle>
-            <CardDescription>Параметры работы с поставщиками</CardDescription>
+            <CardTitle className="text-base">Веса критериев оценки</CardTitle>
+            <CardDescription>Важность факторов при выборе поставщика</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="min_order">Минимальная сумма заказа (₽)</Label>
-              <Input
-                id="min_order"
-                type="number"
-                value={formData.min_order_threshold}
-                onChange={(e) => setFormData({...formData, min_order_threshold: parseInt(e.target.value)})}
-                min={0}
+              <Label>Вес цены: {formData.price_weight}%</Label>
+              <Slider
+                value={[formData.price_weight]}
+                onValueChange={([value]) => setFormData({...formData, price_weight: value})}
+                max={80}
+                min={10}
+                step={5}
+                className="w-full"
               />
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="payment_terms">Срок оплаты (дней)</Label>
-              <Input
-                id="payment_terms"
-                type="number"
-                value={formData.preferred_payment_terms}
-                onChange={(e) => setFormData({...formData, preferred_payment_terms: parseInt(e.target.value)})}
-                min={0}
-                max={90}
+              <Label>Вес качества: {formData.quality_weight}%</Label>
+              <Slider
+                value={[formData.quality_weight]}
+                onValueChange={([value]) => setFormData({...formData, quality_weight: value})}
+                max={80}
+                min={10}
+                step={5}
+                className="w-full"
               />
             </div>
 
-            <div className="flex items-center justify-between">
-              <div className="space-y-0.5">
-                <Label>Отслеживание доставки</Label>
-                <p className="text-xs text-muted-foreground">
-                  Мониторинг статуса доставок
-                </p>
-              </div>
-              <Switch
-                checked={formData.delivery_tracking}
-                onCheckedChange={(checked) => setFormData({...formData, delivery_tracking: checked})}
+            <div className="space-y-2">
+              <Label>Вес сроков: {formData.delivery_weight}%</Label>
+              <Slider
+                value={[formData.delivery_weight]}
+                onValueChange={([value]) => setFormData({...formData, delivery_weight: value})}
+                max={50}
+                min={10}
+                step={5}
+                className="w-full"
               />
             </div>
 
-            <div className="flex items-center justify-between">
-              <div className="space-y-0.5">
-                <Label>Напоминания об оплате</Label>
-                <p className="text-xs text-muted-foreground">
-                  Автоматические уведомления
-                </p>
-              </div>
-              <Switch
-                checked={formData.payment_reminders}
-                onCheckedChange={(checked) => setFormData({...formData, payment_reminders: checked})}
-              />
+            <div className="text-xs text-muted-foreground">
+              Общий вес: {formData.price_weight + formData.quality_weight + formData.delivery_weight}%
             </div>
           </CardContent>
         </Card>

@@ -12,6 +12,7 @@ import { CompetitorAnalysisSettings } from "@/components/ai-settings/CompetitorA
 import { SupplierManagerSettings } from "@/components/ai-settings/SupplierManagerSettings";
 import { ContractorManagerSettings } from "@/components/ai-settings/ContractorManagerSettings";
 import { ProposalManagerSettings } from "@/components/ai-settings/ProposalManagerSettings";
+import { ConsultantSettings } from "@/components/ai-settings/ConsultantSettings";
 
 const assistants = [
   {
@@ -118,6 +119,8 @@ const AIAssistantsSettings = () => {
         return <ContractorManagerSettings />;
       case "proposal":
         return <ProposalManagerSettings />;
+      case "consultant":
+        return <ConsultantSettings />;
       default:
         return <BaseAISettings />;
     }

@@ -1,28 +1,23 @@
-import { useState, useEffect } from "react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Label } from "@/components/ui/label";
-import { Button } from "@/components/ui/button";
-import { Switch } from "@/components/ui/switch";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { useAISettings } from "@/hooks/useAISettings";
-import { Save, FileText } from "lucide-react";
+import React, { useState, useEffect } from 'react';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Switch } from '@/components/ui/switch';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
+import { useAISettings } from '@/hooks/useAISettings';
+import { Save, FileText } from 'lucide-react';
 
-export const ProposalManagerSettings = () => {
-  const { settings, loading, saveSettings } = useAISettings('proposal');
+export const ProposalManagerSettings: React.FC = () => {
+  const { settings, loading, saveSettings } = useAISettings('proposal-manager');
   
   const [formData, setFormData] = useState({
-    auto_proposal_generation: true,
-    include_pricing: true,
-    include_timeline: true,
-    include_portfolio: true,
-    proposal_template: 'professional',
-    default_validity_days: 30,
-    follow_up_enabled: true,
-    custom_branding: true,
-    digital_signature: false,
-    company_description: ''
+    default_validity_days: 14,
+    auto_send: false,
+    include_company_info: true,
+    proposal_style: 'friendly',
+    follow_up_days: 7,
+    personalization_level: 'high'
   });
 
   useEffect(() => {
@@ -35,71 +30,76 @@ export const ProposalManagerSettings = () => {
     await saveSettings(formData);
   };
 
-  if (loading) return <div>Загрузка...</div>;
+  if (loading) {
+    return <div className="flex items-center justify-center p-6">Загрузка...</div>;
+  }
 
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-2">
-        <FileText className="h-5 w-5 text-primary" />
-        <h3 className="text-lg font-semibold">Настройки AI Менеджера предложений</h3>
+        <FileText className="h-5 w-5 text-indigo-500" />
+        <h3 className="text-lg font-semibold">Настройки ИИ-КП-Менеджера</h3>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">Содержание предложений</CardTitle>
-            <CardDescription>Что включать в коммерческие предложения</CardDescription>
+            <CardTitle className="text-base">Параметры КП</CardTitle>
+            <CardDescription>Основные настройки создания предложений</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Label>Срок действия КП (дней)</Label>
+              <Input
+                type="number"
+                value={formData.default_validity_days}
+                onChange={(e) => setFormData({...formData, default_validity_days: parseInt(e.target.value)})}
+                min={1}
+                max={90}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label>Стиль КП</Label>
+              <Select 
+                value={formData.proposal_style} 
+                onValueChange={(value) => setFormData({...formData, proposal_style: value})}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="formal">Формальный</SelectItem>
+                  <SelectItem value="friendly">Дружелюбный</SelectItem>
+                  <SelectItem value="premium">Премиум</SelectItem>
+                  <SelectItem value="minimalist">Минималистичный</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
             <div className="flex items-center justify-between">
               <div className="space-y-0.5">
-                <Label>Автогенерация КП</Label>
+                <Label>Автоматическая отправка</Label>
                 <p className="text-xs text-muted-foreground">
-                  Автоматическое создание предложений
+                  Отправлять КП сразу после создания
                 </p>
               </div>
               <Switch
-                checked={formData.auto_proposal_generation}
-                onCheckedChange={(checked) => setFormData({...formData, auto_proposal_generation: checked})}
+                checked={formData.auto_send}
+                onCheckedChange={(checked) => setFormData({...formData, auto_send: checked})}
               />
             </div>
 
             <div className="flex items-center justify-between">
               <div className="space-y-0.5">
-                <Label>Включать ценообразование</Label>
+                <Label>Информация о компании</Label>
                 <p className="text-xs text-muted-foreground">
-                  Детализированная стоимость услуг
+                  Включать блок о компании в КП
                 </p>
               </div>
               <Switch
-                checked={formData.include_pricing}
-                onCheckedChange={(checked) => setFormData({...formData, include_pricing: checked})}
-              />
-            </div>
-
-            <div className="flex items-center justify-between">
-              <div className="space-y-0.5">
-                <Label>Включать временные рамки</Label>
-                <p className="text-xs text-muted-foreground">
-                  Планы и сроки выполнения
-                </p>
-              </div>
-              <Switch
-                checked={formData.include_timeline}
-                onCheckedChange={(checked) => setFormData({...formData, include_timeline: checked})}
-              />
-            </div>
-
-            <div className="flex items-center justify-between">
-              <div className="space-y-0.5">
-                <Label>Включать портфолио</Label>
-                <p className="text-xs text-muted-foreground">
-                  Примеры выполненных работ
-                </p>
-              </div>
-              <Switch
-                checked={formData.include_portfolio}
-                onCheckedChange={(checked) => setFormData({...formData, include_portfolio: checked})}
+                checked={formData.include_company_info}
+                onCheckedChange={(checked) => setFormData({...formData, include_company_info: checked})}
               />
             </div>
           </CardContent>
@@ -107,83 +107,36 @@ export const ProposalManagerSettings = () => {
 
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">Оформление и процесс</CardTitle>
-            <CardDescription>Настройки дизайна и workflow</CardDescription>
+            <CardTitle className="text-base">Напоминания и персонализация</CardTitle>
+            <CardDescription>Настройки follow-up и персонализации</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-2">
-              <Label>Шаблон предложения</Label>
+              <Label>Напоминание через (дней)</Label>
+              <Input
+                type="number"
+                value={formData.follow_up_days}
+                onChange={(e) => setFormData({...formData, follow_up_days: parseInt(e.target.value)})}
+                min={1}
+                max={30}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label>Уровень персонализации</Label>
               <Select 
-                value={formData.proposal_template} 
-                onValueChange={(value) => setFormData({...formData, proposal_template: value})}
+                value={formData.personalization_level} 
+                onValueChange={(value) => setFormData({...formData, personalization_level: value})}
               >
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="professional">Профессиональный</SelectItem>
-                  <SelectItem value="modern">Современный</SelectItem>
-                  <SelectItem value="classic">Классический</SelectItem>
-                  <SelectItem value="creative">Креативный</SelectItem>
+                  <SelectItem value="low">Низкий</SelectItem>
+                  <SelectItem value="medium">Средний</SelectItem>
+                  <SelectItem value="high">Высокий</SelectItem>
                 </SelectContent>
               </Select>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="validity">Срок действия (дней)</Label>
-              <Input
-                id="validity"
-                type="number"
-                value={formData.default_validity_days}
-                onChange={(e) => setFormData({...formData, default_validity_days: parseInt(e.target.value)})}
-                min={1}
-                max={365}
-              />
-            </div>
-
-            <div className="flex items-center justify-between">
-              <div className="space-y-0.5">
-                <Label>Фирменный стиль</Label>
-                <p className="text-xs text-muted-foreground">
-                  Использовать корпоративные цвета/логотип
-                </p>
-              </div>
-              <Switch
-                checked={formData.custom_branding}
-                onCheckedChange={(checked) => setFormData({...formData, custom_branding: checked})}
-              />
-            </div>
-
-            <div className="flex items-center justify-between">
-              <div className="space-y-0.5">
-                <Label>Автоследование</Label>
-                <p className="text-xs text-muted-foreground">
-                  Напоминания о статусе предложений
-                </p>
-              </div>
-              <Switch
-                checked={formData.follow_up_enabled}
-                onCheckedChange={(checked) => setFormData({...formData, follow_up_enabled: checked})}
-              />
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="md:col-span-2">
-          <CardHeader>
-            <CardTitle className="text-base">Описание компании</CardTitle>
-            <CardDescription>Стандартное описание для включения в предложения</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-2">
-              <Label htmlFor="company_desc">О компании</Label>
-              <Textarea
-                id="company_desc"
-                value={formData.company_description}
-                onChange={(e) => setFormData({...formData, company_description: e.target.value})}
-                placeholder="Введите описание вашей компании для включения в коммерческие предложения..."
-                rows={4}
-              />
             </div>
           </CardContent>
         </Card>
