@@ -189,7 +189,11 @@ async function callOpenAIWithTools(messages: AIMessage[], settings: UserSettings
       // Отправляем результат обратно в OpenAI для финального ответа
       const finalMessages = [
         ...messages,
-        message,
+        {
+          role: "assistant",
+          content: message.content || "",
+          tool_calls: message.tool_calls
+        },
         {
           role: "tool",
           tool_call_id: toolCall.id,
