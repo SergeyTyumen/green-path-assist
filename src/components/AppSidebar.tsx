@@ -45,10 +45,15 @@ const navigationItems = [
 ];
 
 export function AppSidebar() {
-  const { state } = useSidebar();
+  const { state, setOpen } = useSidebar();
   const location = useLocation();
   const currentPath = location.pathname;
   const collapsed = state === "collapsed";
+
+  const handleNavClick = () => {
+    // Auto-collapse sidebar when navigation item is clicked
+    setOpen(false);
+  };
 
   const isActive = (path: string) => {
     if (path === "/") {
@@ -105,6 +110,7 @@ export function AppSidebar() {
                       to={item.url} 
                       end={item.url === "/"}
                       className={getNavClassName(item.url)}
+                      onClick={handleNavClick}
                     >
                       <item.icon className="h-4 w-4 shrink-0" />
                       {!collapsed && <span className="truncate">{item.title}</span>}
