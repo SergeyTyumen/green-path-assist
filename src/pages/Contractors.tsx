@@ -120,7 +120,14 @@ export default function Contractors() {
       {/* Список подрядчиков */}
       <div className="grid gap-4">
         {filteredContractors.map((contractor) => (
-          <Card key={contractor.id} className="hover:shadow-md transition-shadow">
+          <Card 
+            key={contractor.id} 
+            className="hover:shadow-md transition-all duration-200 cursor-pointer hover:scale-[1.01]"
+            onClick={() => {
+              // Здесь будет логика открытия детального просмотра
+              console.log('Просмотр подрядчика:', contractor.id);
+            }}
+          >
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div className="flex-1 min-w-0">
@@ -148,11 +155,16 @@ export default function Contractors() {
                     
                     <div className="flex items-center gap-4 text-sm text-muted-foreground">
                       {contractor.phone && (
-                        <ClickablePhone 
-                          phone={contractor.phone} 
-                          variant="text" 
-                          className="text-sm text-muted-foreground"
-                        />
+                        <div 
+                          className="text-sm text-muted-foreground cursor-pointer hover:text-primary underline flex items-center gap-1"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            window.open(`tel:${contractor.phone}`);
+                          }}
+                        >
+                          <Phone className="h-4 w-4" />
+                          {contractor.phone}
+                        </div>
                       )}
                       {contractor.rating && contractor.rating > 0 && (
                         <div className="flex items-center gap-1">
@@ -182,16 +194,26 @@ export default function Contractors() {
                 </div>
 
                 <div className="flex gap-1">
-                  <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-                    <Eye className="h-4 w-4" />
-                  </Button>
                   <ContractorDialog contractor={contractor}>
-                    <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      className="h-8 w-8 p-0"
+                      onClick={(e) => e.stopPropagation()}
+                    >
                       <Edit className="h-4 w-4" />
                     </Button>
                   </ContractorDialog>
                   {contractor.phone && (
-                    <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      className="h-8 w-8 p-0"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        window.open(`tel:${contractor.phone}`);
+                      }}
+                    >
                       <Phone className="h-4 w-4" />
                     </Button>
                   )}

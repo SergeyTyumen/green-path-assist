@@ -125,7 +125,14 @@ export default function Proposals() {
       {/* Список КП */}
       <div className="grid gap-4">
         {filteredProposals.map((proposal) => (
-          <Card key={proposal.id} className="hover:shadow-md transition-shadow">
+          <Card 
+            key={proposal.id} 
+            className="hover:shadow-md transition-all duration-200 cursor-pointer hover:scale-[1.01]"
+            onClick={() => {
+              // Здесь будет логика открытия детального просмотра
+              console.log('Просмотр КП:', proposal.id);
+            }}
+          >
             <CardContent className="p-6">
               <div className="flex flex-col lg:flex-row lg:items-center gap-4">
                 <div className="flex-1 min-w-0">
@@ -170,17 +177,38 @@ export default function Proposals() {
                   </div>
 
                   <div className="flex flex-wrap gap-1">
-                    <Button variant="ghost" size="sm" className="min-touch-target">
-                      <Eye className="h-4 w-4" />
-                    </Button>
-                    <Button variant="ghost" size="sm" className="min-touch-target">
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      className="min-touch-target"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        console.log('Редактировать КП:', proposal.id);
+                      }}
+                    >
                       <Edit className="h-4 w-4" />
                     </Button>
-                    <Button variant="ghost" size="sm" className="min-touch-target">
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      className="min-touch-target"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        console.log('Скачать КП:', proposal.id);
+                      }}
+                    >
                       <Download className="h-4 w-4" />
                     </Button>
                     {proposal.status === "draft" && (
-                      <Button variant="ghost" size="sm" className="min-touch-target">
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        className="min-touch-target"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          console.log('Отправить КП:', proposal.id);
+                        }}
+                      >
                         <Send className="h-4 w-4" />
                       </Button>
                     )}

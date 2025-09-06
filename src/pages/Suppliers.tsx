@@ -152,7 +152,14 @@ export default function Suppliers() {
       {/* Список поставщиков */}
       <div className="grid gap-4">
         {filteredSuppliers.map((supplier) => (
-          <Card key={supplier.id} className="hover:shadow-md transition-shadow">
+          <Card 
+            key={supplier.id} 
+            className="hover:shadow-md transition-all duration-200 cursor-pointer hover:scale-[1.01]"
+            onClick={() => {
+              // Здесь будет логика открытия детального просмотра
+              console.log('Просмотр поставщика:', supplier.id);
+            }}
+          >
             <CardContent className="p-4 md:p-6">
               <div className="space-y-4">
                 <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
@@ -219,12 +226,16 @@ export default function Suppliers() {
                         <div className="space-y-1">
                           {supplier.phones.map((phone, index) => (
                             <div key={index} className="flex flex-wrap items-center gap-2">
-                              <ClickablePhone 
-                                phone={phone.number} 
-                                messenger={phone.messenger || undefined}
-                                variant="text"
-                                className="text-sm"
-                              />
+                              <div 
+                                className="text-sm hover:text-primary cursor-pointer underline flex items-center gap-1"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  window.open(`tel:${phone.number}`);
+                                }}
+                              >
+                                <Phone className="h-4 w-4 shrink-0" />
+                                {phone.number}
+                              </div>
                               <Badge variant="outline" className="text-xs">
                                 {phone.type === 'mobile' ? 'Мобильный' : 'Городской'}
                               </Badge>
@@ -248,11 +259,13 @@ export default function Suppliers() {
                   </div>
 
                   <div className="flex flex-row sm:flex-col gap-1 sm:gap-2 shrink-0">
-                    <Button variant="ghost" size="sm" className="min-w-[44px] min-h-[44px] p-0">
-                      <Eye className="h-4 w-4" />
-                    </Button>
                     <SupplierDialog supplier={supplier}>
-                      <Button variant="ghost" size="sm" className="min-w-[44px] min-h-[44px] p-0">
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        className="min-w-[44px] min-h-[44px] p-0"
+                        onClick={(e) => e.stopPropagation()}
+                      >
                         <Edit className="h-4 w-4" />
                       </Button>
                     </SupplierDialog>
@@ -261,7 +274,10 @@ export default function Suppliers() {
                         variant="ghost" 
                         size="sm" 
                         className="min-w-[44px] min-h-[44px] p-0"
-                        onClick={() => window.open(`tel:${supplier.phones[0].number}`)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          window.open(`tel:${supplier.phones[0].number}`);
+                        }}
                       >
                         <Phone className="h-4 w-4" />
                       </Button>
