@@ -288,7 +288,11 @@ export default function Clients() {
       {/* Список клиентов */}
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 sm:gap-6">
         {filteredClients.map((client) => (
-          <Card key={client.id} className="bg-gradient-to-br from-card to-card/50 hover:shadow-lg transition-all duration-200 border border-border/50 overflow-hidden">
+          <Card 
+            key={client.id} 
+            className="bg-gradient-to-br from-card to-card/50 hover:shadow-lg transition-all duration-200 border border-border/50 overflow-hidden cursor-pointer"
+            onClick={() => handleViewClient(client)}
+          >
             <CardHeader className="pb-3 p-4 sm:p-6">
               <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-3">
                 <div className="min-w-0 flex-1">
@@ -307,11 +311,16 @@ export default function Clients() {
             </CardHeader>
             <CardContent className="space-y-4 p-4 sm:p-6 pt-0">
               <div className="space-y-2">
-                <ClickablePhone 
-                  phone={client.phone} 
-                  variant="text" 
+                <div 
                   className="text-sm text-muted-foreground min-h-[44px] flex items-center"
-                />
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    window.open(`tel:${client.phone}`);
+                  }}
+                >
+                  <Phone className="h-4 w-4 mr-2 text-muted-foreground shrink-0" />
+                  <span className="hover:text-primary cursor-pointer underline">{client.phone}</span>
+                </div>
                 {client.email && (
                   <div className="flex items-center gap-2 text-sm min-h-[32px]">
                     <Mail className="h-4 w-4 text-muted-foreground shrink-0" />
@@ -362,15 +371,26 @@ export default function Clients() {
               )}
 
               <div className="flex flex-col sm:flex-row gap-2 pt-2">
-                <Button size="sm" variant="outline" onClick={() => handleViewClient(client)} className="min-h-[40px] justify-start">
-                  <Eye className="h-4 w-4 mr-1" />
-                  <span className="sm:inline">Просмотр</span>
-                </Button>
-                <Button size="sm" variant="outline" onClick={() => handleEditClient(client)} className="min-h-[40px] justify-start">
+                <Button 
+                  size="sm" 
+                  variant="outline" 
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleEditClient(client);
+                  }} 
+                  className="min-h-[40px] justify-start"
+                >
                   <Edit className="h-4 w-4 mr-1" />
                   <span className="sm:inline">Редактировать</span>
                 </Button>
-                <Button size="sm" onClick={() => handleCreateEstimate(client)} className="min-h-[40px] justify-start">
+                <Button 
+                  size="sm" 
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleCreateEstimate(client);
+                  }} 
+                  className="min-h-[40px] justify-start"
+                >
                   <FileText className="h-4 w-4 mr-1" />
                   <span className="sm:inline">Создать смету</span>
                 </Button>
