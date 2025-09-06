@@ -79,28 +79,32 @@ export default function Dashboard() {
       value: clients.length.toString(),
       change: "+12%",
       icon: Users,
-      color: "text-blue-600"
+      color: "text-blue-600",
+      onClick: () => navigate('/clients')
     },
     {
       title: "Сметы в работе",
       value: estimates.filter(e => e.status === 'draft' || e.status === 'sent').length.toString(),
       change: "+3",
       icon: Calculator,
-      color: "text-green-600"
+      color: "text-green-600",
+      onClick: () => navigate('/estimates')
     },
     {
       title: "Отправленные КП",
       value: proposals.filter(p => p.status === 'sent').length.toString(),
       change: "+5",
       icon: FileText,
-      color: "text-purple-600"
+      color: "text-purple-600",
+      onClick: () => navigate('/proposals')
     },
     {
       title: "Общий оборот",
       value: `₽${(proposals.filter(p => p.status === 'approved').reduce((sum, p) => sum + p.amount, 0) / 1000000).toFixed(1)}М`,
       change: "+18%",
       icon: TrendingUp,
-      color: "text-emerald-600"
+      color: "text-emerald-600",
+      onClick: () => navigate('/proposals')
     }
   ];
 
@@ -204,7 +208,11 @@ export default function Dashboard() {
       {/* Статистика */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
         {stats.map((stat, index) => (
-          <Card key={index} className="relative overflow-hidden bg-gradient-to-br from-card to-card/50 border border-border/50">
+          <Card 
+            key={index} 
+            className="relative overflow-hidden bg-gradient-to-br from-card to-card/50 border border-border/50 cursor-pointer hover:shadow-lg transition-all duration-200 hover:scale-105"
+            onClick={stat.onClick}
+          >
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium text-muted-foreground">
                 {stat.title}
@@ -224,7 +232,10 @@ export default function Dashboard() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
         {/* Последние клиенты */}
         <Card className="bg-gradient-to-br from-card to-card/50">
-          <CardHeader>
+          <CardHeader 
+            className="cursor-pointer hover:bg-accent/20 transition-colors rounded-t-lg"
+            onClick={() => navigate('/clients')}
+          >
             <CardTitle className="flex items-center gap-2">
               <Users className="h-5 w-5 text-primary" />
               Последние клиенты
@@ -233,7 +244,11 @@ export default function Dashboard() {
           <CardContent>
             <div className="space-y-4">
               {recentClients.map((client, index) => (
-                <div key={index} className="flex items-center justify-between p-3 rounded-lg bg-accent/30 hover:bg-accent/50 transition-colors">
+                <div 
+                  key={index} 
+                  className="flex items-center justify-between p-3 rounded-lg bg-accent/30 hover:bg-accent/50 transition-colors cursor-pointer"
+                  onClick={() => navigate('/clients')}
+                >
                   <div className="flex flex-col">
                     <span className="font-medium text-foreground">{client.name}</span>
                     <span className="text-sm text-muted-foreground">
@@ -252,7 +267,10 @@ export default function Dashboard() {
 
         {/* Задачи на сегодня */}
         <Card className="bg-gradient-to-br from-card to-card/50">
-          <CardHeader>
+          <CardHeader 
+            className="cursor-pointer hover:bg-accent/20 transition-colors rounded-t-lg"
+            onClick={() => navigate('/tasks')}
+          >
             <CardTitle className="flex items-center gap-2">
               <Clock className="h-5 w-5 text-primary" />
               Задачи на сегодня
@@ -261,11 +279,15 @@ export default function Dashboard() {
           <CardContent>
             <div className="space-y-4">
               {todayTasks.map((task, index) => (
-                <div key={task.id} className={`flex items-center gap-3 p-3 rounded-lg border ${
-                  task.priority === 'high' ? 'bg-red-50 border-red-200' :
-                  task.priority === 'medium' ? 'bg-yellow-50 border-yellow-200' :
-                  'bg-green-50 border-green-200'
-                }`}>
+                <div 
+                  key={task.id} 
+                  className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer hover:shadow-sm transition-all ${
+                    task.priority === 'high' ? 'bg-red-50 border-red-200 hover:bg-red-100' :
+                    task.priority === 'medium' ? 'bg-yellow-50 border-yellow-200 hover:bg-yellow-100' :
+                    'bg-green-50 border-green-200 hover:bg-green-100'
+                  }`}
+                  onClick={() => navigate('/tasks')}
+                >
                   <div className="h-4 w-4">
                     {task.category === 'call' && <AlertCircle className="h-4 w-4 text-yellow-600" />}
                     {task.category === 'estimate' && <Calculator className="h-4 w-4 text-blue-600" />}
