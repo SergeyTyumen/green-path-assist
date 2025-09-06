@@ -399,6 +399,14 @@ const VoiceChatAssistant = () => {
             <Button
               variant="outline"
               size="sm"
+              onClick={() => setInputValue("Создай смету на газон 100 кв.м")}
+              className="text-xs"
+            >
+              Создать смету
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
               onClick={() => setInputValue("Создай задачу: связаться с клиентом")}
               className="text-xs"
             >
@@ -407,10 +415,18 @@ const VoiceChatAssistant = () => {
             <Button
               variant="outline"
               size="sm"
-              onClick={() => setInputValue("Сколько лидов за неделю?")}
+              onClick={() => setInputValue("Проанализируй воронку продаж")}
               className="text-xs"
             >
-              Статистика лидов
+              Анализ продаж
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setInputValue("Составь смету на дренаж 50 метров для клиента Иванова")}
+              className="text-xs"
+            >
+              Смета с клиентом
             </Button>
           </div>
         </div>

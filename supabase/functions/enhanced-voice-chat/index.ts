@@ -104,6 +104,62 @@ async function callOpenAIWithTools(messages: AIMessage[], settings: UserSettings
                 }
               }
             }
+          },
+          {
+            type: "function",
+            function: {
+              name: "create_estimate",
+              description: "Создать смету через AI-Сметчика",
+              parameters: {
+                type: "object",
+                properties: {
+                  project_description: {
+                    type: "string",
+                    description: "Описание проекта для сметы"
+                  },
+                  client_name: {
+                    type: "string", 
+                    description: "Имя клиента (опционально)"
+                  },
+                  area: {
+                    type: "number",
+                    description: "Площадь объекта в кв.м"
+                  },
+                  services: {
+                    type: "array",
+                    items: { type: "string" },
+                    description: "Список услуг для расчета"
+                  }
+                },
+                required: ["project_description"]
+              }
+            }
+          },
+          {
+            type: "function",
+            function: {
+              name: "delegate_to_assistant",
+              description: "Делегировать задачу специализированному AI-ассистенту",
+              parameters: {
+                type: "object",
+                properties: {
+                  assistant_name: {
+                    type: "string",
+                    enum: ["сметчик", "аналитик", "конкурентный-анализ"],
+                    description: "Имя AI-ассистента"
+                  },
+                  task_description: {
+                    type: "string",
+                    description: "Описание задачи для ассистента"
+                  },
+                  additional_data: {
+                    type: "object",
+                    description: "Дополнительные данные для ассистента"
+                  }
+                },
+                required: ["assistant_name", "task_description"]
+              }
+            }
           }
         ],
         tool_choice: "auto"
@@ -155,8 +211,13 @@ async function callOpenAIWithTools(messages: AIMessage[], settings: UserSettings
         }),
       });
 
+      if (!finalResponse.ok) {
+        const errorText = await finalResponse.text();
+        throw new Error(`OpenAI final API error: ${finalResponse.status} - ${errorText}`);
+      }
+
       const finalData = await finalResponse.json();
-      return finalData.choices[0]?.message?.content || 'Функция выполнена';
+      return finalData.choices?.[0]?.message?.content || 'Функция выполнена, но ответ не получен';
     }
     
     return message?.content || 'Извините, не удалось получить ответ';
@@ -178,6 +239,12 @@ async function executeFunction(functionName: string, args: any, userId: string):
       
     case 'get_clients':
       return await getClients(userId, args.status || 'all');
+
+    case 'create_estimate':
+      return await createEstimateViaAI(userId, args);
+      
+    case 'delegate_to_assistant':
+      return await delegateToAssistant(userId, args);
       
     default:
       return { error: `Unknown function: ${functionName}` };
@@ -258,6 +325,90 @@ async function getClients(userId: string, status: string) {
     return { success: false, error: error.message };
   }
 }
+
+// Создание сметы через AI-Сметчика
+async function createEstimateViaAI(userId: string, args: any) {
+  try {
+    console.log('Creating estimate via AI-Estimator:', args);
+    
+    const { data, error } = await supabase.functions.invoke('ai-estimator', {
+      body: {
+        conversation_mode: true,
+        action: args.project_description,
+        data: {
+          object_description: args.project_description,
+          area: args.area,
+          planned_services: args.services,
+          mentioned_clients: args.client_name ? [{ name: args.client_name }] : []
+        }
+      },
+      headers: {
+        Authorization: `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`
+      }
+    });
+
+    if (error) throw error;
+    
+    if (data.success) {
+      return {
+        success: true,
+        message: `✅ Смета создана через AI-Сметчика!\n\n${data.response}`,
+        estimate_id: data.estimate_id,
+        total_amount: data.total_amount
+      };
+    } else {
+      return {
+        success: false,
+        message: `❌ Ошибка создания сметы: ${data.error || 'Неизвестная ошибка'}`
+      };
+    }
+  } catch (error) {
+    console.error('Error in createEstimateViaAI:', error);
+    return {
+      success: false,
+      message: `❌ Ошибка при обращении к AI-Сметчику: ${error.message}`
+    };
+  }
+}
+
+// Делегирование к другим AI-ассистентам
+async function delegateToAssistant(userId: string, args: any) {
+  try {
+    console.log('Delegating to assistant:', args);
+    
+    const { data, error } = await supabase.functions.invoke('assistant-router', {
+      body: {
+        assistant_name: args.assistant_name,
+        task_description: args.task_description,
+        additional_data: args.additional_data || {}
+      },
+      headers: {
+        Authorization: `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`
+      }
+    });
+
+    if (error) throw error;
+    
+    if (data.success) {
+      return {
+        success: true,
+        message: `✅ Задача делегирована ассистенту "${args.assistant_name}": ${JSON.stringify(data.result)}`
+      };
+    } else {
+      return {
+        success: false,
+        message: `❌ Ошибка делегирования: ${data.error || 'Неизвестная ошибка'}`
+      };
+    }
+  } catch (error) {
+    console.error('Error in delegateToAssistant:', error);
+    return {
+      success: false,
+      message: `❌ Ошибка при делегировании: ${error.message}`
+    };
+  }
+}
+
 async function getUserSettings(userId: string): Promise<UserSettings> {
   const { data, error } = await supabase
     .from('profiles')
@@ -309,24 +460,38 @@ serve(async (req) => {
     // Получаем настройки пользователя
     const userSettings = await getUserSettings(user.id);
 
-    const systemPrompt = `Вы - умный голосовой помощник руководителя строительной компании. 
+    const systemPrompt = `Вы - умный голосовой помощник руководителя ландшафтной строительной компании. 
 Вы понимаете контекст разговора и помогаете управлять бизнесом.
 
 ОСНОВНЫЕ ФУНКЦИИ:
-- Управление CRM: создание и поиск клиентов с указанием источников лидов
+- Управление CRM: создание и поиск клиентов, задач, аналитика
+- Создание смет через AI-Сметчика (указывайте: описание проекта, площадь, клиента, виды работ)
 - Делегирование задач специализированным ИИ-помощникам
 - Анализ данных и составление отчетов
 
 СПЕЦИАЛИЗИРОВАННЫЕ АССИСТЕНТЫ:
-- Сметчик: создание смет, расчет материалов (запрашивает: клиент, объект, география, виды работ)
+- Сметчик: создание смет, расчет материалов, ценообразование
 - Аналитик: анализ клиентов, продаж, воронки (использует данные CRM)
 - Конкурентный анализ: анализ конкурентов и рынка
 
+СОЗДАНИЕ СМЕТ:
+Когда пользователь просит создать смету, используйте функцию create_estimate:
+- Обязательно укажите project_description (описание проекта)
+- Если известна площадь - добавьте area в кв.м
+- Если назван клиент - укажите client_name
+- Если названы виды работ - добавьте services как массив
+
+ПРИМЕРЫ КОМАНД:
+- "Создай смету на газон 100 кв.м для клиента Иванова" → create_estimate
+- "Покажи мои задачи" → get_tasks
+- "Какие клиенты в работе" → get_clients
+- "Проанализируй продажи" → delegate_to_assistant(аналитик)
+
 ВАЖНО: 
-- Определяйте о чем идет речь и какой ассистент нужен
-- При создании клиентов указывайте источник лида (звонок, сайт, соцсети, реклама, рекомендация, авито)
+- Определяйте о чем идет речь и какая функция нужна
+- При создании клиентов указывайте источник лида
 - Собирайте всю доступную информацию из разговора
-- Если ассистент запрашивает дополнительные данные - передавайте их пользователю
+- Если нужны дополнительные данные - спрашивайте пользователя
 
 Отвечайте конкретно и по делу. Задавайте уточняющие вопросы если нужно.`;
 

@@ -23,9 +23,18 @@ async function routeToEstimator(taskDescription: string, additionalData: any, us
   try {
     const { data, error } = await supabase.functions.invoke('ai-estimator', {
       body: {
-        prompt: taskDescription,
-        project_data: additionalData,
-        user_id: userId
+        conversation_mode: true,
+        action: taskDescription,
+        data: {
+          object_description: taskDescription,
+          area: additionalData?.area,
+          planned_services: additionalData?.services,
+          special_requirements: additionalData?.special_requirements,
+          mentioned_clients: additionalData?.client_name ? [{ name: additionalData.client_name }] : []
+        }
+      },
+      headers: {
+        Authorization: `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`
       }
     });
 
