@@ -515,24 +515,36 @@ serve(async (req) => {
   }
 
   try {
+    console.log('enhanced-voice-chat: Request received');
+    
     const authHeader = req.headers.get('Authorization');
     if (!authHeader) {
+      console.error('enhanced-voice-chat: No authorization header');
       throw new Error('No authorization header');
     }
 
+    console.log('enhanced-voice-chat: Getting user from token...');
     const token = authHeader.replace('Bearer ', '');
     const { data: { user }, error: authError } = await supabase.auth.getUser(token);
 
     if (authError || !user) {
+      console.error('enhanced-voice-chat: Invalid token:', authError);
       throw new Error('Invalid token');
     }
 
+    console.log('enhanced-voice-chat: User authenticated:', user.id);
+
+    console.log('enhanced-voice-chat: Parsing request body...');
     const { message, conversation_history = [] } = await req.json();
 
     if (!message) {
+      console.error('enhanced-voice-chat: Message is required');
       throw new Error('Message is required');
     }
 
+    console.log('enhanced-voice-chat: Message received:', message.substring(0, 100));
+
+    console.log('enhanced-voice-chat: Getting user settings...');
     // Получаем настройки пользователя
     const userSettings = await getUserSettings(user.id);
 
@@ -582,6 +594,7 @@ serve(async (req) => {
 
 Отвечайте конкретно и по делу. Задавайте уточняющие вопросы если нужно.`;
 
+    console.log('enhanced-voice-chat: Building message array...');
     const messages: AIMessage[] = [
       { role: 'system', content: systemPrompt },
       ...conversation_history.map((msg: any) => ({
@@ -591,9 +604,11 @@ serve(async (req) => {
       { role: 'user', content: message }
     ];
 
+    console.log('enhanced-voice-chat: Calling OpenAI with tools...');
     // Вызываем OpenAI с поддержкой функций для работы с базой данных
     const aiResponse = await callOpenAIWithTools(messages, userSettings, user.id, token);
 
+    console.log('enhanced-voice-chat: OpenAI response received, saving to history...');
     // Сохраняем историю команд
     await supabase
       .from('voice_command_history')
@@ -612,6 +627,7 @@ serve(async (req) => {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
 
+    console.log('enhanced-voice-chat: Returning success response');
   } catch (error) {
     console.error('Error in enhanced-voice-chat:', error);
     return new Response(JSON.stringify({ 
