@@ -108,6 +108,40 @@ async function callOpenAIWithTools(messages: AIMessage[], settings: UserSettings
           {
             type: "function",
             function: {
+              name: "create_client",
+              description: "Создать нового клиента",
+              parameters: {
+                type: "object",
+                properties: {
+                  name: {
+                    type: "string",
+                    description: "Имя клиента"
+                  },
+                  phone: {
+                    type: "string",
+                    description: "Телефон клиента"
+                  },
+                  email: {
+                    type: "string",
+                    description: "Email клиента"
+                  },
+                  lead_source: {
+                    type: "string",
+                    enum: ["сайт", "звонок", "соцсети", "рекомендация", "реклама"],
+                    description: "Источник лида"
+                  },
+                  notes: {
+                    type: "string",
+                    description: "Примечания о клиенте"
+                  }
+                },
+                required: ["name"]
+              }
+            }
+          },
+          {
+            type: "function",
+            function: {
               name: "create_estimate",
               description: "Создать смету через AI-Сметчика",
               parameters: {
@@ -243,6 +277,9 @@ async function executeFunction(functionName: string, args: any, userId: string, 
       
     case 'get_clients':
       return await getClients(userId, args.status || 'all');
+    
+    case 'create_client':
+      return await createClient(userId, args);
 
     case 'create_estimate':
       return await createEstimateViaAI(userId, args, userToken);
@@ -326,6 +363,34 @@ async function getClients(userId: string, status: string) {
     };
   } catch (error) {
     console.error('Error getting clients:', error);
+    return { success: false, error: error.message };
+}
+
+async function createClient(userId: string, clientData: any) {
+  try {
+    const { data, error } = await supabase
+      .from('clients')
+      .insert({
+        user_id: userId,
+        name: clientData.name,
+        phone: clientData.phone || '',
+        email: clientData.email || '',
+        lead_source: clientData.lead_source || 'неизвестно',
+        notes: clientData.notes || '',
+        conversion_stage: 'Первый звонок'
+      })
+      .select()
+      .single();
+    
+    if (error) throw error;
+    
+    return {
+      success: true,
+      client: data,
+      message: `✅ Клиент "${clientData.name}" создан! ID: ${data.id}`
+    };
+  } catch (error) {
+    console.error('Error creating client:', error);
     return { success: false, error: error.message };
   }
 }
@@ -475,6 +540,7 @@ serve(async (req) => {
 
 ОСНОВНЫЕ ФУНКЦИИ:
 - Управление CRM: создание и поиск клиентов, задач, аналитика
+- Создание клиентов через create_client (имя, телефон, email, источник лида)
 - Создание смет через AI-Сметчика (указывайте: описание проекта, площадь, клиента, виды работ)
 - Делегирование задач специализированным ИИ-помощникам
 - Анализ данных и составление отчетов
@@ -484,6 +550,14 @@ serve(async (req) => {
 - Аналитик: анализ клиентов, продаж, воронки (использует данные CRM)
 - Конкурентный анализ: анализ конкурентов и рынка
 
+СОЗДАНИЕ КЛИЕНТОВ:
+Когда пользователь просит создать клиента, используйте функцию create_client:
+- Обязательно укажите name (имя клиента)
+- Если известен телефон - добавьте phone
+- Если известен email - добавьте email
+- Обязательно укажите lead_source (источник лида)
+- Если есть дополнительная информация - добавьте notes
+
 СОЗДАНИЕ СМЕТ:
 Когда пользователь просит создать смету, используйте функцию create_estimate:
 - Обязательно укажите project_description (описание проекта)
@@ -492,6 +566,7 @@ serve(async (req) => {
 - Если названы виды работ - добавьте services как массив
 
 ПРИМЕРЫ КОМАНД:
+- "Создай клиента Иванова, звонок с сайта" → create_client
 - "Создай смету на газон 100 кв.м для клиента Иванова" → create_estimate
 - "Покажи мои задачи" → get_tasks
 - "Какие клиенты в работе" → get_clients
@@ -502,6 +577,7 @@ serve(async (req) => {
 - При создании клиентов указывайте источник лида
 - Собирайте всю доступную информацию из разговора
 - Если нужны дополнительные данные - спрашивайте пользователя
+- Сначала создавайте клиента, потом смету для него
 
 Отвечайте конкретно и по делу. Задавайте уточняющие вопросы если нужно.`;
 
