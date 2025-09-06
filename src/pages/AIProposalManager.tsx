@@ -24,6 +24,7 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { useProposals } from '@/hooks/useProposals';
 import { useClients } from '@/hooks/useClients';
+import { supabase } from '@/integrations/supabase/client';
 
 const AIProposalManager = () => {
   const { toast } = useToast();
@@ -78,27 +79,51 @@ const AIProposalManager = () => {
     setGenerating(true);
     
     try {
-      await createProposal({
-        client_id: newProposal.clientId,
-        title: newProposal.title,
-        status: 'draft' as const,
-        amount: 0,
-        expires_at: new Date(Date.now() + newProposal.validDays * 24 * 60 * 60 * 1000).toISOString()
+      // Сначала создаем КП через AI Proposal Manager
+      const { data, error } = await supabase.functions.invoke('ai-proposal-manager', {
+        body: {
+          action: 'create_proposal',
+          data: {
+            client_id: newProposal.clientId,
+            title: newProposal.title,
+            description: newProposal.description,
+            amount: 0,
+            expires_at: new Date(Date.now() + newProposal.validDays * 24 * 60 * 60 * 1000).toISOString()
+          }
+        }
       });
-      
-      setNewProposal({
-        clientId: '',
-        title: '',
-        description: '',
-        services: [],
-        validDays: 14
-      });
-      
-      toast({
-        title: "КП создано",
-        description: "Коммерческое предложение успешно создано"
-      });
+
+      if (error) {
+        throw new Error(error.message);
+      }
+
+      if (data.success) {
+        // Затем создаем в локальной базе через хук
+        await createProposal({
+          client_id: newProposal.clientId,
+          title: newProposal.title,
+          status: 'draft' as const,
+          amount: 0,
+          expires_at: new Date(Date.now() + newProposal.validDays * 24 * 60 * 60 * 1000).toISOString()
+        });
+        
+        setNewProposal({
+          clientId: '',
+          title: '',
+          description: '',
+          services: [],
+          validDays: 14
+        });
+        
+        toast({
+          title: "КП создано",
+          description: "ИИ сгенерировал коммерческое предложение с персонализированным контентом"
+        });
+      } else {
+        throw new Error(data.error || 'Ошибка создания КП');
+      }
     } catch (error) {
+      console.error('Error generating proposal:', error);
       toast({
         title: "Ошибка",
         description: "Не удалось создать КП",
@@ -111,15 +136,36 @@ const AIProposalManager = () => {
 
   const sendProposal = async (id: string) => {
     try {
-      await updateProposal(id, { 
-        status: 'sent',
-        sent_at: new Date().toISOString()
+      // Отправляем через AI Proposal Manager
+      const { data, error } = await supabase.functions.invoke('ai-proposal-manager', {
+        body: {
+          action: 'send_proposal',
+          data: {
+            proposal_id: id
+          }
+        }
       });
-      toast({
-        title: "КП отправлено",
-        description: "Коммерческое предложение отправлено клиенту"
-      });
+
+      if (error) {
+        throw new Error(error.message);
+      }
+
+      if (data.success) {
+        // Обновляем локальный статус
+        await updateProposal(id, { 
+          status: 'sent',
+          sent_at: new Date().toISOString()
+        });
+        
+        toast({
+          title: "КП отправлено",
+          description: `Коммерческое предложение отправлено на ${data.sent_to}`
+        });
+      } else {
+        throw new Error(data.error || 'Ошибка отправки КП');
+      }
     } catch (error) {
+      console.error('Error sending proposal:', error);
       toast({
         title: "Ошибка",
         description: "Не удалось отправить КП",

@@ -115,18 +115,42 @@ const AIConsultant = () => {
   ];
 
   const generateAIResponse = async (userMessage: string): Promise<string> => {
-    // Поиск в базе знаний
-    const relevantKnowledge = knowledgeBase.find(item => 
-      userMessage.toLowerCase().includes(item.question.toLowerCase().split(' ')[0]) ||
-      item.answer.toLowerCase().includes(userMessage.toLowerCase().split(' ')[0])
-    );
+    try {
+      // Вызываем AI Consultant Edge Function
+      const { data, error } = await supabase.functions.invoke('ai-consultant', {
+        body: {
+          question: userMessage,
+          context: {
+            source: 'website',
+            knowledge_base: knowledgeBase
+          }
+        }
+      });
 
-    if (relevantKnowledge) {
-      return relevantKnowledge.answer;
+      if (error) {
+        throw new Error(error.message);
+      }
+
+      if (data.success) {
+        return data.response;
+      } else {
+        throw new Error(data.error || 'Ошибка генерации ответа');
+      }
+    } catch (error) {
+      console.error('Error calling AI consultant:', error);
+      
+      // Fallback: поиск в локальной базе знаний
+      const relevantKnowledge = knowledgeBase.find(item => 
+        userMessage.toLowerCase().includes(item.question.toLowerCase().split(' ')[0]) ||
+        item.answer.toLowerCase().includes(userMessage.toLowerCase().split(' ')[0])
+      );
+
+      if (relevantKnowledge) {
+        return relevantKnowledge.answer;
+      }
+
+      return `Спасибо за ваш вопрос. В данный момент возникли технические трудности. Для получения персональной консультации рекомендую связаться с нашим менеджером по телефону.`;
     }
-
-    // Если не нашли в базе знаний, генерируем общий ответ
-    return `Спасибо за ваш вопрос. Позвольте уточнить детали и предоставить вам максимально точную информацию. Для получения персональной консультации рекомендую связаться с нашим менеджером по телефону.`;
   };
 
   const sendMessage = async () => {

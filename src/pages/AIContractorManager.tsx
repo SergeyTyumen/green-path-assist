@@ -25,6 +25,7 @@ import {
   MapPin
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { supabase } from '@/integrations/supabase/client';
 
 interface ContractorTask {
   id: string;
@@ -135,16 +136,65 @@ const AIContractorManager = () => {
   };
 
   const searchContractors = async () => {
+    if (!newTask.workType || !newTask.description) {
+      toast({
+        title: "Ошибка",
+        description: "Заполните вид работ и описание",
+        variant: "destructive"
+      });
+      return;
+    }
+
     setSearching(true);
     
-    // Симуляция поиска подрядчиков с помощью ИИ
-    setTimeout(() => {
-      toast({
-        title: "Поиск завершен",
-        description: "ИИ нашел 12 подходящих исполнителей и отправил задания"
+    try {
+      // Вызываем AI Contractor Manager для поиска подрядчиков
+      const { data, error } = await supabase.functions.invoke('ai-contractor-manager', {
+        body: {
+          action: 'find_contractors',
+          data: {
+            work_types: [newTask.workType],
+            project_info: {
+              description: newTask.description,
+              area: parseInt(newTask.area) || 0,
+              budget: parseInt(newTask.budget) || 0,
+              deadline: newTask.deadline
+            }
+          }
+        }
       });
+
+      if (error) {
+        throw new Error(error.message);
+      }
+
+      if (data.success) {
+        toast({
+          title: "Поиск завершен",
+          description: `ИИ нашел ${data.total_found} подходящих исполнителей и сгенерировал рекомендации`
+        });
+
+        // Очищаем форму
+        setNewTask({
+          workType: '',
+          description: '',
+          area: '',
+          deadline: '',
+          budget: ''
+        });
+      } else {
+        throw new Error(data.error || 'Ошибка поиска подрядчиков');
+      }
+    } catch (error) {
+      console.error('Error searching contractors:', error);
+      toast({
+        title: "Ошибка",
+        description: "Не удалось найти исполнителей",
+        variant: "destructive"
+      });
+    } finally {
       setSearching(false);
-    }, 3000);
+    }
   };
 
   const availableContractors = [

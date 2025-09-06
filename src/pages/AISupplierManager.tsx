@@ -23,6 +23,7 @@ import {
   Star
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { supabase } from '@/integrations/supabase/client';
 
 interface SupplierRequest {
   id: string;
@@ -103,16 +104,63 @@ const AISupplierManager = () => {
   };
 
   const searchSuppliers = async () => {
+    if (!newRequest.category || !newRequest.materials) {
+      toast({
+        title: "Ошибка",
+        description: "Заполните категорию и материалы",
+        variant: "destructive"
+      });
+      return;
+    }
+
     setSearching(true);
     
-    // Симуляция поиска поставщиков с помощью ИИ
-    setTimeout(() => {
-      toast({
-        title: "Поиск завершен",
-        description: "ИИ нашел 8 подходящих поставщиков и отправил запросы"
+    try {
+      // Вызываем AI Supplier Manager для поиска поставщиков
+      const { data, error } = await supabase.functions.invoke('ai-supplier-manager', {
+        body: {
+          action: 'find_suppliers',
+          data: {
+            categories: [newRequest.category],
+            materials: newRequest.materials.split(',').map(m => m.trim()),
+            quantity: parseInt(newRequest.quantity) || 1,
+            unit: newRequest.unit,
+            deadline: newRequest.deadline
+          }
+        }
       });
+
+      if (error) {
+        throw new Error(error.message);
+      }
+
+      if (data.success) {
+        toast({
+          title: "Поиск завершен",
+          description: `ИИ нашел ${data.total_found} поставщиков и сгенерировал рекомендации`
+        });
+
+        // Очищаем форму
+        setNewRequest({
+          category: '',
+          materials: '',
+          quantity: '',
+          unit: 'шт',
+          deadline: ''
+        });
+      } else {
+        throw new Error(data.error || 'Ошибка поиска поставщиков');
+      }
+    } catch (error) {
+      console.error('Error searching suppliers:', error);
+      toast({
+        title: "Ошибка",
+        description: "Не удалось найти поставщиков",
+        variant: "destructive"
+      });
+    } finally {
       setSearching(false);
-    }, 3000);
+    }
   };
 
   return (
