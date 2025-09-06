@@ -364,6 +364,7 @@ async function getClients(userId: string, status: string) {
   } catch (error) {
     console.error('Error getting clients:', error);
     return { success: false, error: error.message };
+  }
 }
 
 async function createClient(userId: string, clientData: any) {
