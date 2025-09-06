@@ -329,7 +329,11 @@ export default function Estimates() {
       ) : (
         <div className="grid gap-4">
           {filteredEstimates.map((estimate) => (
-            <Card key={estimate.id} className="hover:shadow-md transition-shadow">
+            <Card 
+              key={estimate.id} 
+              className="hover:shadow-md transition-all duration-200 cursor-pointer hover:scale-[1.01]"
+              onClick={() => handleViewEstimate(estimate)}
+            >
               <CardContent className="p-4 md:p-6">
                 <div className="space-y-4">
                   <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
@@ -370,26 +374,33 @@ export default function Estimates() {
                           variant="ghost" 
                           size="sm" 
                           className="min-w-[44px] min-h-[44px] p-0"
-                          onClick={() => handleViewEstimate(estimate)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleEditEstimate(estimate);
+                          }}
                         >
-                          <Eye className="h-4 w-4" />
+                          <Edit className="h-4 w-4" />
                         </Button>
                         <Button 
                           variant="ghost" 
                           size="sm" 
                           className="min-w-[44px] min-h-[44px] p-0"
-                          onClick={() => handleEditEstimate(estimate)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            // Логика копирования сметы
+                            console.log('Копирование сметы:', estimate.id);
+                          }}
                         >
-                          <Edit className="h-4 w-4" />
-                        </Button>
-                        <Button variant="ghost" size="sm" className="min-w-[44px] min-h-[44px] p-0">
                           <Copy className="h-4 w-4" />
                         </Button>
                         <Button 
                           variant="ghost" 
                           size="sm" 
                           className="min-w-[44px] min-h-[44px] p-0 text-destructive hover:text-destructive"
-                          onClick={() => handleDeleteEstimate(estimate.id)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDeleteEstimate(estimate.id);
+                          }}
                         >
                           <Trash2 className="h-4 w-4" />
                         </Button>
