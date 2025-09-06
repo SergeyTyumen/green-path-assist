@@ -157,32 +157,66 @@ const VoiceChatAssistant = () => {
     }
   }, [inputValue, addMessage, isVoiceMode, browserSupport.speechSynthesis]);
 
-  // Generate AI response using enhanced voice chat system
+  // Generate AI response using n8n workflow instead of edge function
   const generateResponse = async (userMessage: string): Promise<string> => {
     try {
-      console.log('Sending request to enhanced-voice-chat function...');
+      console.log('Sending request via n8n webhook...');
       
-      const { data, error } = await supabase.functions.invoke('enhanced-voice-chat', {
-        body: { 
-          message: userMessage, 
-          conversation_history: messages.slice(-10).map(m => ({
-            type: m.type,
-            content: m.content
-          }))
-        }
+      // TODO: Заменить на ваш n8n webhook URL после настройки
+      const n8nWebhookUrl = 'https://your-n8n-instance.com/webhook/voice-assistant';
+      
+      const requestBody = {
+        message: userMessage,
+        conversation_history: messages.slice(-10).map(m => ({
+          type: m.type,
+          content: m.content
+        })),
+        user_id: 'current_user', // TODO: получить реальный user_id
+        timestamp: new Date().toISOString(),
+        source: 'voice_chat_assistant'
+      };
+
+      console.log('Sending to n8n:', requestBody);
+
+      const response = await fetch(n8nWebhookUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(requestBody),
       });
 
-      console.log('Response from enhanced-voice-chat:', { data, error });
-
-      if (error) {
-        console.error('Error calling enhanced-voice-chat function:', error);
-        return 'Извините, произошла ошибка при обращении к ИИ-помощнику. Проверьте подключение и попробуйте еще раз.';
+      if (!response.ok) {
+        throw new Error(`n8n webhook error: ${response.status} ${response.statusText}`);
       }
 
-      return data?.response || 'Не удалось получить ответ от ИИ-помощника.';
+      const data = await response.json();
+      console.log('Response from n8n:', data);
+      
+      return data.response || data.message || 'Получен ответ от n8n workflow';
+      
     } catch (error) {
-      console.error('Error in generateResponse:', error);
-      return 'Произошла ошибка при обращении к ИИ-помощнику.';
+      console.error('Error calling n8n webhook:', error);
+      
+      // Fallback на прямой вызов edge функции если n8n недоступен
+      console.log('Fallback to direct edge function call...');
+      try {
+        const { data, error } = await supabase.functions.invoke('enhanced-voice-chat', {
+          body: { 
+            message: userMessage, 
+            conversation_history: messages.slice(-10).map(m => ({
+              type: m.type,
+              content: m.content
+            }))
+          }
+        });
+
+        if (error) throw error;
+        return data?.response || 'Ответ получен через fallback';
+      } catch (fallbackError) {
+        console.error('Fallback also failed:', fallbackError);
+        return 'Извините, произошла ошибка при обработке запроса. n8n недоступен, и fallback тоже не работает.';
+      }
     }
   };
 
