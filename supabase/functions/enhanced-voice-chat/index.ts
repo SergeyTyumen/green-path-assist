@@ -48,66 +48,6 @@ async function callOpenAIWithTools(messages: AIMessage[], settings: UserSettings
           {
             type: "function",
             function: {
-              name: "get_tasks",
-              description: "Получить список задач пользователя",
-              parameters: {
-                type: "object",
-                properties: {
-                  status: {
-                    type: "string",
-                    enum: ["active", "completed", "all"],
-                    description: "Статус задач для получения"
-                  }
-                }
-              }
-            }
-          },
-          {
-            type: "function", 
-            function: {
-              name: "create_task",
-              description: "Создать новую задачу",
-              parameters: {
-                type: "object",
-                properties: {
-                  title: {
-                    type: "string",
-                    description: "Название задачи"
-                  },
-                  description: {
-                    type: "string",
-                    description: "Описание задачи"
-                  },
-                  priority: {
-                    type: "string",
-                    enum: ["low", "medium", "high"],
-                    description: "Приоритет задачи"
-                  }
-                },
-                required: ["title", "description"]
-              }
-            }
-          },
-          {
-            type: "function",
-            function: {
-              name: "get_clients",
-              description: "Получить список клиентов",
-              parameters: {
-                type: "object",
-                properties: {
-                  status: {
-                    type: "string",
-                    enum: ["active", "all"],
-                    description: "Статус клиентов"
-                  }
-                }
-              }
-            }
-          },
-          {
-            type: "function",
-            function: {
               name: "create_client",
               description: "Создать нового клиента",
               parameters: {
@@ -166,32 +106,6 @@ async function callOpenAIWithTools(messages: AIMessage[], settings: UserSettings
                   }
                 },
                 required: ["project_description"]
-              }
-            }
-          },
-          {
-            type: "function",
-            function: {
-              name: "delegate_to_assistant",
-              description: "Делегировать задачу специализированному AI-ассистенту",
-              parameters: {
-                type: "object",
-                properties: {
-                  assistant_name: {
-                    type: "string",
-                    enum: ["сметчик", "аналитик", "конкурентный-анализ"],
-                    description: "Имя AI-ассистента"
-                  },
-                  task_description: {
-                    type: "string",
-                    description: "Описание задачи для ассистента"
-                  },
-                  additional_data: {
-                    type: "object",
-                    description: "Дополнительные данные для ассистента"
-                  }
-                },
-                required: ["assistant_name", "task_description"]
               }
             }
           }
@@ -269,101 +183,14 @@ async function executeFunction(functionName: string, args: any, userId: string, 
   console.log(`Executing function: ${functionName} with args:`, args);
   
   switch (functionName) {
-    case 'get_tasks':
-      return await getTasks(userId, args.status || 'all');
-    
-    case 'create_task':
-      return await createTask(userId, args);
-      
-    case 'get_clients':
-      return await getClients(userId, args.status || 'all');
-    
     case 'create_client':
       return await createClient(userId, args);
 
     case 'create_estimate':
       return await createEstimateViaAI(userId, args, userToken);
       
-    case 'delegate_to_assistant':
-      return await delegateToAssistant(userId, args, userToken);
-      
     default:
       return { error: `Unknown function: ${functionName}` };
-  }
-}
-
-async function getTasks(userId: string, status: string) {
-  try {
-    let query = supabase.from('tasks').select('*').eq('user_id', userId);
-    
-    if (status === 'active') {
-      query = query.neq('status', 'completed');
-    } else if (status === 'completed') {
-      query = query.eq('status', 'completed');
-    }
-    
-    const { data, error } = await query.order('created_at', { ascending: false }).limit(10);
-    
-    if (error) throw error;
-    
-    return {
-      success: true,
-      count: data?.length || 0,
-      tasks: data || []
-    };
-  } catch (error) {
-    console.error('Error getting tasks:', error);
-    return { success: false, error: error.message };
-  }
-}
-
-async function createTask(userId: string, taskData: any) {
-  try {
-    const { data, error } = await supabase
-      .from('tasks')
-      .insert({
-        user_id: userId,
-        title: taskData.title,
-        description: taskData.description,
-        priority: taskData.priority || 'medium',
-        status: 'pending',
-        category: 'general'
-      })
-      .select()
-      .single();
-    
-    if (error) throw error;
-    
-    return {
-      success: true,
-      task: data
-    };
-  } catch (error) {
-    console.error('Error creating task:', error);
-    return { success: false, error: error.message };
-  }
-}
-
-async function getClients(userId: string, status: string) {
-  try {
-    let query = supabase.from('clients').select('*').eq('user_id', userId);
-    
-    if (status === 'active') {
-      query = query.neq('conversion_stage', 'Завершен');
-    }
-    
-    const { data, error } = await query.order('created_at', { ascending: false }).limit(10);
-    
-    if (error) throw error;
-    
-    return {
-      success: true,
-      count: data?.length || 0,
-      clients: data || []
-    };
-  } catch (error) {
-    console.error('Error getting clients:', error);
-    return { success: false, error: error.message };
   }
 }
 
@@ -444,47 +271,6 @@ async function createEstimateViaAI(userId: string, args: any, userToken?: string
   }
 }
 
-// Делегирование к другим AI-ассистентам
-async function delegateToAssistant(userId: string, args: any, userToken?: string) {
-  try {
-    console.log('Delegating to assistant:', args);
-    
-    // Получаем пользовательский токен для аутентификации
-    const authToken = userToken || Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
-    
-    const { data, error } = await supabase.functions.invoke('assistant-router', {
-      body: {
-        assistant_name: args.assistant_name,
-        task_description: args.task_description,
-        additional_data: args.additional_data || {}
-      },
-      headers: {
-        Authorization: `Bearer ${authToken}`
-      }
-    });
-
-    if (error) throw error;
-    
-    if (data && data.success) {
-      return {
-        success: true,
-        message: `✅ Задача делегирована ассистенту "${args.assistant_name}": ${JSON.stringify(data.result)}`
-      };
-    } else {
-      return {
-        success: false,
-        message: `❌ Ошибка делегирования: ${data?.error || 'Неизвестная ошибка'}`
-      };
-    }
-  } catch (error) {
-    console.error('Error in delegateToAssistant:', error);
-    return {
-      success: false,
-      message: `❌ Ошибка при делегировании: ${error.message}`
-    };
-  }
-}
-
 async function getUserSettings(userId: string): Promise<UserSettings> {
   const { data, error } = await supabase
     .from('profiles')
@@ -552,16 +338,8 @@ serve(async (req) => {
 Вы понимаете контекст разговора и помогаете управлять бизнесом.
 
 ОСНОВНЫЕ ФУНКЦИИ:
-- Управление CRM: создание и поиск клиентов, задач, аналитика
 - Создание клиентов через create_client (имя, телефон, email, источник лида)
 - Создание смет через AI-Сметчика (указывайте: описание проекта, площадь, клиента, виды работ)
-- Делегирование задач специализированным ИИ-помощникам
-- Анализ данных и составление отчетов
-
-СПЕЦИАЛИЗИРОВАННЫЕ АССИСТЕНТЫ:
-- Сметчик: создание смет, расчет материалов, ценообразование
-- Аналитик: анализ клиентов, продаж, воронки (использует данные CRM)
-- Конкурентный анализ: анализ конкурентов и рынка
 
 СОЗДАНИЕ КЛИЕНТОВ:
 Когда пользователь просит создать клиента, используйте функцию create_client:
@@ -579,17 +357,12 @@ serve(async (req) => {
 - Если названы виды работ - добавьте services как массив
 
 ПРИМЕРЫ КОМАНД:
-- "Создай клиента Иванова, звонок с сайта" → create_client
-- "Создай смету на газон 100 кв.м для клиента Иванова" → create_estimate
-- "Покажи мои задачи" → get_tasks
-- "Какие клиенты в работе" → get_clients
-- "Проанализируй продажи" → delegate_to_assistant(аналитик)
+- "Создай клиента Дениса, звонок с сайта" → create_client
+- "Создай смету на газон 100 кв.м для клиента Дениса" → create_estimate
 
 ВАЖНО: 
 - Определяйте о чем идет речь и какая функция нужна
 - При создании клиентов указывайте источник лида
-- Собирайте всю доступную информацию из разговора
-- Если нужны дополнительные данные - спрашивайте пользователя
 - Сначала создавайте клиента, потом смету для него
 
 Отвечайте конкретно и по делу. Задавайте уточняющие вопросы если нужно.`;
@@ -616,18 +389,18 @@ serve(async (req) => {
         user_id: user.id,
         transcript: message,
         status: 'completed',
-        execution_result: { response: aiResponse, model: 'n8n-workflow' }
+        execution_result: { response: aiResponse, model: 'enhanced-voice-chat' }
       });
 
+    console.log('enhanced-voice-chat: Returning success response');
     return new Response(JSON.stringify({
       response: aiResponse,
-      model_used: 'n8n-workflow',
+      model_used: 'enhanced-voice-chat',
       interaction_mode: userSettings.interaction_mode
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
 
-    console.log('enhanced-voice-chat: Returning success response');
   } catch (error) {
     console.error('Error in enhanced-voice-chat:', error);
     return new Response(JSON.stringify({ 
