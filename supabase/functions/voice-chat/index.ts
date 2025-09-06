@@ -251,6 +251,58 @@ async function getCommandHistory(userId: string, limit = 10) {
   return data;
 }
 
+// Функция создания сметы через AI-Сметчика
+async function createEstimateViaAI(data: any, userId: string) {
+  console.log('Creating estimate via AI:', data);
+  try {
+    const { data: result, error } = await supabase.functions.invoke('ai-estimator', {
+      body: {
+        conversation_mode: true,
+        action: data.project_description,
+        data: {
+          object_description: data.project_description,
+          area: data.area,
+          planned_services: data.services,
+          special_requirements: data.special_requirements,
+          mentioned_clients: data.client_name ? [{ name: data.client_name }] : []
+        }
+      },
+      headers: {
+        Authorization: `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`
+      }
+    });
+
+    if (error) throw error;
+    return result;
+  } catch (error) {
+    console.error('Error creating estimate via AI:', error);
+    throw error;
+  }
+}
+
+// Функция делегирования к AI-ассистентам
+async function delegateToAIAssistant(data: any, userId: string) {
+  console.log('Delegating to AI assistant:', data);
+  try {
+    const { data: result, error } = await supabase.functions.invoke('assistant-router', {
+      body: {
+        assistant_name: data.assistant_name,
+        task_description: data.task_description,
+        additional_data: data.additional_data || {}
+      },
+      headers: {
+        Authorization: `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`
+      }
+    });
+
+    if (error) throw error;
+    return result;
+  } catch (error) {
+    console.error('Error delegating to AI assistant:', error);
+    throw error;
+  }
+}
+
 // Функция для парсинга сложных команд
 function parseComplexCommand(message: string) {
   const entities = {
@@ -489,6 +541,48 @@ serve(async (req) => {
               rating: { type: "number", description: "Рейтинг поставщика (0-5)" }
             },
             required: ["name"]
+          }
+        }
+      },
+      {
+        type: "function",
+        function: {
+          name: "create_estimate",
+          description: "Создать смету через AI-Сметчика с помощью голосовой команды",
+          parameters: {
+            type: "object",
+            properties: {
+              project_description: { type: "string", description: "Описание проекта для сметы" },
+              client_name: { type: "string", description: "Имя клиента (опционально)" },
+              services: { 
+                type: "array",
+                items: { type: "string" },
+                description: "Список услуг для расчета" 
+              },
+              area: { type: "number", description: "Площадь объекта в кв.м" },
+              special_requirements: { type: "string", description: "Особые требования к проекту" }
+            },
+            required: ["project_description"]
+          }
+        }
+      },
+      {
+        type: "function",
+        function: {
+          name: "delegate_to_ai_assistant",
+          description: "Делегировать задачу специализированному AI-ассистенту",
+          parameters: {
+            type: "object",
+            properties: {
+              assistant_name: { 
+                type: "string",
+                enum: ["сметчик", "аналитик", "поставщик", "подрядчик", "кп-менеджер"],
+                description: "Имя AI-ассистента" 
+              },
+              task_description: { type: "string", description: "Описание задачи для ассистента" },
+              additional_data: { type: "object", description: "Дополнительные данные для ассистента" }
+            },
+            required: ["assistant_name", "task_description"]
           }
         }
       },
@@ -748,6 +842,24 @@ const systemPrompt = `Ты — голосовой ассистент руков�
             case 'get_command_history':
               result = await getCommandHistory(userId, 10);
               functionResults.push(`История команд загружена: ${result.length} записей`);
+              break;
+
+            case 'create_estimate':
+              result = await createEstimateViaAI(functionArgs, userId);
+              if (result.success) {
+                functionResults.push(`✅ Смета успешно создана через AI-Сметчика: ${result.response || result.estimate_id}`);
+              } else {
+                functionResults.push(`❌ Ошибка создания сметы: ${result.error}`);
+              }
+              break;
+
+            case 'delegate_to_ai_assistant':
+              result = await delegateToAIAssistant(functionArgs, userId);
+              if (result.success) {
+                functionResults.push(`✅ Задача делегирована ${functionArgs.assistant_name}: ${result.result}`);
+              } else {
+                functionResults.push(`❌ Ошибка делегирования: ${result.error}`);
+              }
               break;
 
             case 'get_analytics':
