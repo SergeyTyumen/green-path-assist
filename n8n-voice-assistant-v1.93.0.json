@@ -1,0 +1,925 @@
+{
+  "meta": {
+    "instanceId": "voice-assistant-crm"
+  },
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "voice-assistant",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-trigger",
+      "name": "Webhook Voice Assistant",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [240, 300],
+      "webhookId": "voice-assistant-webhook"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Обработка входящего запроса от голосового помощника\nconst inputData = $json;\n\n// Извлекаем основные данные\nconst message = inputData.message || '';\nconst conversationHistory = inputData.conversation_history || [];\nconst userId = inputData.user_id || 'anonymous';\nconst timestamp = inputData.timestamp || new Date().toISOString();\n\n// Подготавливаем системный промпт для OpenAI\nconst systemPrompt = `Ты - голосовой помощник руководителя строительной компании. \nТвоя задача - анализировать запросы и выполнять действия в CRM системе.\n\nДоступные функции:\n1. create_task - создание новых задач\n2. get_tasks - получение списка задач\n3. get_clients - получение информации о клиентах  \n4. get_leads_stats - статистика по лидам\n5. create_client - создание нового клиента\n6. find_client - поиск клиента\n7. create_estimate - создание сметы\n8. get_analytics - получение аналитики\n\nОтвечай на русском языке, будь вежливым и профессиональным.`;\n\n// Формируем массив сообщений для OpenAI\nconst messages = [\n  { role: 'system', content: systemPrompt },\n  ...conversationHistory.map(msg => ({\n    role: msg.type === 'user' ? 'user' : 'assistant',\n    content: msg.content\n  })),\n  { role: 'user', content: message }\n];\n\nreturn {\n  json: {\n    original_message: message,\n    conversation_history: conversationHistory,\n    user_id: userId,\n    timestamp: timestamp,\n    openai_messages: messages,\n    processed_at: new Date().toISOString()\n  }\n};"
+      },
+      "id": "prepare-request",
+      "name": "Prepare OpenAI Request",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "resource": "chat",
+        "operation": "create",
+        "model": "gpt-4o-mini",
+        "messages": {
+          "values": "={{ $json.openai_messages }}"
+        },
+        "options": {
+          "temperature": 0.7,
+          "maxTokens": 1000,
+          "tools": [
+            {
+              "type": "function",
+              "function": {
+                "name": "create_task",
+                "description": "Создать новую задачу",
+                "parameters": {
+                  "type": "object",
+                  "properties": {
+                    "title": {
+                      "type": "string",
+                      "description": "Заголовок задачи"
+                    },
+                    "description": {
+                      "type": "string", 
+                      "description": "Описание задачи"
+                    },
+                    "priority": {
+                      "type": "string",
+                      "enum": ["low", "medium", "high"],
+                      "description": "Приоритет задачи"
+                    },
+                    "assignee": {
+                      "type": "string",
+                      "description": "Исполнитель задачи"
+                    },
+                    "due_date": {
+                      "type": "string",
+                      "description": "Срок выполнения в формате YYYY-MM-DD"
+                    },
+                    "category": {
+                      "type": "string",
+                      "enum": ["general", "proposal", "estimate", "client", "other"],
+                      "description": "Категория задачи"
+                    }
+                  },
+                  "required": ["title", "description"]
+                }
+              }
+            },
+            {
+              "type": "function",
+              "function": {
+                "name": "get_tasks",
+                "description": "Получить список задач",
+                "parameters": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "string",
+                      "enum": ["pending", "in-progress", "completed", "overdue", "all"],
+                      "description": "Статус задач для фильтрации"
+                    },
+                    "limit": {
+                      "type": "number",
+                      "description": "Лимит количества задач"
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "type": "function",
+              "function": {
+                "name": "get_clients",
+                "description": "Получить информацию о клиентах",
+                "parameters": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "string",
+                      "enum": ["new", "in-progress", "completed", "paused", "all"],
+                      "description": "Статус клиентов для фильтрации"
+                    },
+                    "limit": {
+                      "type": "number",
+                      "description": "Лимит количества клиентов"
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "type": "function",
+              "function": {
+                "name": "get_leads_stats",
+                "description": "Получить статистику по лидам",
+                "parameters": {
+                  "type": "object",
+                  "properties": {
+                    "period": {
+                      "type": "string",
+                      "enum": ["week", "month", "quarter", "year"],
+                      "description": "Период для статистики"
+                    }
+                  },
+                  "required": ["period"]
+                }
+              }
+            },
+            {
+              "type": "function",
+              "function": {
+                "name": "create_client",
+                "description": "Создать нового клиента",
+                "parameters": {
+                  "type": "object",
+                  "properties": {
+                    "name": {
+                      "type": "string",
+                      "description": "Имя клиента"
+                    },
+                    "phone": {
+                      "type": "string",
+                      "description": "Телефон клиента"
+                    },
+                    "email": {
+                      "type": "string",
+                      "description": "Email клиента"
+                    },
+                    "address": {
+                      "type": "string",
+                      "description": "Адрес клиента"
+                    },
+                    "services": {
+                      "type": "array",
+                      "items": {"type": "string"},
+                      "description": "Интересующие услуги"
+                    },
+                    "budget": {
+                      "type": "number",
+                      "description": "Бюджет проекта"
+                    },
+                    "project_description": {
+                      "type": "string",
+                      "description": "Описание проекта"
+                    },
+                    "notes": {
+                      "type": "string",
+                      "description": "Дополнительные заметки"
+                    }
+                  },
+                  "required": ["name"]
+                }
+              }
+            },
+            {
+              "type": "function",
+              "function": {
+                "name": "find_client",
+                "description": "Найти клиента по имени или телефону",
+                "parameters": {
+                  "type": "object",
+                  "properties": {
+                    "query": {
+                      "type": "string",
+                      "description": "Поисковый запрос (имя или телефон)"
+                    }
+                  },
+                  "required": ["query"]
+                }
+              }
+            },
+            {
+              "type": "function",
+              "function": {
+                "name": "create_estimate",
+                "description": "Создать смету",
+                "parameters": {
+                  "type": "object",
+                  "properties": {
+                    "title": {
+                      "type": "string",
+                      "description": "Название сметы"
+                    },
+                    "client_name": {
+                      "type": "string",
+                      "description": "Имя клиента"
+                    },
+                    "description": {
+                      "type": "string",
+                      "description": "Описание работ"
+                    },
+                    "area": {
+                      "type": "number",
+                      "description": "Площадь объекта в кв.м"
+                    },
+                    "services": {
+                      "type": "array",
+                      "items": {"type": "string"},
+                      "description": "Виды работ"
+                    }
+                  },
+                  "required": ["title", "description"]
+                }
+              }
+            },
+            {
+              "type": "function",
+              "function": {
+                "name": "get_analytics",
+                "description": "Получить аналитические данные",
+                "parameters": {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "enum": ["clients", "tasks", "estimates", "revenue"],
+                      "description": "Тип аналитики"
+                    },
+                    "period": {
+                      "type": "string",
+                      "enum": ["week", "month", "quarter", "year"],
+                      "description": "Период для анализа"
+                    }
+                  },
+                  "required": ["type", "period"]
+                }
+              }
+            }
+          ]
+        }
+      },
+      "id": "openai-analysis",
+      "name": "OpenAI Analysis",
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1,
+      "position": [680, 300],
+      "credentials": {
+        "openAiApi": {
+          "id": "openai-credentials",
+          "name": "OpenAI API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "has-tool-calls",
+              "leftValue": "={{ $json.tool_calls && $json.tool_calls.length > 0 }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equal"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "check-function-call",
+      "name": "Check Function Call",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [900, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Извлекаем данные о вызове функции\nconst response = $json;\n\nif (response.tool_calls && response.tool_calls.length > 0) {\n  const toolCall = response.tool_calls[0];\n  const functionName = toolCall.function.name;\n  const functionArgs = JSON.parse(toolCall.function.arguments);\n  \n  return {\n    json: {\n      function_name: functionName,\n      function_args: functionArgs,\n      user_id: $('Prepare OpenAI Request').first().json.user_id,\n      has_function_call: true,\n      original_response: response\n    }\n  };\n} else {\n  return {\n    json: {\n      has_function_call: false,\n      text_response: response.content || response.message?.content || 'Извините, не смог обработать ваш запрос.',\n      original_response: response\n    }\n  };\n}"
+      },
+      "id": "extract-function-call",
+      "name": "Extract Function Call",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1120, 200]
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "function_name",
+              "value": "={{ $json.function_name }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "route-functions",
+      "name": "Route Functions",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3,
+      "position": [1340, 200],
+      "routing": {
+        "rules": [
+          {
+            "expression": "={{ $json.function_name === 'create_task' }}",
+            "output": 0
+          },
+          {
+            "expression": "={{ $json.function_name === 'get_tasks' }}",
+            "output": 1
+          },
+          {
+            "expression": "={{ $json.function_name === 'get_clients' }}",
+            "output": 2
+          },
+          {
+            "expression": "={{ $json.function_name === 'get_leads_stats' }}",
+            "output": 3
+          },
+          {
+            "expression": "={{ $json.function_name === 'create_client' }}",
+            "output": 4
+          },
+          {
+            "expression": "={{ $json.function_name === 'find_client' }}",
+            "output": 5
+          },
+          {
+            "expression": "={{ $json.function_name === 'create_estimate' }}",
+            "output": 6
+          },
+          {
+            "expression": "={{ $json.function_name === 'get_analytics' }}",
+            "output": 7
+          }
+        ],
+        "fallbackOutput": -1
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://nxyzmxqtzsvjezmkmkja.supabase.co/rest/v1/tasks",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Prefer",
+              "value": "return=representation"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "json",
+        "jsonBody": "={{ {\n  title: $json.function_args.title,\n  description: $json.function_args.description,\n  priority: $json.function_args.priority || 'medium',\n  assignee: $json.function_args.assignee,\n  due_date: $json.function_args.due_date,\n  category: $json.function_args.category || 'general',\n  status: 'pending',\n  user_id: $json.user_id\n} }}",
+        "options": {}
+      },
+      "id": "create-task-supabase",
+      "name": "Create Task",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1560, 80],
+      "credentials": {
+        "supabaseApi": {
+          "id": "supabase-credentials",
+          "name": "Supabase API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "=https://nxyzmxqtzsvjezmkmkja.supabase.co/rest/v1/tasks?user_id=eq.{{ $json.user_id }}&order=created_at.desc{{ $json.function_args.status && $json.function_args.status !== 'all' ? '&status=eq.' + $json.function_args.status : '' }}{{ $json.function_args.limit ? '&limit=' + $json.function_args.limit : '&limit=10' }}",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "get-tasks-supabase",
+      "name": "Get Tasks",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1560, 140],
+      "credentials": {
+        "supabaseApi": {
+          "id": "supabase-credentials",
+          "name": "Supabase API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "=https://nxyzmxqtzsvjezmkmkja.supabase.co/rest/v1/clients?user_id=eq.{{ $json.user_id }}&order=created_at.desc{{ $json.function_args.status && $json.function_args.status !== 'all' ? '&status=eq.' + $json.function_args.status : '' }}{{ $json.function_args.limit ? '&limit=' + $json.function_args.limit : '&limit=10' }}",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "get-clients-supabase",
+      "name": "Get Clients",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1560, 200],
+      "credentials": {
+        "supabaseApi": {
+          "id": "supabase-credentials",
+          "name": "Supabase API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://nxyzmxqtzsvjezmkmkja.supabase.co/functions/v1/voice-chat",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "json",
+        "jsonBody": "={{ {\n  action: 'get_leads_stats',\n  period: $json.function_args.period,\n  user_id: $json.user_id\n} }}",
+        "options": {}
+      },
+      "id": "get-leads-stats",
+      "name": "Get Leads Stats",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1560, 260],
+      "credentials": {
+        "supabaseApi": {
+          "id": "supabase-credentials",
+          "name": "Supabase API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://nxyzmxqtzsvjezmkmkja.supabase.co/rest/v1/clients",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Prefer",
+              "value": "return=representation"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "json",
+        "jsonBody": "={{ {\n  name: $json.function_args.name,\n  phone: $json.function_args.phone,\n  email: $json.function_args.email,\n  address: $json.function_args.address,\n  services: $json.function_args.services || [],\n  budget: $json.function_args.budget,\n  project_description: $json.function_args.project_description,\n  notes: $json.function_args.notes,\n  status: 'new',\n  user_id: $json.user_id\n} }}",
+        "options": {}
+      },
+      "id": "create-client-supabase",
+      "name": "Create Client",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1560, 320],
+      "credentials": {
+        "supabaseApi": {
+          "id": "supabase-credentials",
+          "name": "Supabase API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "=https://nxyzmxqtzsvjezmkmkja.supabase.co/rest/v1/clients?user_id=eq.{{ $json.user_id }}&or=(name.ilike.*{{ $json.function_args.query }}*,phone.ilike.*{{ $json.function_args.query }}*)&limit=5",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "find-client-supabase",
+      "name": "Find Client",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1560, 380],
+      "credentials": {
+        "supabaseApi": {
+          "id": "supabase-credentials",
+          "name": "Supabase API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://nxyzmxqtzsvjezmkmkja.supabase.co/functions/v1/ai-estimator",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "json",
+        "jsonBody": "={{ {\n  conversation_mode: true,\n  action: 'create_estimate',\n  data: {\n    title: $json.function_args.title,\n    client_name: $json.function_args.client_name,\n    object_description: $json.function_args.description,\n    area: $json.function_args.area || 100,\n    planned_services: $json.function_args.services || [],\n    user_id: $json.user_id\n  }\n} }}",
+        "options": {}
+      },
+      "id": "create-estimate-supabase",
+      "name": "Create Estimate",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1560, 440],
+      "credentials": {
+        "supabaseApi": {
+          "id": "supabase-credentials",
+          "name": "Supabase API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://nxyzmxqtzsvjezmkmkja.supabase.co/functions/v1/voice-chat",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "json",
+        "jsonBody": "={{ {\n  action: 'get_analytics',\n  type: $json.function_args.type,\n  period: $json.function_args.period,\n  user_id: $json.user_id\n} }}",
+        "options": {}
+      },
+      "id": "get-analytics-supabase",
+      "name": "Get Analytics",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1560, 500],
+      "credentials": {
+        "supabaseApi": {
+          "id": "supabase-credentials",
+          "name": "Supabase API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Форматируем ответ от функции в читаемый текст\nconst functionResponse = $json;\nconst functionName = $('Extract Function Call').first().json.function_name;\n\nlet responseText = '';\n\ntry {\n  switch(functionName) {\n    case 'create_task':\n      if (functionResponse.id) {\n        responseText = `Задача \"${functionResponse.title}\" успешно создана. Приоритет: ${functionResponse.priority}, статус: ${functionResponse.status}.`;\n      } else {\n        responseText = 'Не удалось создать задачу. Попробуйте ещё раз.';\n      }\n      break;\n      \n    case 'get_tasks':\n      if (Array.isArray(functionResponse) && functionResponse.length > 0) {\n        const tasksList = functionResponse.slice(0, 5).map(task => \n          `- ${task.title} (${task.status}, приоритет: ${task.priority})`\n        ).join('\\n');\n        responseText = `Найдено задач: ${functionResponse.length}\\n\\nПоследние задачи:\\n${tasksList}`;\n      } else {\n        responseText = 'Задачи не найдены.';\n      }\n      break;\n      \n    case 'get_clients':\n      if (Array.isArray(functionResponse) && functionResponse.length > 0) {\n        const clientsList = functionResponse.slice(0, 5).map(client => \n          `- ${client.name} (${client.status})${client.phone ? ', тел: ' + client.phone : ''}`\n        ).join('\\n');\n        responseText = `Найдено клиентов: ${functionResponse.length}\\n\\nПоследние клиенты:\\n${clientsList}`;\n      } else {\n        responseText = 'Клиенты не найдены.';\n      }\n      break;\n      \n    case 'create_client':\n      if (functionResponse.id) {\n        responseText = `Клиент \"${functionResponse.name}\" успешно добавлен в CRM.`;\n      } else {\n        responseText = 'Не удалось создать клиента. Проверьте данные.';\n      }\n      break;\n      \n    case 'find_client':\n      if (Array.isArray(functionResponse) && functionResponse.length > 0) {\n        const clientsList = functionResponse.map(client => \n          `- ${client.name}${client.phone ? ' (' + client.phone + ')' : ''} - ${client.status}`\n        ).join('\\n');\n        responseText = `Найдено клиентов: ${functionResponse.length}\\n${clientsList}`;\n      } else {\n        responseText = 'Клиенты не найдены по вашему запросу.';\n      }\n      break;\n      \n    case 'create_estimate':\n      if (functionResponse.success || functionResponse.response) {\n        responseText = functionResponse.response || 'Смета успешно создана.';\n      } else {\n        responseText = 'Не удалось создать смету. Попробуйте ещё раз.';\n      }\n      break;\n      \n    case 'get_leads_stats':\n    case 'get_analytics':\n      if (functionResponse.success && functionResponse.response) {\n        responseText = functionResponse.response;\n      } else if (typeof functionResponse === 'object') {\n        responseText = 'Данные получены, но требуют дополнительной обработки.';\n      } else {\n        responseText = 'Не удалось получить аналитические данные.';\n      }\n      break;\n      \n    default:\n      responseText = 'Функция выполнена, но формат ответа не распознан.';\n  }\n} catch (error) {\n  responseText = `Ошибка при обработке ответа: ${error.message}`;\n}\n\nreturn {\n  json: {\n    response: responseText,\n    function_name: functionName,\n    raw_response: functionResponse,\n    timestamp: new Date().toISOString(),\n    success: true\n  }\n};"
+      },
+      "id": "format-function-response",
+      "name": "Format Function Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1780, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Обрабатываем текстовый ответ от OpenAI\nconst textResponse = $json.text_response || 'Извините, не смог обработать ваш запрос.';\n\nreturn {\n  json: {\n    response: textResponse,\n    function_name: null,\n    raw_response: $json.original_response,\n    timestamp: new Date().toISOString(),\n    success: true\n  }\n};"
+      },
+      "id": "format-text-response",
+      "name": "Format Text Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1120, 400]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseHeaders": {
+          "entries": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Access-Control-Allow-Origin",
+              "value": "*"
+            },
+            {
+              "name": "Access-Control-Allow-Methods",
+              "value": "POST, GET, OPTIONS"
+            },
+            {
+              "name": "Access-Control-Allow-Headers",
+              "value": "Content-Type, Authorization"
+            }
+          ]
+        },
+        "responseBody": "={{ {\n  response: $json.response,\n  success: $json.success,\n  timestamp: $json.timestamp,\n  assistant: 'Голосовой помощник CRM'\n} }}"
+      },
+      "id": "webhook-response",
+      "name": "Webhook Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [2000, 350]
+    }
+  ],
+  "connections": {
+    "Webhook Voice Assistant": {
+      "main": [
+        [
+          {
+            "node": "Prepare OpenAI Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare OpenAI Request": {
+      "main": [
+        [
+          {
+            "node": "OpenAI Analysis",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Analysis": {
+      "main": [
+        [
+          {
+            "node": "Check Function Call",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Function Call": {
+      "main": [
+        [
+          {
+            "node": "Extract Function Call",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Format Text Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Function Call": {
+      "main": [
+        [
+          {
+            "node": "Route Functions",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Route Functions": {
+      "main": [
+        [
+          {
+            "node": "Create Task",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Get Tasks",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Get Clients",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Get Leads Stats",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Create Client",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Find Client",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Create Estimate",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Get Analytics",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Task": {
+      "main": [
+        [
+          {
+            "node": "Format Function Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Tasks": {
+      "main": [
+        [
+          {
+            "node": "Format Function Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Clients": {
+      "main": [
+        [
+          {
+            "node": "Format Function Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Leads Stats": {
+      "main": [
+        [
+          {
+            "node": "Format Function Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Client": {
+      "main": [
+        [
+          {
+            "node": "Format Function Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Find Client": {
+      "main": [
+        [
+          {
+            "node": "Format Function Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Estimate": {
+      "main": [
+        [
+          {
+            "node": "Format Function Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Analytics": {
+      "main": [
+        [
+          {
+            "node": "Format Function Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Function Response": {
+      "main": [
+        [
+          {
+            "node": "Webhook Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Text Response": {
+      "main": [
+        [
+          {
+            "node": "Webhook Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [
+    {
+      "id": "voice-assistant",
+      "name": "Voice Assistant"
+    }
+  ],
+  "triggerCount": 1,
+  "updatedAt": "2025-01-06T20:35:00.000Z",
+  "versionId": "voice-assistant-v1.93.0"
+}
