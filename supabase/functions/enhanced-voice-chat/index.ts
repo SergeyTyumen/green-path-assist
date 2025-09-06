@@ -24,7 +24,7 @@ interface UserSettings {
   ai_settings: any;
 }
 
-async function callOpenAIWithTools(messages: AIMessage[], settings: UserSettings, userId: string): Promise<string> {
+async function callOpenAIWithTools(messages: AIMessage[], settings: UserSettings, userId: string, authToken?: string): Promise<string> {
   const openaiApiKey = Deno.env.get('OPENAI_API_KEY');
   if (!openaiApiKey) {
     throw new Error('OpenAI API key not configured');
@@ -184,7 +184,7 @@ async function callOpenAIWithTools(messages: AIMessage[], settings: UserSettings
       console.log('Function call detected:', functionName, functionArgs);
       
       // Выполняем функцию
-      const functionResult = await executeFunction(functionName, functionArgs, userId);
+      const functionResult = await executeFunction(functionName, functionArgs, userId, authToken);
       
       // Отправляем результат обратно в OpenAI для финального ответа
       const finalMessages = [
@@ -227,7 +227,7 @@ async function callOpenAIWithTools(messages: AIMessage[], settings: UserSettings
   }
 }
 
-async function executeFunction(functionName: string, args: any, userId: string): Promise<any> {
+async function executeFunction(functionName: string, args: any, userId: string, userToken?: string): Promise<any> {
   console.log(`Executing function: ${functionName} with args:`, args);
   
   switch (functionName) {
@@ -241,10 +241,10 @@ async function executeFunction(functionName: string, args: any, userId: string):
       return await getClients(userId, args.status || 'all');
 
     case 'create_estimate':
-      return await createEstimateViaAI(userId, args);
+      return await createEstimateViaAI(userId, args, userToken);
       
     case 'delegate_to_assistant':
-      return await delegateToAssistant(userId, args);
+      return await delegateToAssistant(userId, args, userToken);
       
     default:
       return { error: `Unknown function: ${functionName}` };
@@ -327,9 +327,12 @@ async function getClients(userId: string, status: string) {
 }
 
 // Создание сметы через AI-Сметчика
-async function createEstimateViaAI(userId: string, args: any) {
+async function createEstimateViaAI(userId: string, args: any, userToken?: string) {
   try {
     console.log('Creating estimate via AI-Estimator:', args);
+    
+    // Получаем пользовательский токен для аутентификации
+    const authToken = userToken || Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
     
     const { data, error } = await supabase.functions.invoke('ai-estimator', {
       body: {
@@ -343,13 +346,13 @@ async function createEstimateViaAI(userId: string, args: any) {
         }
       },
       headers: {
-        Authorization: `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`
+        Authorization: `Bearer ${authToken}`
       }
     });
 
     if (error) throw error;
     
-    if (data.success) {
+    if (data && data.success) {
       return {
         success: true,
         message: `✅ Смета создана через AI-Сметчика!\n\n${data.response}`,
@@ -359,7 +362,7 @@ async function createEstimateViaAI(userId: string, args: any) {
     } else {
       return {
         success: false,
-        message: `❌ Ошибка создания сметы: ${data.error || 'Неизвестная ошибка'}`
+        message: `❌ Ошибка создания сметы: ${data?.error || 'Неизвестная ошибка'}`
       };
     }
   } catch (error) {
@@ -372,9 +375,12 @@ async function createEstimateViaAI(userId: string, args: any) {
 }
 
 // Делегирование к другим AI-ассистентам
-async function delegateToAssistant(userId: string, args: any) {
+async function delegateToAssistant(userId: string, args: any, userToken?: string) {
   try {
     console.log('Delegating to assistant:', args);
+    
+    // Получаем пользовательский токен для аутентификации
+    const authToken = userToken || Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
     
     const { data, error } = await supabase.functions.invoke('assistant-router', {
       body: {
@@ -383,13 +389,13 @@ async function delegateToAssistant(userId: string, args: any) {
         additional_data: args.additional_data || {}
       },
       headers: {
-        Authorization: `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`
+        Authorization: `Bearer ${authToken}`
       }
     });
 
     if (error) throw error;
     
-    if (data.success) {
+    if (data && data.success) {
       return {
         success: true,
         message: `✅ Задача делегирована ассистенту "${args.assistant_name}": ${JSON.stringify(data.result)}`
@@ -397,7 +403,7 @@ async function delegateToAssistant(userId: string, args: any) {
     } else {
       return {
         success: false,
-        message: `❌ Ошибка делегирования: ${data.error || 'Неизвестная ошибка'}`
+        message: `❌ Ошибка делегирования: ${data?.error || 'Неизвестная ошибка'}`
       };
     }
   } catch (error) {
@@ -505,7 +511,7 @@ serve(async (req) => {
     ];
 
     // Вызываем OpenAI с поддержкой функций для работы с базой данных
-    const aiResponse = await callOpenAIWithTools(messages, userSettings, user.id);
+    const aiResponse = await callOpenAIWithTools(messages, userSettings, user.id, token);
 
     // Сохраняем историю команд
     await supabase
