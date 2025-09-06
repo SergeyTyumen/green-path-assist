@@ -45,14 +45,16 @@ const navigationItems = [
 ];
 
 export function AppSidebar() {
-  const { state, setOpen } = useSidebar();
+  const { state, setOpen, isMobile } = useSidebar();
   const location = useLocation();
   const currentPath = location.pathname;
   const collapsed = state === "collapsed";
 
   const handleNavClick = () => {
-    // Auto-collapse sidebar when navigation item is clicked
-    setOpen(false);
+    // Auto-collapse sidebar when navigation item is clicked on mobile
+    if (isMobile) {
+      setOpen(false);
+    }
   };
 
   const isActive = (path: string) => {
@@ -71,8 +73,9 @@ export function AppSidebar() {
 
   return (
     <Sidebar 
-      className={`${collapsed ? "w-14" : "w-64"} transition-all duration-300 border-r bg-gradient-to-b from-card to-muted/30`}
+      variant={isMobile ? "floating" : "sidebar"}
       collapsible="icon"
+      className="border-r bg-gradient-to-b from-card to-muted/30"
     >
       <SidebarContent className="p-0">
         <div className="p-4 border-b">
@@ -83,7 +86,7 @@ export function AppSidebar() {
                 alt="ParkConstructionCRM" 
                 className="h-6 w-6" 
               />
-              ParkConstructionCRM
+              <span className="truncate">ParkConstructionCRM</span>
             </h2>
           )}
           {collapsed && (
@@ -113,7 +116,7 @@ export function AppSidebar() {
                       onClick={handleNavClick}
                     >
                       <item.icon className="h-4 w-4 shrink-0" />
-                      {!collapsed && <span className="truncate">{item.title}</span>}
+                      {(!collapsed || isMobile) && <span className="truncate">{item.title}</span>}
                     </NavLink>
                   </SidebarMenuButton>
                 </SidebarMenuItem>

@@ -11,12 +11,12 @@ export function Layout() {
 
   return (
     <ProtectedRoute>
-      <SidebarProvider>
+      <SidebarProvider defaultOpen={false}>
         <div className="min-h-screen flex w-full bg-background overflow-x-hidden">
           <AppSidebar />
           
           <div className="flex-1 flex flex-col min-w-0">
-            <header className="h-14 flex items-center justify-between px-2 sm:px-4 border-b bg-card/50 backdrop-blur-sm shrink-0">
+            <header className="h-14 flex items-center justify-between px-2 sm:px-4 border-b bg-card/50 backdrop-blur-sm shrink-0 sticky top-0 z-40">
               <div className="flex items-center gap-2 sm:gap-4 min-w-0">
                 <SidebarTrigger className="h-9 w-9 sm:h-10 sm:w-10 p-0 hover:bg-primary/10 hover:text-primary text-primary border border-primary/20 rounded-md shrink-0">
                   <LayoutGrid className="h-5 w-5 sm:h-6 sm:w-6" />
