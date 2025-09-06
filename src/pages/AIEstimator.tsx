@@ -24,6 +24,8 @@ import {
   Sparkles
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { supabase } from '@/integrations/supabase/client';
+import { EstimatorSettings } from '@/components/ai-settings/EstimatorSettings';
 
 interface TechnicalSpecification {
   objectDescription: string;
@@ -185,58 +187,74 @@ const AIEstimator = () => {
     setCalculating(true);
     
     try {
-      // Создаем позиции для сметы на основе технического задания
+      // Формируем данные для отправки в AI Estimator
       const allServices = [...techSpec.selectedServices, ...techSpec.customServices];
       
-      // Базовые цены для ландшафтных работ (за м² или за единицу)
-      const basePrices: Record<string, { price: number; unit: string }> = {
-        'Ландшафтный дизайн': { price: 800, unit: 'м²' },
-        'Автоматический полив': { price: 1500, unit: 'м²' },
-        'Устройство газона': { price: 450, unit: 'м²' },
-        'Посадка растений': { price: 1200, unit: 'м²' },
-        'Мощение дорожек': { price: 2200, unit: 'м²' },
-        'Устройство освещения': { price: 3500, unit: 'точка' },
-        'Водные элементы': { price: 25000, unit: 'шт' },
-        'Малые архитектурные формы': { price: 15000, unit: 'шт' },
-        'Ограждения и заборы': { price: 1800, unit: 'м.п.' },
-        'Дренажная система': { price: 900, unit: 'м²' }
-      };
+      // Парсим площадь из описания или используем базовую
+      let area = 100;
+      const areaMatch = techSpec.objectDescription.match(/(\d+)\s*(м²|кв\.?\s*м)/i);
+      if (areaMatch) {
+        area = parseInt(areaMatch[1]);
+      }
 
-      const calculatedResults: EstimateResult[] = allServices.map((service, index) => {
-        const priceInfo = basePrices[service] || { price: 1000, unit: 'м²' };
-        const basePrice = priceInfo.price;
-        let coefficient = 1.0;
-        
-        // Увеличиваем коэффициент в зависимости от сложности объекта
-        if (techSpec.selectedMaterials.includes('Природный камень')) coefficient += 0.15;
-        if (techSpec.selectedMaterials.includes('Система капельного полива')) coefficient += 0.1;
-        if (techSpec.location.toLowerCase().includes('москва')) coefficient += 0.2;
-        
-        // Для примера используем базовую площадь 100 м²
-        const area = 100;
-        const pricePerM2 = Math.round(basePrice * coefficient);
-        const total = Math.round(area * pricePerM2);
+      // Формируем список услуг с количествами
+      const services = allServices.map(service => ({
+        service: service,
+        quantity: area,
+        unit: 'м²',
+        area: area
+      }));
 
-        return {
-          position: service,
-          area,
-          pricePerM2,
-          coefficient,
-          total
-        };
+      // Вызываем AI Estimator
+      const { data, error } = await supabase.functions.invoke('ai-estimator', {
+        body: {
+          action: 'calculate_materials',
+          data: { services }
+        }
       });
+
+      if (error) {
+        throw new Error(error.message);
+      }
+
+      if (!data.success) {
+        throw new Error(data.error || 'Ошибка расчета материалов');
+      }
+
+      // Преобразуем результат в формат для отображения
+      const calculatedResults: EstimateResult[] = data.calculations.map((calc: any) => ({
+        position: calc.service,
+        area: calc.quantity,
+        pricePerM2: calc.total_cost ? Math.round(calc.total_cost / calc.quantity) : 0,
+        coefficient: 1.0,
+        total: calc.total_cost || 0
+      }));
 
       setResults(calculatedResults);
       
-      // Создаем новую смету в системе (здесь будет интеграция с базой данных)
+      // Создаем смету в системе
+      await supabase.functions.invoke('ai-estimator', {
+        body: {
+          action: 'create_estimate',
+          data: {
+            estimate: {
+              title: `Смета: ${techSpec.objectDescription.slice(0, 50)}...`,
+              services: services,
+              valid_until: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0] // +30 дней
+            }
+          }
+        }
+      });
+      
       toast({
         title: "Смета создана",
-        description: "ИИ-сметчик успешно обработал техническое задание и создал смету"
+        description: "ИИ-сметчик успешно рассчитал материалы и создал смету на основе ваших данных"
       });
     } catch (error) {
+      console.error('Error calculating estimate:', error);
       toast({
         title: "Ошибка расчета",
-        description: "Не удалось рассчитать смету",
+        description: error.message || "Не удалось рассчитать смету",
         variant: "destructive"
       });
     } finally {

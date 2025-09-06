@@ -16,9 +16,11 @@ interface ServiceInput {
   service: string;
   quantity: number;
   unit: string;
+  area?: number;
 }
 
 interface MaterialCalculation {
+  material_id?: string;
   name: string;
   unit: string;
   thickness?: number;
@@ -26,6 +28,8 @@ interface MaterialCalculation {
   bulk_density?: number;
   calculation: string;
   quantity: number;
+  unit_price?: number;
+  total_price?: number;
   error?: string;
 }
 
@@ -34,32 +38,55 @@ interface ServiceOutput {
   quantity: number;
   unit: string;
   materials: MaterialCalculation[];
+  service_price?: number;
+  total_cost?: number;
 }
 
-// AI-Сметчик: расчёт расхода материалов по услугам
+// Основная функция расчёта материалов с интеграцией настроек
 async function calculateMaterialConsumption(services: ServiceInput[], userId: string): Promise<ServiceOutput[]> {
   const results: ServiceOutput[] = [];
 
-  // Получаем все материалы пользователя
-  const { data: allMaterials, error: materialsError } = await supabase
-    .from('materials')
-    .select('*')
-    .eq('user_id', userId);
+  // Получаем настройки пользователя
+  const { data: userSettings } = await supabase
+    .from('ai_assistant_settings')
+    .select('settings')
+    .eq('user_id', userId)
+    .eq('assistant_type', 'estimator')
+    .maybeSingle();
 
-  if (materialsError) {
-    console.error('Error fetching materials:', materialsError);
-    return results;
-  }
+  const settings = userSettings?.settings || {};
+  console.log('Estimator settings:', settings);
 
-  console.log(`Found ${allMaterials?.length || 0} materials for user`);
+  // Получаем все материалы и услуги пользователя
+  const [materialsRes, servicesRes] = await Promise.all([
+    supabase.from('materials').select('*').eq('user_id', userId),
+    supabase.from('services').select('*').eq('user_id', userId)
+  ]);
+
+  const allMaterials = materialsRes.data || [];
+  const allServices = servicesRes.data || [];
+  
+  console.log(`Found ${allMaterials.length} materials and ${allServices.length} services for user`);
 
   for (const service of services) {
     console.log(`Processing service: ${service.service}`);
     
+    // Ищем услугу в базе данных пользователя
+    const dbService = allServices.find(s => 
+      s.name.toLowerCase().includes(service.service.toLowerCase()) ||
+      service.service.toLowerCase().includes(s.name.toLowerCase())
+    );
+
+    let servicePrice = 0;
+    if (dbService) {
+      servicePrice = settings.include_labor_costs ? 
+        (dbService.price * service.quantity) : 0;
+    }
+
     // Проверяем существующие нормы для данной услуги
     const { data: norms, error: normsError } = await supabase
       .from('norms')
-      .select('*')
+      .select('*, materials!norms_material_id_fkey(*)')
       .eq('user_id', userId)
       .eq('service_name', service.service)
       .eq('active', true);
@@ -76,7 +103,8 @@ async function calculateMaterialConsumption(services: ServiceInput[], userId: st
           calculation: '',
           quantity: 0,
           error: `Ошибка получения норм: ${normsError.message}`
-        }]
+        }],
+        service_price: servicePrice
       });
       continue;
     }
@@ -87,146 +115,71 @@ async function calculateMaterialConsumption(services: ServiceInput[], userId: st
       // Используем существующие нормы
       console.log(`Found ${norms.length} norms for service: ${service.service}`);
       
-      for (const norm of norms) {
-        const material = allMaterials?.find(m => m.id === norm.material_id);
-        if (material) {
-          materialsToUse.push({
-            material,
-            compaction_ratio: norm.compaction_ratio,
-            thickness: norm.thickness,
-            mandatory: norm.mandatory
-          });
-        }
-      }
+      materialsToUse = norms.map(norm => ({
+        material: norm.materials,
+        compaction_ratio: norm.compaction_ratio,
+        thickness: norm.thickness,
+        mandatory: norm.mandatory
+      })).filter(item => item.material);
     } else {
       // Автоматически предлагаем материалы на основе названия услуги
       console.log(`No norms found for service: ${service.service}, suggesting materials`);
       
-      const serviceLower = service.service.toLowerCase();
-      const suggestedMaterials = allMaterials?.filter(material => {
-        const materialLower = material.name.toLowerCase();
-        const purposeLower = (material.purpose || '').toLowerCase();
-        const characteristicsLower = (material.characteristics || '').toLowerCase();
-        
-        // Умное сопоставление на основе названия, назначения и характеристик
-        const searchTerms = [materialLower, purposeLower, characteristicsLower].join(' ');
-        
-        if (serviceLower.includes('газон') || serviceLower.includes('трав')) {
-          return searchTerms.includes('трав') || searchTerms.includes('газон') || 
-                 searchTerms.includes('семен') || searchTerms.includes('рулон');
-        }
-        
-        if (serviceLower.includes('плитка') || serviceLower.includes('мощение')) {
-          return searchTerms.includes('плитка') || searchTerms.includes('брусчатка') ||
-                 searchTerms.includes('песок') || searchTerms.includes('цемент');
-        }
-        
-        if (serviceLower.includes('бордюр')) {
-          return searchTerms.includes('бордюр') || materialLower.startsWith('бр');
-        }
-        
-        if (serviceLower.includes('дренаж')) {
-          return searchTerms.includes('щебень') || searchTerms.includes('геотекстиль') ||
-                 searchTerms.includes('дренаж');
-        }
-        
-        if (serviceLower.includes('подсыпка') || serviceLower.includes('основание')) {
-          return searchTerms.includes('песок') || searchTerms.includes('щебень');
-        }
-        
-        return false;
-      }) || [];
-
+      const suggestedMaterials = suggestMaterialsForService(service.service, allMaterials);
       materialsToUse = suggestedMaterials.map(material => ({
         material,
-        compaction_ratio: 1.2, // Стандартный коэффициент уплотнения
-        thickness: 0.1, // Стандартная толщина 10 см
+        compaction_ratio: 1.2,
+        thickness: 0.1,
         mandatory: true
       }));
     }
 
     const materials: MaterialCalculation[] = [];
+    let totalMaterialCost = 0;
 
     for (const { material, compaction_ratio, thickness, mandatory } of materialsToUse) {
       try {
-        let calculatedQuantity = 0;
-        let calculationFormula = '';
+        const calculation = calculateMaterialQuantity(
+          service, 
+          material, 
+          thickness, 
+          compaction_ratio,
+          settings
+        );
 
-        // Расчёт в зависимости от единиц измерения
-        switch (material.unit) {
-          case 'м³':
-            // м³ = quantity * thickness * compaction_ratio
-            calculatedQuantity = service.quantity * (thickness || 0.1) * (compaction_ratio || 1);
-            calculationFormula = `${service.quantity} * ${thickness || 0.1} * ${compaction_ratio || 1}`;
-            break;
+        // Применяем настройки ценообразования
+        let unitPrice = material.price || 0;
+        let totalPrice = unitPrice * calculation.quantity;
 
-          case 'тн':
-            // тн = quantity * thickness * compaction_ratio * density
-            const density = 1.5; // Стандартная плотность 1.5 т/м³
-            calculatedQuantity = service.quantity * (thickness || 0.1) * (compaction_ratio || 1) * density;
-            calculationFormula = `${service.quantity} * ${thickness || 0.1} * ${compaction_ratio || 1} * ${density}`;
-            break;
-
-          case 'м²':
-            // м² = quantity (площадь 1:1)
-            calculatedQuantity = service.quantity;
-            calculationFormula = `${service.quantity}`;
-            break;
-
-          case 'шт':
-            // шт - зависит от типа материала
-            if (material.name.toLowerCase().includes('плитка') || material.name.toLowerCase().includes('брусчатка')) {
-              // Для плитки: примерно 25 шт/м²
-              calculatedQuantity = Math.ceil(service.quantity * 25);
-              calculationFormula = `${service.quantity} * 25 шт/м²`;
-            } else {
-              // Для других материалов - 1:1
-              calculatedQuantity = service.quantity;
-              calculationFormula = `${service.quantity}`;
-            }
-            break;
-
-          case 'кг':
-            // кг = quantity * норма расхода на единицу
-            const normPerUnit = 0.5; // 0.5 кг на единицу по умолчанию
-            calculatedQuantity = service.quantity * normPerUnit;
-            calculationFormula = `${service.quantity} * ${normPerUnit} кг/ед`;
-            break;
-
-          case 'м.п':
-          case 'п.м':
-            // погонные метры = quantity
-            calculatedQuantity = service.quantity;
-            calculationFormula = `${service.quantity}`;
-            break;
-
-          case 'л':
-            // литры = quantity * норма расхода
-            const normPerSqm = 0.1; // 0.1 л на м²
-            calculatedQuantity = service.quantity * normPerSqm;
-            calculationFormula = `${service.quantity} * ${normPerSqm} л/м²`;
-            break;
-
-          default:
-            // Неизвестная единица - пропорциональный расчёт
-            calculatedQuantity = service.quantity;
-            calculationFormula = `${service.quantity} (пропорциональный расчёт)`;
+        // Применяем наценку
+        if (settings.markup_percentage) {
+          totalPrice *= (1 + settings.markup_percentage / 100);
         }
 
-        // Округляем до 2 знаков после запятой
-        calculatedQuantity = Math.round(calculatedQuantity * 100) / 100;
+        // Сезонные корректировки
+        if (settings.seasonal_price_adjustment) {
+          const currentMonth = new Date().getMonth();
+          // Зимой +10%, летом базовая цена
+          if (currentMonth >= 11 || currentMonth <= 2) {
+            totalPrice *= 1.1;
+          }
+        }
+
+        totalMaterialCost += totalPrice;
 
         materials.push({
+          material_id: material.id,
           name: material.name,
           unit: material.unit,
           thickness: thickness,
           compaction_ratio: compaction_ratio,
-          bulk_density: null,
-          calculation: calculationFormula,
-          quantity: calculatedQuantity
+          calculation: calculation.formula,
+          quantity: calculation.quantity,
+          unit_price: Math.round(unitPrice * 100) / 100,
+          total_price: Math.round(totalPrice * 100) / 100
         });
 
-        console.log(`Calculated for ${material.name}: ${calculatedQuantity} ${material.unit}`);
+        console.log(`Calculated for ${material.name}: ${calculation.quantity} ${material.unit} = ${totalPrice.toFixed(2)} руб`);
 
       } catch (error) {
         console.error(`Error calculating material ${material.name}:`, error);
@@ -240,126 +193,253 @@ async function calculateMaterialConsumption(services: ServiceInput[], userId: st
       }
     }
 
-    // Если материалы не найдены, сообщаем об этом
+    // Если материалы не найдены, создаем базовый расчет
     if (materials.length === 0) {
       materials.push({
-        name: 'Нет данных',
+        name: 'Материалы не определены',
         unit: '',
         calculation: '',
         quantity: 0,
-        error: `Материалы для услуги "${service.service}" не найдены. Добавьте материалы в номенклатуру или создайте нормы расхода.`
+        error: `Для услуги "${service.service}" не найдены подходящие материалы. Добавьте материалы в номенклатуру или создайте нормы расхода.`
       });
+    }
+
+    // Общая стоимость услуги с материалами
+    let totalServiceCost = totalMaterialCost + servicePrice;
+
+    // Применяем НДС если настроен
+    if (settings.tax_rate) {
+      totalServiceCost *= (1 + settings.tax_rate / 100);
     }
 
     results.push({
       service: service.service,
       quantity: service.quantity,
       unit: service.unit,
-      materials
+      materials,
+      service_price: Math.round(servicePrice * 100) / 100,
+      total_cost: Math.round(totalServiceCost * 100) / 100
     });
   }
 
   return results;
 }
 
-// Сохранение результатов расчёта в smeta_items
-async function saveSmetaItems(taskId: string, userId: string, calculations: ServiceOutput[]) {
-  const smetaItems = [];
+// Предложение материалов на основе названия услуги
+function suggestMaterialsForService(serviceName: string, allMaterials: any[]): any[] {
+  const serviceLower = serviceName.toLowerCase();
+  
+  return allMaterials.filter(material => {
+    const materialLower = material.name.toLowerCase();
+    const purposeLower = (material.purpose || '').toLowerCase();
+    const characteristicsLower = (material.characteristics || '').toLowerCase();
+    const searchTerms = [materialLower, purposeLower, characteristicsLower].join(' ');
+    
+    // Интеллектуальное сопоставление
+    if (serviceLower.includes('газон') || serviceLower.includes('трав')) {
+      return searchTerms.includes('трав') || searchTerms.includes('газон') || 
+             searchTerms.includes('семен') || searchTerms.includes('рулон');
+    }
+    
+    if (serviceLower.includes('плитка') || serviceLower.includes('мощение')) {
+      return searchTerms.includes('плитка') || searchTerms.includes('брусчатка') ||
+             searchTerms.includes('песок') || searchTerms.includes('цемент');
+    }
+    
+    if (serviceLower.includes('бордюр')) {
+      return searchTerms.includes('бордюр') || materialLower.startsWith('бр');
+    }
+    
+    if (serviceLower.includes('дренаж')) {
+      return searchTerms.includes('щебень') || searchTerms.includes('геотекстиль') ||
+             searchTerms.includes('дренаж');
+    }
+    
+    if (serviceLower.includes('подсыпка') || serviceLower.includes('основание')) {
+      return searchTerms.includes('песок') || searchTerms.includes('щебень');
+    }
+    
+    return false;
+  });
+}
 
-  for (const service of calculations) {
-    for (const material of service.materials) {
-      if (!material.error) {
-        smetaItems.push({
-          user_id: userId,
-          task_id: taskId,
-          service_name: service.service,
-          service_quantity: service.quantity,
-          service_unit: service.unit,
-          material_name: material.name,
-          material_unit: material.unit,
-          thickness: material.thickness,
-          compaction_ratio: material.compaction_ratio,
-          bulk_density: material.bulk_density,
-          calculation_formula: material.calculation,
-          calculated_quantity: material.quantity
+// Расчёт количества материала
+function calculateMaterialQuantity(
+  service: ServiceInput, 
+  material: any, 
+  thickness: number, 
+  compactionRatio: number,
+  settings: any
+): { quantity: number; formula: string } {
+  let quantity = 0;
+  let formula = '';
+
+  const area = service.area || service.quantity;
+
+  switch (material.unit) {
+    case 'м³':
+      quantity = area * (thickness || 0.1) * (compactionRatio || 1);
+      formula = `${area} * ${thickness || 0.1} * ${compactionRatio || 1}`;
+      break;
+
+    case 'тн':
+      const density = 1.5;
+      quantity = area * (thickness || 0.1) * (compactionRatio || 1) * density;
+      formula = `${area} * ${thickness || 0.1} * ${compactionRatio || 1} * ${density}`;
+      break;
+
+    case 'м²':
+      quantity = area;
+      formula = `${area}`;
+      break;
+
+    case 'шт':
+      if (material.name.toLowerCase().includes('плитка') || material.name.toLowerCase().includes('брусчатка')) {
+        quantity = Math.ceil(area * 25);
+        formula = `${area} * 25 шт/м²`;
+      } else {
+        quantity = area;
+        formula = `${area}`;
+      }
+      break;
+
+    case 'кг':
+      const normPerUnit = 0.5;
+      quantity = area * normPerUnit;
+      formula = `${area} * ${normPerUnit} кг/ед`;
+      break;
+
+    case 'м.п':
+    case 'п.м':
+      quantity = area;
+      formula = `${area}`;
+      break;
+
+    case 'л':
+      const normPerSqm = 0.1;
+      quantity = area * normPerSqm;
+      formula = `${area} * ${normPerSqm} л/м²`;
+      break;
+
+    default:
+      quantity = area;
+      formula = `${area} (пропорциональный расчёт)`;
+  }
+
+  return {
+    quantity: Math.round(quantity * 100) / 100,
+    formula
+  };
+}
+
+// Создание полной сметы в базе данных
+async function createFullEstimate(
+  title: string,
+  clientId: string | null,
+  calculations: ServiceOutput[],
+  userId: string,
+  validUntil?: string
+): Promise<any> {
+  
+  // Подсчитываем общую сумму
+  const totalAmount = calculations.reduce((sum, calc) => sum + (calc.total_cost || 0), 0);
+
+  // Создаем смету
+  const { data: estimate, error: estimateError } = await supabase
+    .from('estimates')
+    .insert({
+      user_id: userId,
+      client_id: clientId,
+      title,
+      total_amount: Math.round(totalAmount),
+      valid_until: validUntil,
+      status: 'draft'
+    })
+    .select()
+    .single();
+
+  if (estimateError) {
+    throw new Error(`Error creating estimate: ${estimateError.message}`);
+  }
+
+  // Создаем позиции сметы
+  const estimateItems = [];
+  
+  for (const calculation of calculations) {
+    for (const material of calculation.materials) {
+      if (!material.error && material.material_id) {
+        estimateItems.push({
+          estimate_id: estimate.id,
+          material_id: material.material_id,
+          quantity: material.quantity,
+          unit_price: material.unit_price || 0,
+          total: material.total_price || 0
         });
       }
     }
   }
 
-  if (smetaItems.length > 0) {
-    const { error } = await supabase
-      .from('smeta_items')
-      .insert(smetaItems);
+  if (estimateItems.length > 0) {
+    const { error: itemsError } = await supabase
+      .from('estimate_items')
+      .insert(estimateItems);
 
-    if (error) {
-      console.error('Error saving smeta items:', error);
-      throw error;
+    if (itemsError) {
+      console.error('Error saving estimate items:', itemsError);
     }
   }
+
+  return {
+    estimate,
+    items_count: estimateItems.length,
+    calculations
+  };
 }
 
-// Интерактивный диалог для сбора информации
+// Обработка диалогового режима
 async function handleConversationalRequest(task: string, data: any, userId: string): Promise<any> {
-  console.log('Handling conversational request:', task);
-  console.log('Data provided:', data);
+  console.log('Handling conversational estimator request:', task);
 
-  // Анализируем запрос и определяем что нужно для выполнения задачи
+  // Анализируем запрос и извлекаем информацию
   const missingInfo = [];
   let clientInfo = null;
 
-  // Проверяем упоминания клиентов
+  // Поиск клиента
   if (data.mentioned_clients && data.mentioned_clients.length > 0) {
     clientInfo = data.mentioned_clients[0];
-    console.log('Found client info:', clientInfo);
-  } else {
-    // Ищем клиента по имени в тексте задачи
-    const taskLower = task.toLowerCase();
-    if (taskLower.includes('клиент') || taskLower.includes('для ')) {
-      missingInfo.push('Уточните для какого клиента создавать смету (имя или телефон)');
-    }
-  }
-
-  // Проверяем географию объекта
-  if (!data.object_location && !clientInfo?.address) {
-    missingInfo.push('Где находится объект? (адрес или район города)');
+  } else if (task.toLowerCase().includes('клиент')) {
+    missingInfo.push('Уточните для какого клиента создавать смету (имя или телефон)');
   }
 
   // Проверяем описание объекта
-  if (!data.object_description) {
-    missingInfo.push('Опишите объект: тип (дом, дача, коттедж), площадь, особенности');
+  if (!data.object_description && !data.area) {
+    missingInfo.push('Опишите объект: площадь, тип работ, особенности');
   }
 
   // Проверяем какие работы планируются
   if (!data.planned_services && (!data.available_services || data.available_services.length === 0)) {
-    missingInfo.push('Какие виды работ планируются? (например: газон, дорожки, дренаж, освещение)');
+    missingInfo.push('Какие виды работ планируются? (например: газон 100м², дорожки 20м², дренаж 50м.п.)');
   }
 
-  // Если информации недостаточно, возвращаем вопросы
   if (missingInfo.length > 0) {
     return {
       needs_clarification: true,
       questions: missingInfo.join('\n\n'),
-      context: {
-        task,
-        client_info: clientInfo,
-        available_services: data.available_services || [],
-        available_materials: data.available_materials || []
-      }
+      context: { task, client_info: clientInfo }
     };
   }
 
-  // Если достаточно информации, создаем смету
-  return await createEstimateFromData(task, data, clientInfo, userId);
+  // Создаем смету на основе данных
+  return await createEstimateFromConversation(task, data, clientInfo, userId);
 }
 
-// Создание сметы на основе собранных данных
-async function createEstimateFromData(task: string, data: any, clientInfo: any, userId: string): Promise<any> {
+// Создание сметы из диалогового режима
+async function createEstimateFromConversation(task: string, data: any, clientInfo: any, userId: string): Promise<any> {
   try {
-    // Определяем услуги на основе описания задачи и доступных услуг
-    const plannedServices = identifyServices(task, data);
+    // Парсим услуги из текста
+    const services = parseServicesFromText(task);
     
-    if (plannedServices.length === 0) {
+    if (services.length === 0) {
       return {
         success: false,
         error: 'Не удалось определить требуемые услуги. Уточните какие работы нужно выполнить.'
@@ -367,41 +447,26 @@ async function createEstimateFromData(task: string, data: any, clientInfo: any, 
     }
 
     // Рассчитываем материалы
-    const calculations = await calculateMaterialConsumption(plannedServices, userId);
+    const calculations = await calculateMaterialConsumption(services, userId);
 
-    // Создаем задачу для отслеживания
-    const { data: newTask, error: taskError } = await supabase
-      .from('tasks')
-      .insert({
-        user_id: userId,
-        title: `Смета для ${clientInfo?.name || 'клиента'}`,
-        description: `${task}\n\nОбъект: ${data.object_location || clientInfo?.address || 'не указан'}\nОписание: ${data.object_description || 'не указано'}`,
-        category: 'estimate',
-        status: 'in_progress',
-        client_id: clientInfo?.id,
-        ai_agent: 'ai-estimator'
-      })
-      .select()
-      .single();
-
-    if (taskError) {
-      console.error('Error creating task:', taskError);
-    }
-
-    // Сохраняем результаты расчетов
-    if (newTask?.id) {
-      await saveSmetaItems(newTask.id, userId, calculations);
-    }
+    // Создаем смету в базе
+    const result = await createFullEstimate(
+      `Смета для ${clientInfo?.name || 'клиента'}`,
+      clientInfo?.id || null,
+      calculations,
+      userId
+    );
 
     return {
       success: true,
       response: formatEstimateResponse(calculations, clientInfo, data),
-      task_id: newTask?.id,
-      calculations
+      estimate_id: result.estimate.id,
+      calculations: calculations,
+      total_amount: result.estimate.total_amount
     };
 
   } catch (error) {
-    console.error('Error creating estimate:', error);
+    console.error('Error creating estimate from conversation:', error);
     return {
       success: false,
       error: `Ошибка при создании сметы: ${error.message}`
@@ -409,165 +474,189 @@ async function createEstimateFromData(task: string, data: any, clientInfo: any, 
   }
 }
 
-// Определение услуг на основе текста задачи
-function identifyServices(task: string, data: any): ServiceInput[] {
+// Парсинг услуг из текста
+function parseServicesFromText(text: string): ServiceInput[] {
   const services: ServiceInput[] = [];
-  const taskLower = task.toLowerCase();
+  const textLower = text.toLowerCase();
 
-  // Площадь объекта (примерная, если не указана)
-  let estimatedArea = 100; // м² по умолчанию
-  
-  // Пытаемся извлечь площадь из описания
-  const areaMatch = task.match(/(\d+)\s*(м²|кв\.?\s*м|квадрат)/i);
+  // Ищем площадь объекта
+  let defaultArea = 100;
+  const areaMatch = text.match(/(\d+)\s*(м²|кв\.?\s*м|квадрат)/i);
   if (areaMatch) {
-    estimatedArea = parseInt(areaMatch[1]);
+    defaultArea = parseInt(areaMatch[1]);
   }
 
-  // Определяем услуги на основе ключевых слов
-  if (taskLower.includes('газон') || taskLower.includes('трав')) {
-    services.push({ service: 'Устройство газона', quantity: estimatedArea, unit: 'м²' });
+  // Ищем конкретные услуги с количеством
+  const servicePatterns = [
+    { pattern: /газон.*?(\d+)\s*(м²|кв)/i, service: 'Устройство газона', unit: 'м²' },
+    { pattern: /дорожк.*?(\d+)\s*(м²|кв)/i, service: 'Мощение дорожек', unit: 'м²' },
+    { pattern: /дренаж.*?(\d+)\s*(м\.п|п\.м|метр)/i, service: 'Устройство дренажа', unit: 'м.п' },
+    { pattern: /бордюр.*?(\d+)\s*(м\.п|п\.м|метр)/i, service: 'Установка бордюров', unit: 'м.п' },
+    { pattern: /освещение.*?(\d+)\s*(шт|точ)/i, service: 'Устройство освещения', unit: 'шт' }
+  ];
+
+  // Ищем совпадения по шаблонам
+  for (const pattern of servicePatterns) {
+    const match = textLower.match(pattern.pattern);
+    if (match) {
+      services.push({
+        service: pattern.service,
+        quantity: parseInt(match[1]),
+        unit: pattern.unit
+      });
+    }
   }
 
-  if (taskLower.includes('дорожки') || taskLower.includes('мощение') || taskLower.includes('плитка')) {
-    const pathArea = Math.round(estimatedArea * 0.2); // 20% от общей площади
-    services.push({ service: 'Мощение дорожек', quantity: pathArea, unit: 'м²' });
-  }
-
-  if (taskLower.includes('дренаж')) {
-    const drainageLength = Math.round(Math.sqrt(estimatedArea) * 4); // периметр объекта
-    services.push({ service: 'Устройство дренажа', quantity: drainageLength, unit: 'м.п' });
-  }
-
-  if (taskLower.includes('бордюр')) {
-    const borderLength = Math.round(Math.sqrt(estimatedArea) * 4);
-    services.push({ service: 'Установка бордюров', quantity: borderLength, unit: 'м.п' });
-  }
-
-  if (taskLower.includes('освещение')) {
-    const lightPoints = Math.max(4, Math.round(estimatedArea / 50));
-    services.push({ service: 'Устройство освещения', quantity: lightPoints, unit: 'шт' });
-  }
-
-  // Если услуги не определились автоматически, добавляем базовые
+  // Если не нашли конкретных услуг, добавляем базовые
   if (services.length === 0) {
-    services.push({ service: 'Благоустройство территории', quantity: estimatedArea, unit: 'м²' });
+    if (textLower.includes('газон')) {
+      services.push({ service: 'Устройство газона', quantity: defaultArea, unit: 'м²' });
+    }
+    if (textLower.includes('дорожк')) {
+      services.push({ service: 'Мощение дорожек', quantity: Math.round(defaultArea * 0.2), unit: 'м²' });
+    }
+    if (textLower.includes('дренаж')) {
+      services.push({ service: 'Устройство дренажа', quantity: Math.round(defaultArea * 0.5), unit: 'м.п' });
+    }
   }
 
   return services;
 }
 
-// Форматирование ответа с результатами сметы
+// Форматирование ответа
 function formatEstimateResponse(calculations: ServiceOutput[], clientInfo: any, data: any): string {
   let response = `✅ Смета создана!\n\n`;
   
   if (clientInfo) {
     response += `👤 Клиент: ${clientInfo.name}\n`;
     if (clientInfo.phone) response += `📞 Телефон: ${clientInfo.phone}\n`;
-    if (clientInfo.address || data.object_location) {
-      response += `📍 Объект: ${data.object_location || clientInfo.address}\n`;
-    }
   }
   
-  response += `\n📋 Расчет материалов:\n\n`;
+  response += `\n📋 Расчет по позициям:\n\n`;
+
+  let totalAmount = 0;
 
   for (const calc of calculations) {
     response += `🔧 ${calc.service} (${calc.quantity} ${calc.unit}):\n`;
+    
+    if (calc.service_price && calc.service_price > 0) {
+      response += `   💼 Работы: ${calc.service_price.toFixed(2)} руб\n`;
+    }
     
     for (const material of calc.materials) {
       if (material.error) {
         response += `   ❌ ${material.name}: ${material.error}\n`;
       } else {
-        response += `   📦 ${material.name}: ${material.quantity} ${material.unit}\n`;
-        if (material.calculation) {
-          response += `      (расчет: ${material.calculation})\n`;
+        response += `   📦 ${material.name}: ${material.quantity} ${material.unit}`;
+        if (material.total_price) {
+          response += ` = ${material.total_price.toFixed(2)} руб`;
         }
+        response += `\n`;
       }
+    }
+    
+    if (calc.total_cost) {
+      response += `   💰 Итого по позиции: ${calc.total_cost.toFixed(2)} руб\n`;
+      totalAmount += calc.total_cost;
     }
     response += `\n`;
   }
 
+  response += `💵 ОБЩАЯ СУММА: ${totalAmount.toFixed(2)} руб\n\n`;
   response += `💡 Смета сохранена в системе. Вы можете просмотреть детали в разделе "Сметы".`;
   
   return response;
 }
 
 serve(async (req) => {
+  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    const authHeader = req.headers.get('authorization');
+    const { action, data, conversation_mode } = await req.json();
+    console.log('AI Estimator request:', { action, conversation_mode });
+
+    // Проверяем аутентификацию
+    const authHeader = req.headers.get('Authorization');
     if (!authHeader) {
-      throw new Error('No authorization header');
+      throw new Error('Authorization header is missing');
     }
 
-    // Получаем пользователя из JWT токена
-    const { data: { user }, error: userError } = await supabase.auth.getUser(
-      authHeader.replace('Bearer ', '')
-    );
-
-    if (userError || !user) {
-      throw new Error('Invalid authorization token');
+    const token = authHeader.replace('Bearer ', '');
+    const { data: user, error: authError } = await supabase.auth.getUser(token);
+    
+    if (authError || !user.user) {
+      throw new Error('Authentication failed');
     }
 
-    const { action, services, taskId, task, data, conversation_mode } = await req.json();
+    const userId = user.user.id;
+    console.log('Authenticated user:', userId);
 
-    // Если это диалоговый режим, обрабатываем как интерактивный запрос
-    if (conversation_mode && task) {
-      const result = await handleConversationalRequest(task, data || {}, user.id);
-      
+    // Обработка диалогового режима
+    if (conversation_mode) {
+      const result = await handleConversationalRequest(action || data.query, data, userId);
       return new Response(JSON.stringify(result), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
+    // Прямые действия
     switch (action) {
-      case 'calculate_materials': {
-        if (!services || !Array.isArray(services)) {
+      case 'calculate_materials':
+        const services = data.services || [];
+        if (!Array.isArray(services) || services.length === 0) {
           throw new Error('Services array is required');
         }
 
-        console.log('Calculating materials for services:', services);
-        const calculations = await calculateMaterialConsumption(services, user.id);
-
-        // Если передан taskId, сохраняем результаты
-        if (taskId) {
-          await saveSmetaItems(taskId, user.id, calculations);
-        }
-
+        const calculations = await calculateMaterialConsumption(services, userId);
+        
         return new Response(JSON.stringify({
           success: true,
           calculations,
           summary: `Рассчитан расход материалов для ${services.length} услуг`
         }), {
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
-      }
 
-      case 'get_smeta_by_task': {
-        if (!taskId) {
-          throw new Error('Task ID is required');
-        }
-
-        const { data: smetaItems, error } = await supabase
-          .from('smeta_items')
-          .select('*')
-          .eq('user_id', user.id)
-          .eq('task_id', taskId)
-          .order('service_name', { ascending: true });
-
-        if (error) {
-          throw error;
-        }
+      case 'create_estimate':
+        const estimateData = data.estimate || {};
+        const result = await createFullEstimate(
+          estimateData.title || 'Новая смета',
+          estimateData.client_id || null,
+          await calculateMaterialConsumption(estimateData.services || [], userId),
+          userId,
+          estimateData.valid_until
+        );
 
         return new Response(JSON.stringify({
           success: true,
-          smeta_items: smetaItems || []
+          estimate: result.estimate,
+          calculations: result.calculations,
+          items_count: result.items_count
         }), {
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
-      }
+
+      case 'get_user_data':
+        // Получаем данные пользователя для работы со сметчиком
+        const [materialsRes, servicesRes, clientsRes, settingsRes] = await Promise.all([
+          supabase.from('materials').select('*').eq('user_id', userId),
+          supabase.from('services').select('*').eq('user_id', userId),
+          supabase.from('clients').select('id, name, phone, email').eq('user_id', userId),
+          supabase.from('ai_assistant_settings').select('settings').eq('user_id', userId).eq('assistant_type', 'estimator').maybeSingle()
+        ]);
+
+        return new Response(JSON.stringify({
+          success: true,
+          materials: materialsRes.data || [],
+          services: servicesRes.data || [],
+          clients: clientsRes.data || [],
+          settings: settingsRes.data?.settings || {}
+        }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
 
       default:
         throw new Error(`Unknown action: ${action}`);
@@ -575,12 +664,16 @@ serve(async (req) => {
 
   } catch (error) {
     console.error('Error in ai-estimator function:', error);
-    return new Response(JSON.stringify({
-      success: false,
-      error: error.message
-    }), {
-      status: 400,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-    });
+    return new Response(
+      JSON.stringify({ 
+        success: false,
+        error: 'An error occurred during processing',
+        details: error.message 
+      }),
+      {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      }
+    );
   }
 });
