@@ -153,4 +153,3 @@ async function generateYandexTTS(text: string, voice: string, apiKey: string): P
   const arrayBuffer = await response.arrayBuffer();
   return btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)));
 }
-});
