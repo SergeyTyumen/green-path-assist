@@ -4,7 +4,7 @@ import { Settings, Key, ShieldCheck } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { Navigate } from "react-router-dom";
 import { BaseAISettings } from "@/components/ai-settings/BaseAISettings";
-
+import { APIKeysManager } from "@/components/settings/APIKeysManager";
 const AIAssistantsSettings = () => {
   const { user } = useAuth();
 
@@ -13,7 +13,7 @@ const AIAssistantsSettings = () => {
   const isAdmin = user?.email === 'admin@company.com' || user?.user_metadata?.role === 'admin';
 
   if (!isAdmin) {
-    return <Navigate to="/dashboard" replace />;
+    return <Navigate to="/" replace />;
   }
 
   return (
@@ -58,7 +58,10 @@ const AIAssistantsSettings = () => {
             </div>
           </CardHeader>
           <CardContent>
-            <BaseAISettings />
+            <div className="space-y-8">
+              <BaseAISettings />
+              <APIKeysManager />
+            </div>
           </CardContent>
         </Card>
       </div>
