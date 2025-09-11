@@ -14,7 +14,8 @@ import {
   Zap,
   Settings,
   Crosshair,
-  Mic
+  Mic,
+  HardHat
 } from 'lucide-react';
 
 // Individual assistant settings components
@@ -35,6 +36,17 @@ const AIAssistants = () => {
   const [selectedAssistant, setSelectedAssistant] = useState<string | null>(null);
   
   const assistants = [
+    {
+      id: 'ai-technical-specialist',
+      name: 'AI-Технолог',
+      description: 'Формирование технических заданий на основе СНИП и ГОСТ',
+      icon: HardHat,
+      status: 'active',
+      features: ['Анализ объекта', 'Нормативные требования', 'Спецификация материалов'],
+      color: 'bg-orange-500',
+      route: '/ai-technical-specialist',
+      settingsComponent: null
+    },
     {
       id: 'voice-dispatcher',
       name: 'Голосовой ИИ-ассистент',
@@ -271,8 +283,8 @@ const AIAssistants = () => {
             <div className="flex items-center gap-3">
               <Bot className="h-8 w-8 text-primary" />
               <div>
-                <p className="text-2xl font-bold">9</p>
-                <p className="text-sm text-muted-foreground">Активных помощника</p>
+                <p className="text-2xl font-bold">10</p>
+                <p className="text-sm text-muted-foreground">Активных помощников</p>
               </div>
             </div>
           </CardContent>

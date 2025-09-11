@@ -29,6 +29,7 @@ import AISalesManager from "./pages/AISalesManager";
 import AISupplierManager from "./pages/AISupplierManager";
 import AIContractorManager from "./pages/AIContractorManager";
 import AIAssistantsSettings from "./pages/AIAssistantsSettings";
+import AITechnicalSpecialist from "./pages/AITechnicalSpecialist";
 import UserManagement from "./pages/UserManagement";
 
 const queryClient = new QueryClient();
@@ -57,6 +58,7 @@ const App = () => (
               <Route path="voice-assistant" element={<VoiceAssistant />} />
               <Route path="voice-chat" element={<VoiceChatAssistant />} />
               
+              <Route path="ai-technical-specialist" element={<AITechnicalSpecialist />} />
               <Route path="ai-analyst" element={<AIAnalystPage />} />
               <Route path="competitor-analysis" element={<CompetitorAnalysisPage />} />
               <Route path="ai-estimator" element={<AIEstimator />} />
