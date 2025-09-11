@@ -160,7 +160,7 @@ async function executeFunction(functionName: string, args: any, userId: string, 
   
   switch (functionName) {
     case 'create_client':
-      return await createClient(userId, args);
+      return await createCrmClient(userId, args);
 
     case 'create_estimate':
       return await createEstimateViaAI(userId, args, userToken);
@@ -170,7 +170,7 @@ async function executeFunction(functionName: string, args: any, userId: string, 
   }
 }
 
-async function createClient(userId: string, clientData: any) {
+async function createCrmClient(userId: string, clientData: any) {
   try {
     // Создаем клиент Supabase с service role key для записи в базу
     const supabaseAdmin = createClient(
