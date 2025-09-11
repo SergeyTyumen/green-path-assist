@@ -7,11 +7,6 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-const supabase = createClient(
-  Deno.env.get('SUPABASE_URL') ?? '',
-  Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-);
-
 interface AIMessage {
   role: 'system' | 'user' | 'assistant';
   content: string;
@@ -196,7 +191,13 @@ async function executeFunction(functionName: string, args: any, userId: string, 
 
 async function createClient(userId: string, clientData: any) {
   try {
-    const { data, error } = await supabase
+    // Создаем клиент Supabase с service role key для записи в базу
+    const supabaseAdmin = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+    );
+    
+    const { data, error } = await supabaseAdmin
       .from('clients')
       .insert({
         user_id: userId,
@@ -228,10 +229,13 @@ async function createEstimateViaAI(userId: string, args: any, userToken?: string
   try {
     console.log('Creating estimate via AI-Estimator:', args);
     
-    // Получаем пользовательский токен для аутентификации
-    const authToken = userToken || Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+    // Создаем клиент Supabase с service role key для вызова функций
+    const supabaseAdmin = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+    );
     
-    const { data, error } = await supabase.functions.invoke('ai-estimator', {
+    const { data, error } = await supabaseAdmin.functions.invoke('ai-estimator', {
       body: {
         conversation_mode: true,
         action: args.project_description,
@@ -243,7 +247,7 @@ async function createEstimateViaAI(userId: string, args: any, userToken?: string
         }
       },
       headers: {
-        Authorization: `Bearer ${authToken}`
+        Authorization: `Bearer ${userToken || Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`
       }
     });
 
@@ -272,7 +276,13 @@ async function createEstimateViaAI(userId: string, args: any, userToken?: string
 }
 
 async function getUserSettings(userId: string): Promise<UserSettings> {
-  const { data, error } = await supabase
+  // Создаем клиент Supabase с service role key для чтения профилей
+  const supabaseAdmin = createClient(
+    Deno.env.get('SUPABASE_URL') ?? '',
+    Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+  );
+  
+  const { data, error } = await supabaseAdmin
     .from('profiles')
     .select('preferred_ai_model, interaction_mode, voice_settings, ai_settings')
     .eq('user_id', userId)
@@ -303,6 +313,16 @@ serve(async (req) => {
   try {
     console.log('enhanced-voice-chat: Request received');
     
+    // Создаем клиент Supabase для авторизации
+    const supabaseUrl = Deno.env.get('SUPABASE_URL');
+    const supabaseKey = Deno.env.get('SUPABASE_ANON_KEY');
+    
+    if (!supabaseUrl || !supabaseKey) {
+      throw new Error('Supabase configuration not found');
+    }
+    
+    const supabaseAuth = createClient(supabaseUrl, supabaseKey);
+    
     const authHeader = req.headers.get('Authorization');
     if (!authHeader) {
       console.error('enhanced-voice-chat: No authorization header');
@@ -311,7 +331,7 @@ serve(async (req) => {
 
     console.log('enhanced-voice-chat: Getting user from token...');
     const token = authHeader.replace('Bearer ', '');
-    const { data: { user }, error: authError } = await supabase.auth.getUser(token);
+    const { data: { user }, error: authError } = await supabaseAuth.auth.getUser(token);
 
     if (authError || !user) {
       console.error('enhanced-voice-chat: Invalid token:', authError);
@@ -383,7 +403,12 @@ serve(async (req) => {
 
     console.log('enhanced-voice-chat: OpenAI response received, saving to history...');
     // Сохраняем историю команд
-    await supabase
+    const supabaseAdmin = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+    );
+    
+    await supabaseAdmin
       .from('voice_command_history')
       .insert({
         user_id: user.id,
