@@ -34,79 +34,60 @@ async function callOpenAIWithTools(messages: AIMessage[], settings: UserSettings
         'Authorization': `Bearer ${openaiApiKey}`,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({
-        model: settings.ai_settings?.openai_model || 'gpt-4o-mini',
-        messages: messages,
-        temperature: settings.ai_settings?.temperature || 0.7,
-        max_tokens: settings.ai_settings?.max_tokens || 1000,
-        tools: [
-          {
-            type: "function",
-            function: {
-              name: "create_client",
-              description: "Создать нового клиента",
-              parameters: {
-                type: "object",
-                properties: {
-                  name: {
-                    type: "string",
-                    description: "Имя клиента"
+      // Build payload dynamically to support both GPT-5/4.1 and legacy models
+      body: JSON.stringify((() => {
+        const configuredModel = (settings?.ai_settings?.openai_model as string) || 'gpt-4o-mini';
+        const isNewModel = configuredModel.startsWith('gpt-5') || configuredModel.startsWith('gpt-4.1') || configuredModel.startsWith('o3') || configuredModel.startsWith('o4');
+        const payload: any = {
+          model: isNewModel ? 'gpt-4o-mini' : configuredModel,
+          messages: messages,
+          tools: [
+            {
+              type: "function",
+              function: {
+                name: "create_client",
+                description: "Создать нового клиента",
+                parameters: {
+                  type: "object",
+                  properties: {
+                    name: { type: "string", description: "Имя клиента" },
+                    phone: { type: "string", description: "Телефон клиента" },
+                    email: { type: "string", description: "Email клиента" },
+                    lead_source: { type: "string", enum: ["сайт", "звонок", "соцсети", "рекомендация", "реклама"], description: "Источник лида" },
+                    notes: { type: "string", description: "Примечания о клиенте" }
                   },
-                  phone: {
-                    type: "string",
-                    description: "Телефон клиента"
+                  required: ["name"]
+                }
+              }
+            },
+            {
+              type: "function",
+              function: {
+                name: "create_estimate",
+                description: "Создать смету через AI-Сметчика",
+                parameters: {
+                  type: "object",
+                  properties: {
+                    project_description: { type: "string", description: "Описание проекта для сметы" },
+                    client_name: { type: "string", description: "Имя клиента (опционально)" },
+                    area: { type: "number", description: "Площадь объекта в кв.м" },
+                    services: { type: "array", items: { type: "string" }, description: "Список услуг для расчета" }
                   },
-                  email: {
-                    type: "string",
-                    description: "Email клиента"
-                  },
-                  lead_source: {
-                    type: "string",
-                    enum: ["сайт", "звонок", "соцсети", "рекомендация", "реклама"],
-                    description: "Источник лида"
-                  },
-                  notes: {
-                    type: "string",
-                    description: "Примечания о клиенте"
-                  }
-                },
-                required: ["name"]
+                  required: ["project_description"]
+                }
               }
             }
-          },
-          {
-            type: "function",
-            function: {
-              name: "create_estimate",
-              description: "Создать смету через AI-Сметчика",
-              parameters: {
-                type: "object",
-                properties: {
-                  project_description: {
-                    type: "string",
-                    description: "Описание проекта для сметы"
-                  },
-                  client_name: {
-                    type: "string", 
-                    description: "Имя клиента (опционально)"
-                  },
-                  area: {
-                    type: "number",
-                    description: "Площадь объекта в кв.м"
-                  },
-                  services: {
-                    type: "array",
-                    items: { type: "string" },
-                    description: "Список услуг для расчета"
-                  }
-                },
-                required: ["project_description"]
-              }
-            }
-          }
-        ],
-        tool_choice: "auto"
-      }),
+          ],
+          tool_choice: "auto"
+        };
+        if (isNewModel) {
+          payload.max_completion_tokens = settings?.ai_settings?.max_tokens || 1000;
+        } else {
+          payload.temperature = settings?.ai_settings?.temperature ?? 0.7;
+          payload.max_tokens = settings?.ai_settings?.max_tokens || 1000;
+        }
+        return payload;
+      })()),
     });
 
     if (!response.ok) {
