@@ -78,7 +78,7 @@ const UserManagement = () => {
         email: user.email || '',
         created_at: user.created_at,
         last_sign_in_at: user.last_sign_in_at,
-        role: rolesMap.get(user.id) || 'client'
+        role: rolesMap.get(user.id) || 'employee'
       }));
 
       setUsers(usersWithRoles);
@@ -94,7 +94,7 @@ const UserManagement = () => {
     }
   };
 
-  const updateUserRole = async (userId: string, newRole: 'client' | 'contractor' | 'admin') => {
+  const updateUserRole = async (userId: string, newRole: 'employee' | 'manager' | 'admin') => {
     try {
       // Проверяем, есть ли уже роль у пользователя
       const { data: existingRole, error: checkError } = await supabase
@@ -133,7 +133,7 @@ const UserManagement = () => {
 
       toast({
         title: "Успешно",
-        description: `Роль пользователя изменена на ${newRole}`,
+        description: `Должность пользователя изменена на ${getRoleLabel(newRole)}`,
       });
     } catch (error) {
       console.error('Error updating user role:', error);
@@ -149,8 +149,10 @@ const UserManagement = () => {
     switch (role) {
       case 'admin':
         return <Crown className="h-4 w-4" />;
-      case 'contractor':
+      case 'manager':
         return <UserCheck className="h-4 w-4" />;
+      case 'employee':
+        return <Users className="h-4 w-4" />;
       default:
         return <Users className="h-4 w-4" />;
     }
@@ -160,8 +162,10 @@ const UserManagement = () => {
     switch (role) {
       case 'admin':
         return 'bg-red-500 text-white';
-      case 'contractor':
+      case 'manager':
         return 'bg-blue-500 text-white';
+      case 'employee':
+        return 'bg-green-500 text-white';
       default:
         return 'bg-gray-500 text-white';
     }
@@ -171,10 +175,12 @@ const UserManagement = () => {
     switch (role) {
       case 'admin':
         return 'Администратор';
-      case 'contractor':
-        return 'Подрядчик';
+      case 'manager':
+        return 'Менеджер';
+      case 'employee':
+        return 'Сотрудник';
       default:
-        return 'Клиент';
+        return 'Сотрудник';
     }
   };
 
@@ -279,9 +285,9 @@ const UserManagement = () => {
             <div className="flex items-center gap-2">
               <UserCheck className="h-5 w-5 text-blue-500" />
               <div>
-                <p className="text-sm text-muted-foreground">Подрядчики</p>
+                <p className="text-sm text-muted-foreground">Менеджеры</p>
                 <p className="text-2xl font-bold">
-                  {users.filter(u => u.role === 'contractor').length}
+                  {users.filter(u => u.role === 'manager').length}
                 </p>
               </div>
             </div>
@@ -291,11 +297,11 @@ const UserManagement = () => {
         <Card>
           <CardContent className="p-4">
             <div className="flex items-center gap-2">
-              <Users className="h-5 w-5 text-gray-500" />
+              <Users className="h-5 w-5 text-green-500" />
               <div>
-                <p className="text-sm text-muted-foreground">Клиенты</p>
+                <p className="text-sm text-muted-foreground">Сотрудники</p>
                 <p className="text-2xl font-bold">
-                  {users.filter(u => u.role === 'client').length}
+                  {users.filter(u => u.role === 'employee').length}
                 </p>
               </div>
             </div>
@@ -339,14 +345,14 @@ const UserManagement = () => {
                 <div className="flex items-center gap-2">
                   <Select
                     value={user.role}
-                    onValueChange={(value: 'client' | 'contractor' | 'admin') => updateUserRole(user.id, value)}
+                    onValueChange={(value: 'employee' | 'manager' | 'admin') => updateUserRole(user.id, value)}
                   >
                     <SelectTrigger className="w-40">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="client">Клиент</SelectItem>
-                      <SelectItem value="contractor">Подрядчик</SelectItem>
+                      <SelectItem value="employee">Сотрудник</SelectItem>
+                      <SelectItem value="manager">Менеджер</SelectItem>
                       <SelectItem value="admin">Администратор</SelectItem>
                     </SelectContent>
                   </Select>
