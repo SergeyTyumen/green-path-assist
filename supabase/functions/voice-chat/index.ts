@@ -127,6 +127,37 @@ async function findClient(query: any, userId: string) {
   return data[0]; // возвращаем первое совпадение
 }
 
+// Обновление статуса задачи
+async function updateTaskStatus(taskId: string, status: string, userId: string) {
+  console.log('Updating task status:', { taskId, status });
+  const { data, error } = await supabase
+    .from('tasks')
+    .update({ 
+      status,
+      updated_at: new Date().toISOString()
+    })
+    .eq('id', taskId)
+    .eq('user_id', userId)
+    .select()
+    .single();
+  
+  if (error) throw error;
+  return data;
+}
+
+// Поиск задач клиента
+async function findClientTasks(clientId: string, userId: string) {
+  console.log('Finding tasks for client:', clientId);
+  const { data, error } = await supabase
+    .from('tasks')
+    .select('*')
+    .eq('user_id', userId)
+    .eq('client_id', clientId);
+  
+  if (error) throw error;
+  return data;
+}
+
 // Обновление клиента с добавлением комментария
 async function updateClientWithComment(clientId: string, comment: string, userId: string) {
   console.log('Updating client with comment:', { clientId, comment });
@@ -503,6 +534,39 @@ serve(async (req) => {
       {
         type: "function",
         function: {
+          name: "update_task_status",
+          description: "Обновить статус задачи",
+          parameters: {
+            type: "object",
+            properties: {
+              task_id: { type: "string", description: "ID задачи" },
+              status: { 
+                type: "string", 
+                enum: ["pending", "in-progress", "completed", "overdue"],
+                description: "Новый статус задачи" 
+              }
+            },
+            required: ["task_id", "status"]
+          }
+        }
+      },
+      {
+        type: "function",
+        function: {
+          name: "find_client_tasks",
+          description: "Найти все задачи конкретного клиента",
+          parameters: {
+            type: "object",
+            properties: {
+              client_id: { type: "string", description: "ID клиента" }
+            },
+            required: ["client_id"]
+          }
+        }
+      },
+      {
+        type: "function",
+        function: {
           name: "create_material",
           description: "Добавить новый материал в каталог",
           parameters: {
@@ -745,12 +809,24 @@ const systemPrompt = `Ты — голосовой ассистент руков�
 ОБРАБОТКА СЛОЖНЫХ КОМАНД:
 Если команда содержит несколько действий, выполняй их последовательно:
 1. Создай/найди клиента
-2. Создай основную задачу/проект
+2. Создай основную задачу/проект с обязательной привязкой к клиенту
 3. Создай подзадачи для ИИ-агентов
-4. Ответь на аналитические вопросы
+4. Обнови статус существующих задач при необходимости
+5. Ответь на аналитические вопросы
+
+ВАЖНЫЕ ПРАВИЛА РАБОТЫ С ЗАДАЧАМИ:
+- При создании задачи ВСЕГДА ищи клиента по имени с помощью find_client
+- Если клиент найден, обязательно указывай client_id в create_task
+- При закрытии/завершении задач используй update_task_status с соответствующим статусом
+- Для поиска задач клиента используй find_client_tasks
+
+КОНТЕКСТ УПРАВЛЕНИЯ ЗАДАЧАМИ:
+- "закрой задачу" / "завершена встреча с клиентом X" → find_client + find_client_tasks + update_task_status на "completed"
+- "задача выполнена" → update_task_status на "completed"
+- "начал работу над задачей" → update_task_status на "in-progress"
 
 АНАЛИТИКА:
-- "что с клиентом X" → find_client + статус
+- "что с клиентом X" → find_client + find_client_tasks + показать статус задач
 - "сколько заявок в работе" → get_analytics
 - "статистика за неделю" → get_analytics с фильтрами
 
@@ -815,8 +891,30 @@ const systemPrompt = `Ты — голосовой ассистент руков�
               break;
               
             case 'create_task':
+              // Попытаемся найти клиента если не указан client_id но есть упоминание клиента в тексте
+              if (!functionArgs.client_id && (functionArgs.title || functionArgs.description)) {
+                const searchText = `${functionArgs.title} ${functionArgs.description || ''}`.toLowerCase();
+                if (searchText.includes('федоров') || searchText.includes('алексей')) {
+                  const foundClient = await findClient({ name: 'Федоров Алексей' }, userId);
+                  if (foundClient) {
+                    functionArgs.client_id = foundClient.id;
+                    console.log(`Автоматически привязан клиент: ${foundClient.name} (${foundClient.id})`);
+                  }
+                }
+              }
               result = await createTask(functionArgs, userId);
-              functionResults.push(`Задача "${functionArgs.title}" успешно создана с ID: ${result.id}`);
+              const clientInfo = functionArgs.client_id ? ` для клиента` : '';
+              functionResults.push(`Задача "${functionArgs.title}" успешно создана${clientInfo} с ID: ${result.id}`);
+              break;
+              
+            case 'update_task_status':
+              result = await updateTaskStatus(functionArgs.task_id, functionArgs.status, userId);
+              functionResults.push(`Статус задачи "${result.title}" обновлен на "${functionArgs.status}"`);
+              break;
+              
+            case 'find_client_tasks':
+              result = await findClientTasks(functionArgs.client_id, userId);
+              functionResults.push(`Найдено ${result.length} задач(и) для клиента`);
               break;
               
             case 'create_material':
