@@ -6,9 +6,11 @@ import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Slider } from "@/components/ui/slider";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { APIKeysManager } from "@/components/settings/APIKeysManager";
 
 interface VoiceSettings {
   voice_provider: 'web_speech' | 'elevenlabs';
@@ -21,15 +23,25 @@ interface VoiceSettings {
 interface AISettings {
   openai_model: string;
   yandex_model: string;
+  anthropic_model: string;
   temperature: number;
   max_tokens: number;
+  timeout: number;
+  enable_streaming: boolean;
+  context_window: number;
 }
 
 interface UserSettings {
-  preferred_ai_model: 'openai' | 'yandex';
-  interaction_mode: 'text' | 'voice';
+  preferred_ai_model: 'openai' | 'yandex' | 'anthropic';
+  interaction_mode: 'text' | 'voice' | 'mixed';
   voice_settings: VoiceSettings;
   ai_settings: AISettings;
+  advanced_features: {
+    enable_function_calling: boolean;
+    enable_memory: boolean;
+    auto_save_conversations: boolean;
+    privacy_mode: boolean;
+  };
 }
 
 const defaultSettings: UserSettings = {
@@ -42,10 +54,20 @@ const defaultSettings: UserSettings = {
     speech_pitch: 1.0
   },
   ai_settings: {
-    openai_model: 'gpt-4o-mini',
+    openai_model: 'gpt-5-2025-08-07',
     yandex_model: 'yandexgpt',
+    anthropic_model: 'claude-3-haiku-20240307',
     temperature: 0.7,
-    max_tokens: 1000
+    max_tokens: 2000,
+    timeout: 30,
+    enable_streaming: true,
+    context_window: 4000
+  },
+  advanced_features: {
+    enable_function_calling: true,
+    enable_memory: true,
+    auto_save_conversations: true,
+    privacy_mode: false
   }
 };
 
@@ -65,7 +87,7 @@ export function VoiceAssistantSettings() {
     try {
       const { data, error } = await supabase
         .from('profiles')
-        .select('preferred_ai_model, interaction_mode, voice_settings, ai_settings')
+        .select('preferred_ai_model, interaction_mode, voice_settings, ai_settings, advanced_features')
         .eq('user_id', user.id)
         .single();
 
@@ -73,10 +95,11 @@ export function VoiceAssistantSettings() {
 
       if (data) {
         setSettings({
-          preferred_ai_model: (data.preferred_ai_model as 'openai' | 'yandex') || 'openai',
-          interaction_mode: (data.interaction_mode as 'text' | 'voice') || 'text',
+          preferred_ai_model: (data.preferred_ai_model as 'openai' | 'yandex' | 'anthropic') || 'openai',
+          interaction_mode: (data.interaction_mode as 'text' | 'voice' | 'mixed') || 'text',
           voice_settings: (data.voice_settings as unknown as VoiceSettings) || defaultSettings.voice_settings,
-          ai_settings: (data.ai_settings as unknown as AISettings) || defaultSettings.ai_settings
+          ai_settings: (data.ai_settings as unknown as AISettings) || defaultSettings.ai_settings,
+          advanced_features: (data.advanced_features as any) || defaultSettings.advanced_features
         });
       }
     } catch (error) {
@@ -95,7 +118,8 @@ export function VoiceAssistantSettings() {
           preferred_ai_model: settings.preferred_ai_model,
           interaction_mode: settings.interaction_mode,
           voice_settings: settings.voice_settings as any,
-          ai_settings: settings.ai_settings as any
+          ai_settings: settings.ai_settings as any,
+          advanced_features: settings.advanced_features as any
         })
         .eq('user_id', user.id);
 
@@ -138,8 +162,16 @@ export function VoiceAssistantSettings() {
   };
 
   return (
-    <div className="space-y-6">
-      <Card>
+    <Tabs defaultValue="ai" className="w-full">
+      <TabsList className="grid w-full grid-cols-4">
+        <TabsTrigger value="ai">ИИ Модели</TabsTrigger>
+        <TabsTrigger value="interaction">Взаимодействие</TabsTrigger>
+        <TabsTrigger value="voice">Голос</TabsTrigger>
+        <TabsTrigger value="api">API Ключи</TabsTrigger>
+      </TabsList>
+
+      <TabsContent value="ai" className="space-y-6">
+        <Card>
         <CardHeader>
           <CardTitle>Модель ИИ</CardTitle>
           <CardDescription>
@@ -159,8 +191,9 @@ export function VoiceAssistantSettings() {
                 <SelectValue placeholder="Выберите модель" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="openai">ChatGPT (OpenAI)</SelectItem>
+                <SelectItem value="openai">OpenAI GPT</SelectItem>
                 <SelectItem value="yandex">YandexGPT</SelectItem>
+                <SelectItem value="anthropic">Anthropic Claude</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -176,9 +209,10 @@ export function VoiceAssistantSettings() {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="gpt-4o-mini">GPT-4o Mini</SelectItem>
-                  <SelectItem value="gpt-4o">GPT-4o</SelectItem>
+                  <SelectItem value="gpt-5-2025-08-07">GPT-5 (Лучший)</SelectItem>
+                  <SelectItem value="gpt-5-mini-2025-08-07">GPT-5 Mini (Быстрый)</SelectItem>
                   <SelectItem value="gpt-4.1-2025-04-14">GPT-4.1</SelectItem>
+                  <SelectItem value="gpt-4o-mini">GPT-4o Mini</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -197,6 +231,25 @@ export function VoiceAssistantSettings() {
                 <SelectContent>
                   <SelectItem value="yandexgpt">YandexGPT</SelectItem>
                   <SelectItem value="yandexgpt-lite">YandexGPT Lite</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+
+          {settings.preferred_ai_model === 'anthropic' && (
+            <div className="grid w-full items-center gap-1.5">
+              <Label htmlFor="anthropic-model">Модель Anthropic</Label>
+              <Select
+                value={settings.ai_settings.anthropic_model}
+                onValueChange={(value) => updateAISettings('anthropic_model', value)}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="claude-3-haiku-20240307">Claude 3 Haiku</SelectItem>
+                  <SelectItem value="claude-3-sonnet-20240229">Claude 3 Sonnet</SelectItem>
+                  <SelectItem value="claude-3-opus-20240229">Claude 3 Opus</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -224,10 +277,42 @@ export function VoiceAssistantSettings() {
               max={4000}
             />
           </div>
-        </CardContent>
-      </Card>
 
-      <Card>
+          <div className="grid w-full items-center gap-1.5">
+            <Label htmlFor="timeout">Таймаут (секунды)</Label>
+            <Input
+              type="number"
+              value={settings.ai_settings.timeout}
+              onChange={(e) => updateAISettings('timeout', parseInt(e.target.value))}
+              min={10}
+              max={120}
+            />
+          </div>
+
+          <div className="grid w-full items-center gap-1.5">
+            <Label htmlFor="context-window">Размер контекста (токены)</Label>
+            <Input
+              type="number"
+              value={settings.ai_settings.context_window}
+              onChange={(e) => updateAISettings('context_window', parseInt(e.target.value))}
+              min={1000}
+              max={32000}
+            />
+          </div>
+
+          <div className="flex items-center space-x-2">
+            <Switch
+              id="enable-streaming"
+              checked={settings.ai_settings.enable_streaming}
+              onCheckedChange={(checked) => updateAISettings('enable_streaming', checked)}
+            />
+            <Label htmlFor="enable-streaming">Потоковая передача ответов</Label>
+          </div>
+        </CardContent>
+      </TabsContent>
+
+      <TabsContent value="interaction" className="space-y-6">
+        <Card>
         <CardHeader>
           <CardTitle>Режим взаимодействия</CardTitle>
           <CardDescription>
@@ -235,26 +320,91 @@ export function VoiceAssistantSettings() {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="flex items-center space-x-2">
-            <Switch
-              id="interaction-mode"
-              checked={settings.interaction_mode === 'voice'}
-              onCheckedChange={(checked) =>
-                setSettings(prev => ({
-                  ...prev,
-                  interaction_mode: checked ? 'voice' : 'text'
-                }))
+          <div className="grid w-full items-center gap-1.5">
+            <Label htmlFor="interaction-mode">Режим взаимодействия</Label>
+            <Select
+              value={settings.interaction_mode}
+              onValueChange={(value: 'text' | 'voice' | 'mixed') =>
+                setSettings(prev => ({ ...prev, interaction_mode: value }))
               }
-            />
-            <Label htmlFor="interaction-mode">
-              Голосовой режим {settings.interaction_mode === 'voice' ? '(включен)' : '(выключен)'}
-            </Label>
+            >
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="text">Только текст</SelectItem>
+                <SelectItem value="voice">Только голос</SelectItem>
+                <SelectItem value="mixed">Смешанный режим</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-4">
+            <h4 className="text-sm font-medium">Расширенные функции</h4>
+            
+            <div className="flex items-center space-x-2">
+              <Switch
+                id="function-calling"
+                checked={settings.advanced_features.enable_function_calling}
+                onCheckedChange={(checked) =>
+                  setSettings(prev => ({
+                    ...prev,
+                    advanced_features: { ...prev.advanced_features, enable_function_calling: checked }
+                  }))
+                }
+              />
+              <Label htmlFor="function-calling">Вызов функций (создание клиентов, смет)</Label>
+            </div>
+
+            <div className="flex items-center space-x-2">
+              <Switch
+                id="enable-memory"
+                checked={settings.advanced_features.enable_memory}
+                onCheckedChange={(checked) =>
+                  setSettings(prev => ({
+                    ...prev,
+                    advanced_features: { ...prev.advanced_features, enable_memory: checked }
+                  }))
+                }
+              />
+              <Label htmlFor="enable-memory">Память разговоров</Label>
+            </div>
+
+            <div className="flex items-center space-x-2">
+              <Switch
+                id="auto-save"
+                checked={settings.advanced_features.auto_save_conversations}
+                onCheckedChange={(checked) =>
+                  setSettings(prev => ({
+                    ...prev,
+                    advanced_features: { ...prev.advanced_features, auto_save_conversations: checked }
+                  }))
+                }
+              />
+              <Label htmlFor="auto-save">Автосохранение диалогов</Label>
+            </div>
+
+            <div className="flex items-center space-x-2">
+              <Switch
+                id="privacy-mode"
+                checked={settings.advanced_features.privacy_mode}
+                onCheckedChange={(checked) =>
+                  setSettings(prev => ({
+                    ...prev,
+                    advanced_features: { ...prev.advanced_features, privacy_mode: checked }
+                  }))
+                }
+              />
+              <Label htmlFor="privacy-mode">Режим приватности</Label>
+            </div>
           </div>
         </CardContent>
-      </Card>
+      </TabsContent>
 
-      {settings.interaction_mode === 'voice' && (
-        <Card>
+      <TabsContent value="voice" className="space-y-6">
+
+        {(settings.interaction_mode === 'voice' || settings.interaction_mode === 'mixed') && (
+          <Card>
           <CardHeader>
             <CardTitle>Настройки голоса</CardTitle>
             <CardDescription>
@@ -338,11 +488,18 @@ export function VoiceAssistantSettings() {
             </div>
           </CardContent>
         </Card>
-      )}
+        )}
+      </TabsContent>
 
-      <Button onClick={saveSettings} disabled={loading} className="w-full">
-        {loading ? "Сохранение..." : "Сохранить настройки"}
-      </Button>
-    </div>
+      <TabsContent value="api" className="space-y-6">
+        <APIKeysManager />
+      </TabsContent>
+
+      <div className="flex justify-end pt-6">
+        <Button onClick={saveSettings} disabled={loading}>
+          {loading ? "Сохранение..." : "Сохранить настройки"}
+        </Button>
+      </div>
+    </Tabs>
   );
 }
