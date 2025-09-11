@@ -813,6 +813,85 @@ serve(async (req) => {
             required: ["categories"]
           }
         }
+      },
+      {
+        type: "function",
+        function: {
+          name: "delegate_to_analyst",
+          description: "Делегировать анализ данных AI-Аналитику",
+          parameters: {
+            type: "object",
+            properties: {
+              analysis_type: { type: "string", description: "Тип анализа (sales, costs, performance)" },
+              data_period: { type: "string", description: "Период анализа" },
+              specific_metrics: {
+                type: "array",
+                items: { type: "string" },
+                description: "Конкретные метрики для анализа"
+              }
+            },
+            required: ["analysis_type"]
+          }
+        }
+      },
+      {
+        type: "function",
+        function: {
+          name: "delegate_to_contractor",
+          description: "Делегировать управление подрядчиками AI-Менеджеру подрядчиков",
+          parameters: {
+            type: "object",
+            properties: {
+              action: { type: "string", description: "Действие (search, assign, evaluate)" },
+              project_type: { type: "string", description: "Тип проекта" },
+              requirements: {
+                type: "array",
+                items: { type: "string" },
+                description: "Требования к подрядчику"
+              },
+              budget_range: { type: "string", description: "Бюджетный диапазон" }
+            },
+            required: ["action"]
+          }
+        }
+      },
+      {
+        type: "function",
+        function: {
+          name: "delegate_to_proposal",
+          description: "Делегировать создание предложений AI-Менеджеру предложений",
+          parameters: {
+            type: "object",
+            properties: {
+              client_info: { type: "string", description: "Информация о клиенте" },
+              services_offered: {
+                type: "array",
+                items: { type: "string" },
+                description: "Предлагаемые услуги"
+              },
+              budget_estimate: { type: "number", description: "Предварительная смета" },
+              deadline: { type: "string", description: "Срок выполнения" }
+            },
+            required: ["client_info", "services_offered"]
+          }
+        }
+      },
+      {
+        type: "function",
+        function: {
+          name: "delegate_to_technical",
+          description: "Делегировать техническую оценку AI-Техническому специалисту",
+          parameters: {
+            type: "object",
+            properties: {
+              object_description: { type: "string", description: "Описание объекта" },
+              client_name: { type: "string", description: "Имя клиента" },
+              object_address: { type: "string", description: "Адрес объекта" },
+              technical_requirements: { type: "string", description: "Технические требования" }
+            },
+            required: ["object_description"]
+          }
+        }
       }
     ];
 
@@ -1210,6 +1289,86 @@ const systemPrompt = `Ты — голосовой ассистент руков�
                 functionResults.push(`✅ AI-Поставщик найдел: ${supplierResult.total_found || 0} поставщиков`);
               } catch (error) {
                 functionResults.push(`❌ Ошибка при работе с AI-Поставщиком: ${error.message}`);
+              }
+              break;
+              
+            case 'delegate_to_analyst':
+              console.log('Делегирование AI-Аналитику:', functionArgs);
+              try {
+                const { data: analystResult, error } = await supabase.functions.invoke('ai-analyst', {
+                  body: {
+                    analysis_type: functionArgs.analysis_type,
+                    data_period: functionArgs.data_period,
+                    specific_metrics: functionArgs.specific_metrics || []
+                  }
+                });
+                
+                if (error) throw error;
+                result = analystResult;
+                functionResults.push(`✅ AI-Аналитик: анализ ${functionArgs.analysis_type} завершен`);
+              } catch (error) {
+                functionResults.push(`❌ Ошибка при работе с AI-Аналитиком: ${error.message}`);
+              }
+              break;
+              
+            case 'delegate_to_contractor':
+              console.log('Делегирование AI-Менеджеру подрядчиков:', functionArgs);
+              try {
+                const { data: contractorResult, error } = await supabase.functions.invoke('ai-contractor-manager', {
+                  body: {
+                    action: functionArgs.action,
+                    project_type: functionArgs.project_type,
+                    requirements: functionArgs.requirements || [],
+                    budget_range: functionArgs.budget_range
+                  }
+                });
+                
+                if (error) throw error;
+                result = contractorResult;
+                functionResults.push(`✅ AI-Менеджер подрядчиков: ${functionArgs.action} выполнен`);
+              } catch (error) {
+                functionResults.push(`❌ Ошибка при работе с AI-Менеджером подрядчиков: ${error.message}`);
+              }
+              break;
+              
+            case 'delegate_to_proposal':
+              console.log('Делегирование AI-Менеджеру предложений:', functionArgs);
+              try {
+                const { data: proposalResult, error } = await supabase.functions.invoke('ai-proposal-manager', {
+                  body: {
+                    action: 'create_proposal',
+                    client_info: functionArgs.client_info,
+                    services_offered: functionArgs.services_offered,
+                    budget_estimate: functionArgs.budget_estimate,
+                    deadline: functionArgs.deadline
+                  }
+                });
+                
+                if (error) throw error;
+                result = proposalResult;
+                functionResults.push(`✅ AI-Менеджер предложений: предложение создано`);
+              } catch (error) {
+                functionResults.push(`❌ Ошибка при работе с AI-Менеджером предложений: ${error.message}`);
+              }
+              break;
+              
+            case 'delegate_to_technical':
+              console.log('Делегирование AI-Техническому специалисту:', functionArgs);
+              try {
+                const { data: technicalResult, error } = await supabase.functions.invoke('ai-technical-specialist', {
+                  body: {
+                    object_description: functionArgs.object_description,
+                    client_name: functionArgs.client_name || '',
+                    object_address: functionArgs.object_address || '',
+                    technical_requirements: functionArgs.technical_requirements
+                  }
+                });
+                
+                if (error) throw error;
+                result = technicalResult;
+                functionResults.push(`✅ AI-Технический специалист: техническая оценка завершена`);
+              } catch (error) {
+                functionResults.push(`❌ Ошибка при работе с AI-Техническим специалистом: ${error.message}`);
               }
               break;
               
