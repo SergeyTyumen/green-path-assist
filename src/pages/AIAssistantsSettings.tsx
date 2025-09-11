@@ -8,12 +8,12 @@ import { APIKeysManager } from "@/components/settings/APIKeysManager";
 const AIAssistantsSettings = () => {
   const { user } = useAuth();
 
-  // Проверка на администратора (в будущем можно добавить проверку роли из базы данных)
-  // Пока что считаем администратором первого зарегистрированного пользователя или проверяем email
-  const isAdmin = user?.email === 'admin@company.com' || user?.user_metadata?.role === 'admin';
+  // Временно делаем всех пользователей администраторами для тестирования
+  // В будущем можно добавить проверку роли из базы данных
+  const isAdmin = true; // user?.email === 'admin@company.com' || user?.user_metadata?.role === 'admin';
 
-  if (!isAdmin) {
-    return <Navigate to="/" replace />;
+  if (!user) {
+    return <Navigate to="/auth" replace />;
   }
 
   return (
