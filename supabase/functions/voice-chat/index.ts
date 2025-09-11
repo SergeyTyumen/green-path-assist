@@ -567,6 +567,27 @@ serve(async (req) => {
       {
         type: "function",
         function: {
+          name: "get_all_tasks",
+          description: "Получить все задачи пользователя (активные, выполненные, просроченные)",
+          parameters: {
+            type: "object",
+            properties: {
+              status_filter: { 
+                type: "string", 
+                enum: ["all", "pending", "in-progress", "completed", "overdue"],
+                description: "Фильтр по статусу задач (опционально)"
+              },
+              due_date_filter: {
+                type: "string",
+                description: "Фильтр по дате выполнения в формате YYYY-MM-DD (опционально)"
+              }
+            }
+          }
+        }
+      },
+      {
+        type: "function",
+        function: {
           name: "create_material",
           description: "Добавить новый материал в каталог",
           parameters: {
@@ -825,8 +846,12 @@ const systemPrompt = `Ты — голосовой ассистент руков�
 - "задача выполнена" → update_task_status на "completed"
 - "начал работу над задачей" → update_task_status на "in-progress"
 
-АНАЛИТИКА:
+АНАЛИТИКА И ПОЛУЧЕНИЕ ИНФОРМАЦИИ О ЗАДАЧАХ:
 - "что с клиентом X" → find_client + find_client_tasks + показать статус задач
+- "все задачи" / "список всех задач" / "что у нас на сегодня" → get_all_tasks
+- "задачи на сегодня" / "задачи сегодня" → get_all_tasks с фильтром по сегодняшней дате
+- "активные задачи" → get_all_tasks с фильтром status_filter: "pending" или "in-progress"
+- "выполненные задачи" → get_all_tasks с фильтром status_filter: "completed"
 - "сколько заявок в работе" → get_analytics
 - "статистика за неделю" → get_analytics с фильтрами
 
@@ -910,6 +935,49 @@ const systemPrompt = `Ты — голосовой ассистент руков�
             case 'update_task_status':
               result = await updateTaskStatus(functionArgs.task_id, functionArgs.status, userId);
               functionResults.push(`Статус задачи "${result.title}" обновлен на "${functionArgs.status}"`);
+              break;
+              
+              
+            case 'get_all_tasks':
+              const allTasks = await getTasksData(userId);
+              let filteredTasks = allTasks;
+              
+              // Применяем фильтр по статусу если указан
+              if (functionArgs.status_filter && functionArgs.status_filter !== 'all') {
+                filteredTasks = allTasks.filter(task => task.status === functionArgs.status_filter);
+              }
+              
+              // Применяем фильтр по дате если указан
+              if (functionArgs.due_date_filter) {
+                filteredTasks = filteredTasks.filter(task => {
+                  if (!task.due_date) return false;
+                  const taskDate = task.due_date.split('T')[0]; // получаем только дату без времени
+                  return taskDate === functionArgs.due_date_filter;
+                });
+              }
+              
+              // Если фильтр по дате не указан, но запрос касается "сегодня"
+              if (!functionArgs.due_date_filter && (message.includes('сегодня') || message.includes('на сегодня'))) {
+                const today = new Date().toISOString().split('T')[0];
+                filteredTasks = filteredTasks.filter(task => {
+                  if (!task.due_date) return false;
+                  const taskDate = task.due_date.split('T')[0];
+                  return taskDate === today;
+                });
+              }
+              
+              // Получаем информацию о клиентах для задач
+              const clientsInfo = await getClientsData(userId);
+              const tasksWithClients = filteredTasks.map(task => {
+                const client = task.client_id ? clientsInfo.find(c => c.id === task.client_id) : null;
+                return {
+                  ...task,
+                  client_name: client ? client.name : 'Без клиента'
+                };
+              });
+              
+              result = tasksWithClients;
+              functionResults.push(`Найдено ${result.length} задач(и) по запросу`);
               break;
               
             case 'find_client_tasks':
