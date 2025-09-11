@@ -11,13 +11,15 @@ import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { APIKeysManager } from "@/components/settings/APIKeysManager";
+import { TTSTestButton } from "@/components/TTSTestButton";
 
 interface VoiceSettings {
-  voice_provider: 'web_speech' | 'elevenlabs';
+  tts_provider: 'web_speech' | 'openai' | 'elevenlabs' | 'yandex';
   voice_id: string;
   speech_rate: number;
   speech_pitch: number;
   elevenlabs_api_key?: string;
+  yandex_api_key?: string;
 }
 
 interface AISettings {
@@ -48,7 +50,7 @@ const defaultSettings: UserSettings = {
   preferred_ai_model: 'openai',
   interaction_mode: 'text',
   voice_settings: {
-    voice_provider: 'web_speech',
+    tts_provider: 'web_speech',
     voice_id: 'alloy',
     speech_rate: 1.0,
     speech_pitch: 1.0
@@ -149,6 +151,48 @@ export function VoiceAssistantSettings() {
         [key]: value
       }
     }));
+  };
+
+  const getVoiceOptions = (provider: string) => {
+    switch (provider) {
+      case 'web_speech':
+        return [
+          { id: 'browser-default', name: 'Голос браузера по умолчанию' },
+          { id: 'browser-female', name: 'Женский голос браузера' },
+          { id: 'browser-male', name: 'Мужской голос браузера' }
+        ];
+      case 'openai':
+        return [
+          { id: 'alloy', name: 'Alloy (нейтральный)' },
+          { id: 'echo', name: 'Echo (мужской)' },
+          { id: 'fable', name: 'Fable (британский)' },
+          { id: 'onyx', name: 'Onyx (глубокий мужской)' },
+          { id: 'nova', name: 'Nova (женский)' },
+          { id: 'shimmer', name: 'Shimmer (женский)' }
+        ];
+      case 'elevenlabs':
+        return [
+          { id: '9BWtsMINqrJLrRacOk9x', name: 'Aria (женский)' },
+          { id: 'CwhRBWXzGAHq8TQ4Fs17', name: 'Roger (мужской)' },
+          { id: 'EXAVITQu4vr4xnSDxMaL', name: 'Sarah (женский)' },
+          { id: 'FGY2WhTYpPnrIDTdsKH5', name: 'Laura (женский)' },
+          { id: 'IKne3meq5aSn9XLyUdCD', name: 'Charlie (мужской)' },
+          { id: 'JBFqnCBsd6RMkjVDRZzb', name: 'George (мужской)' },
+          { id: 'N2lVS1w4EtoT3dr4eOWO', name: 'Callum (мужской)' },
+          { id: 'SAz9YHcvj6GT2YYXdXww', name: 'River (нейтральный)' }
+        ];
+      case 'yandex':
+        return [
+          { id: 'alena', name: 'Алёна (женский)' },
+          { id: 'filipp', name: 'Филипп (мужской)' },
+          { id: 'ermil', name: 'Ермил (мужской)' },
+          { id: 'jane', name: 'Джейн (женский)' },
+          { id: 'omazh', name: 'Омаж (женский)' },
+          { id: 'zahar', name: 'Захар (мужской)' }
+        ];
+      default:
+        return [];
+    }
   };
 
   const updateAISettings = (key: keyof AISettings, value: any) => {
@@ -410,60 +454,104 @@ export function VoiceAssistantSettings() {
           <CardHeader>
             <CardTitle>Настройки голоса</CardTitle>
             <CardDescription>
-              Настройте параметры синтеза речи
+              Настройте провайдер и параметры синтеза речи
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="grid w-full items-center gap-1.5">
-              <Label htmlFor="voice-provider">Провайдер TTS</Label>
+              <Label htmlFor="tts-provider">Провайдер TTS</Label>
               <Select
-                value={settings.voice_settings.voice_provider}
-                onValueChange={(value: 'web_speech' | 'elevenlabs') =>
-                  updateVoiceSettings('voice_provider', value)
-                }
+                value={settings.voice_settings.tts_provider}
+                onValueChange={(value: 'web_speech' | 'openai' | 'elevenlabs' | 'yandex') => {
+                  updateVoiceSettings('tts_provider', value);
+                  // Сбросить голос при смене провайдера
+                  const firstVoice = getVoiceOptions(value)[0]?.id || '';
+                  updateVoiceSettings('voice_id', firstVoice);
+                }}
               >
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="web_speech">Web Speech API</SelectItem>
-                  <SelectItem value="elevenlabs">ElevenLabs</SelectItem>
+                  <SelectItem value="web_speech">Web Speech API (встроенный)</SelectItem>
+                  <SelectItem value="openai">OpenAI TTS (высокое качество)</SelectItem>
+                  <SelectItem value="elevenlabs">ElevenLabs (премиум)</SelectItem>
+                  <SelectItem value="yandex">Yandex SpeechKit (русский)</SelectItem>
                 </SelectContent>
               </Select>
             </div>
 
-            {settings.voice_settings.voice_provider === 'elevenlabs' && (
-              <>
-                <div className="grid w-full items-center gap-1.5">
-                  <Label htmlFor="elevenlabs-key">API ключ ElevenLabs</Label>
-                  <Input
-                    type="password"
-                    value={settings.voice_settings.elevenlabs_api_key || ''}
-                    onChange={(e) => updateVoiceSettings('elevenlabs_api_key', e.target.value)}
-                    placeholder="Введите API ключ ElevenLabs"
-                  />
-                </div>
+            <div className="grid w-full items-center gap-1.5">
+              <Label htmlFor="voice-id">Голос</Label>
+              <Select
+                value={settings.voice_settings.voice_id}
+                onValueChange={(value) => updateVoiceSettings('voice_id', value)}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {getVoiceOptions(settings.voice_settings.tts_provider).map((voice) => (
+                    <SelectItem key={voice.id} value={voice.id}>
+                      {voice.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
 
-                <div className="grid w-full items-center gap-1.5">
-                  <Label htmlFor="voice-id">ID голоса</Label>
-                  <Select
-                    value={settings.voice_settings.voice_id}
-                    onValueChange={(value) => updateVoiceSettings('voice_id', value)}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="9BWtsMINqrJLrRacOk9x">Aria</SelectItem>
-                      <SelectItem value="CwhRBWXzGAHq8TQ4Fs17">Roger</SelectItem>
-                      <SelectItem value="EXAVITQu4vr4xnSDxMaL">Sarah</SelectItem>
-                      <SelectItem value="FGY2WhTYpPnrIDTdsKH5">Laura</SelectItem>
-                      <SelectItem value="alloy">Alloy (OpenAI)</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </>
+            {/* API ключи для платных провайдеров */}
+            {settings.voice_settings.tts_provider === 'elevenlabs' && (
+              <div className="grid w-full items-center gap-1.5">
+                <Label htmlFor="elevenlabs-key">API ключ ElevenLabs</Label>
+                <Input
+                  type="password"
+                  value={settings.voice_settings.elevenlabs_api_key || ''}
+                  onChange={(e) => updateVoiceSettings('elevenlabs_api_key', e.target.value)}
+                  placeholder="Введите API ключ ElevenLabs"
+                />
+              </div>
             )}
+
+            {settings.voice_settings.tts_provider === 'yandex' && (
+              <div className="grid w-full items-center gap-1.5">
+                <Label htmlFor="yandex-key">API ключ Yandex</Label>
+                <Input
+                  type="password"
+                  value={settings.voice_settings.yandex_api_key || ''}
+                  onChange={(e) => updateVoiceSettings('yandex_api_key', e.target.value)}
+                  placeholder="Введите API ключ Yandex SpeechKit"
+                />
+              </div>
+            )}
+
+            {/* Информация о провайдере */}
+            <div className="p-3 bg-muted rounded-md text-sm">
+              {settings.voice_settings.tts_provider === 'web_speech' && (
+                <div>
+                  <strong>Web Speech API:</strong> Использует встроенные голоса браузера. 
+                  Бесплатно, но качество зависит от операционной системы.
+                </div>
+              )}
+              {settings.voice_settings.tts_provider === 'openai' && (
+                <div>
+                  <strong>OpenAI TTS:</strong> Высококачественные голоса от OpenAI. 
+                  Стоимость ~$15 за 1M символов. Очень естественное звучание.
+                </div>
+              )}
+              {settings.voice_settings.tts_provider === 'elevenlabs' && (
+                <div>
+                  <strong>ElevenLabs:</strong> Премиум качество с эмоциональностью. 
+                  Самое высокое качество, но дороже OpenAI.
+                </div>
+              )}
+              {settings.voice_settings.tts_provider === 'yandex' && (
+                <div>
+                  <strong>Yandex SpeechKit:</strong> Оптимизирован для русского языка. 
+                  Хорошее качество русской речи, отдельная подписка.
+                </div>
+              )}
+            </div>
 
             <div className="grid w-full items-center gap-1.5">
               <Label htmlFor="speech-rate">Скорость речи: {settings.voice_settings.speech_rate}</Label>
@@ -487,6 +575,26 @@ export function VoiceAssistantSettings() {
                 step={0.1}
                 className="w-full"
               />
+            </div>
+
+            {/* Кнопка тестирования голоса */}
+            <div className="pt-4 border-t">
+              <div className="flex items-center justify-between">
+                <Label>Тест голоса</Label>
+                <TTSTestButton
+                  provider={settings.voice_settings.tts_provider}
+                  voice={settings.voice_settings.voice_id}
+                  rate={settings.voice_settings.speech_rate}
+                  pitch={settings.voice_settings.speech_pitch}
+                  apiKey={
+                    settings.voice_settings.tts_provider === 'elevenlabs' 
+                      ? settings.voice_settings.elevenlabs_api_key
+                      : settings.voice_settings.tts_provider === 'yandex'
+                      ? settings.voice_settings.yandex_api_key
+                      : undefined
+                  }
+                />
+              </div>
             </div>
           </CardContent>
         </Card>
