@@ -1,15 +1,25 @@
 import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Settings, Key, ShieldCheck } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Settings, Key, ShieldCheck, Calculator, FileText, TrendingUp, BarChart3, Users, Truck, HardHat, Target, Mic, Building } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { Navigate } from "react-router-dom";
 import { BaseAISettings } from "@/components/ai-settings/BaseAISettings";
+import TechnicalSpecialistSettings from "@/components/ai-settings/TechnicalSpecialistSettings";
 import { APIKeysManager } from "@/components/settings/APIKeysManager";
 import { supabase } from "@/integrations/supabase/client";
+
 const AIAssistantsSettings = () => {
   const { user } = useAuth();
   const [isAdmin, setIsAdmin] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState("general");
+
+  const assistantTabs = [
+    { id: "general", name: "Общие настройки", icon: Settings },
+    { id: "technical", name: "AI-Технолог", icon: Building },
+    { id: "api", name: "API ключи", icon: Key },
+  ];
 
   useEffect(() => {
     checkAdminRole();
@@ -99,23 +109,29 @@ const AIAssistantsSettings = () => {
           </CardContent>
         </Card>
 
-        {/* Базовые настройки AI и API ключи */}
+        {/* Навигация по вкладкам */}
         <Card>
-          <CardHeader>
-            <div className="flex items-center gap-3">
-              <Key className="h-6 w-6 text-primary" />
-              <div>
-                <CardTitle>Общие настройки и API ключи</CardTitle>
-                <CardDescription>
-                  Настройка API ключей и базовых параметров для всех AI ассистентов
-                </CardDescription>
-              </div>
+          <CardContent className="p-0">
+            <div className="flex border-b">
+              {assistantTabs.map((tab) => {
+                const Icon = tab.icon;
+                return (
+                  <Button
+                    key={tab.id}
+                    variant={activeTab === tab.id ? "default" : "ghost"}
+                    className="rounded-none flex-1 justify-start gap-2"
+                    onClick={() => setActiveTab(tab.id)}
+                  >
+                    <Icon className="h-4 w-4" />
+                    {tab.name}
+                  </Button>
+                );
+              })}
             </div>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-8">
-              <BaseAISettings />
-              <APIKeysManager />
+            <div className="p-6">
+              {activeTab === "general" && <BaseAISettings />}
+              {activeTab === "technical" && <TechnicalSpecialistSettings />}
+              {activeTab === "api" && <APIKeysManager />}
             </div>
           </CardContent>
         </Card>
