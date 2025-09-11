@@ -65,24 +65,21 @@ export const APIKeysManager = () => {
     if (!user) return;
 
     try {
-      const { data, error } = await supabase
-        .from('api_keys')
-        .select('*')
-        .eq('user_id', user.id);
-
-      if (error) throw error;
-
-      const loadedConfigs = data || [];
+      // Временно используем localStorage пока типы не обновились
+      const savedKeys = JSON.parse(localStorage.getItem(`api_keys_${user.id}`) || '[]');
       
       // Добавляем дефолтные конфигурации если их нет
       const providers = Object.keys(defaultConfigs);
-      const existingProviders = loadedConfigs.map(c => c.provider);
+      const existingProviders = savedKeys.map((c: APIKeyConfig) => c.provider);
+      
+      const loadedConfigs = [...savedKeys];
       
       for (const provider of providers) {
         if (!existingProviders.includes(provider)) {
           loadedConfigs.push({
             ...defaultConfigs[provider],
             api_key: '',
+            id: `temp_${provider}`,
             user_id: user.id
           } as APIKeyConfig);
         }
@@ -105,45 +102,20 @@ export const APIKeysManager = () => {
     if (!user) return;
 
     try {
-      const existingConfig = configs.find(c => c.provider === provider);
+      // Временно используем localStorage
+      const updatedConfigs = configs.map(c => 
+        c.provider === provider 
+          ? { ...c, ...configData }
+          : c
+      );
       
-      if (existingConfig?.id) {
-        // Обновляем существующий
-        const { error } = await supabase
-          .from('api_keys')
-          .update(configData)
-          .eq('id', existingConfig.id);
-
-        if (error) throw error;
-      } else {
-        // Создаем новый
-        const { data, error } = await supabase
-          .from('api_keys')
-          .insert({
-            user_id: user.id,
-            provider,
-            ...configData
-          })
-          .select()
-          .single();
-
-        if (error) throw error;
-        
-        // Обновляем локальное состояние
-        setConfigs(prev => prev.map(c => 
-          c.provider === provider 
-            ? { ...c, id: data.id, ...configData }
-            : c
-        ));
-      }
+      setConfigs(updatedConfigs);
+      localStorage.setItem(`api_keys_${user.id}`, JSON.stringify(updatedConfigs));
 
       toast({
         title: "Успешно",
-        description: `API ключ для ${provider} сохранен`,
+        description: `API ключ для ${provider} сохранен (локально)`,
       });
-
-      // Перезагружаем данные
-      await loadAPIKeys();
     } catch (error) {
       console.error('Error saving API key:', error);
       toast({

@@ -86,6 +86,33 @@ export type Database = {
         }
         Relationships: []
       }
+      api_keys: {
+        Row: {
+          api_key: string
+          created_at: string
+          id: string
+          provider: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          api_key: string
+          created_at?: string
+          id?: string
+          provider: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          api_key?: string
+          created_at?: string
+          id?: string
+          provider?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       channel_accounts: {
         Row: {
           channel_id: string
@@ -951,6 +978,7 @@ export type Database = {
       }
       profiles: {
         Row: {
+          advanced_features: Json | null
           ai_settings: Json | null
           company_name: string | null
           created_at: string
@@ -965,6 +993,7 @@ export type Database = {
           voice_settings: Json | null
         }
         Insert: {
+          advanced_features?: Json | null
           ai_settings?: Json | null
           company_name?: string | null
           created_at?: string
@@ -979,6 +1008,7 @@ export type Database = {
           voice_settings?: Json | null
         }
         Update: {
+          advanced_features?: Json | null
           ai_settings?: Json | null
           company_name?: string | null
           created_at?: string
