@@ -18,7 +18,9 @@ import {
   Loader2,
   Eye,
   Edit,
-  FileText
+  FileText,
+  Trash2,
+  Archive
 } from "lucide-react";
 import { useClients, Client } from "@/hooks/useClients";
 import { ClientDetailDialog } from "@/components/ClientDetailDialog";
@@ -46,7 +48,7 @@ export default function Clients() {
     areaMax: ""
   });
 
-  const { clients, loading, createClient, updateClient } = useClients();
+  const { clients, loading, createClient, updateClient, deleteClient } = useClients();
 
   const getStatusConfig = (status: string) => {
     const configs = {
@@ -55,7 +57,8 @@ export default function Clients() {
       "proposal-sent": { label: "КП отправлено", className: "bg-status-proposal-sent text-white" },
       "call-scheduled": { label: "Созвон", className: "bg-status-call-scheduled text-white" },
       "postponed": { label: "Отложено", className: "bg-status-postponed text-white" },
-      "closed": { label: "Закрыт", className: "bg-status-closed text-white" }
+      "closed": { label: "Закрыт", className: "bg-status-closed text-white" },
+      "archived": { label: "В архиве", className: "bg-muted text-muted-foreground" }
     };
     return configs[status as keyof typeof configs] || configs.new;
   };
@@ -146,6 +149,22 @@ export default function Clients() {
     navigate('/ai-consultant');
   };
 
+  const handleDeleteClient = async (client: Client) => {
+    if (confirm(`Вы уверены, что хотите удалить клиента "${client.name}"?`)) {
+      await deleteClient(client.id);
+    }
+  };
+
+  const handleArchiveClient = async (client: Client) => {
+    if (confirm(`Перенести клиента "${client.name}" в архив?`)) {
+      await updateClient(client.id, { status: 'archived' });
+      toast({
+        title: "Успешно",
+        description: "Клиент перенесен в архив"
+      });
+    }
+  };
+
   if (loading) {
     return (
       <div className="p-6 flex items-center justify-center">
@@ -216,6 +235,14 @@ export default function Clients() {
                 className="min-h-[40px] text-xs sm:text-sm"
               >
                 В работе
+              </Button>
+              <Button 
+                variant={statusFilter === "archived" ? "default" : "outline"}
+                size="sm"
+                onClick={() => setStatusFilter("archived")}
+                className="min-h-[40px] text-xs sm:text-sm"
+              >
+                Архив
               </Button>
               <Dialog open={showFiltersDialog} onOpenChange={setShowFiltersDialog}>
                 <DialogTrigger asChild>
@@ -393,6 +420,32 @@ export default function Clients() {
                 >
                   <FileText className="h-4 w-4 mr-1" />
                   <span className="sm:inline">Создать смету</span>
+                </Button>
+                {client.status !== 'archived' && (
+                  <Button 
+                    size="sm" 
+                    variant="outline"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleArchiveClient(client);
+                    }} 
+                    className="min-h-[40px] justify-start text-orange-600 hover:text-orange-700"
+                  >
+                    <Archive className="h-4 w-4 mr-1" />
+                    <span className="sm:inline">В архив</span>
+                  </Button>
+                )}
+                <Button 
+                  size="sm" 
+                  variant="outline"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleDeleteClient(client);
+                  }} 
+                  className="min-h-[40px] justify-start text-destructive hover:text-destructive/80"
+                >
+                  <Trash2 className="h-4 w-4 mr-1" />
+                  <span className="sm:inline">Удалить</span>
                 </Button>
               </div>
             </CardContent>
