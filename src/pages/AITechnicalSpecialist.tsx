@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -8,7 +8,9 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { Loader2, FileText, User, MapPin, Building, Calculator, ArrowRight } from "lucide-react";
+import { Loader2, FileText, User, MapPin, Building, Calculator, ArrowRight, Save, FolderOpen } from "lucide-react";
+import VoiceRecorder from "@/components/VoiceRecorder";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 interface TechnicalSpecification {
   id: string;
@@ -30,7 +32,17 @@ export default function AITechnicalSpecialist() {
   const [clientName, setClientName] = useState("");
   const [objectAddress, setObjectAddress] = useState("");
   const [specification, setSpecification] = useState<TechnicalSpecification | null>(null);
+  const [savedDescriptions, setSavedDescriptions] = useState<Array<{id: string, name: string, data: any}>>([]);
+  const [selectedSavedId, setSelectedSavedId] = useState<string>("");
   const { toast } = useToast();
+
+  // Load saved descriptions from localStorage
+  useEffect(() => {
+    const saved = localStorage.getItem('saved-descriptions');
+    if (saved) {
+      setSavedDescriptions(JSON.parse(saved));
+    }
+  }, []);
 
   const generateSpecification = async () => {
     if (!objectDescription.trim()) {
@@ -71,6 +83,42 @@ export default function AITechnicalSpecialist() {
     }
   };
 
+  const saveDescription = () => {
+    const name = prompt("Введите название для сохранения:");
+    if (name && (objectDescription.trim() || clientName.trim() || objectAddress.trim())) {
+      const newSaved = {
+        id: Date.now().toString(),
+        name,
+        data: { objectDescription, clientName, objectAddress, savedAt: new Date().toISOString() }
+      };
+      const updated = [...savedDescriptions, newSaved];
+      setSavedDescriptions(updated);
+      localStorage.setItem('saved-descriptions', JSON.stringify(updated));
+      toast({
+        title: "Описание сохранено",
+        description: `Сохранено как "${name}"`,
+      });
+    }
+  };
+
+  const loadDescription = (id: string) => {
+    const saved = savedDescriptions.find(s => s.id === id);
+    if (saved) {
+      setObjectDescription(saved.data.objectDescription || "");
+      setClientName(saved.data.clientName || "");
+      setObjectAddress(saved.data.objectAddress || "");
+      setSelectedSavedId(id);
+      toast({
+        title: "Описание загружено",
+        description: `Загружено: "${saved.name}"`,
+      });
+    }
+  };
+
+  const handleVoiceTranscription = (text: string) => {
+    setObjectDescription(prev => prev ? `${prev}\n\n${text}` : text);
+  };
+
   const transferToEstimator = () => {
     if (specification) {
       // Переход к AI-сметчику с данными ТЗ
@@ -109,6 +157,28 @@ export default function AITechnicalSpecialist() {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
+            {/* Сохраненные описания */}
+            {savedDescriptions.length > 0 && (
+              <div className="space-y-2">
+                <Label className="flex items-center gap-2">
+                  <FolderOpen className="h-4 w-4" />
+                  Загрузить сохраненное описание
+                </Label>
+                <Select value={selectedSavedId} onValueChange={loadDescription}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Выберите сохраненное описание" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {savedDescriptions.map((saved) => (
+                      <SelectItem key={saved.id} value={saved.id}>
+                        {saved.name} ({new Date(saved.data.savedAt).toLocaleDateString()})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+
             <div className="space-y-2">
               <Label htmlFor="client-name" className="flex items-center gap-2">
                 <User className="h-4 w-4" />
@@ -136,8 +206,9 @@ export default function AITechnicalSpecialist() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="object-description">
-                Описание объекта и требуемых работ
+              <Label htmlFor="object-description" className="flex items-center justify-between">
+                <span>Описание объекта и требуемых работ</span>
+                <VoiceRecorder onTranscription={handleVoiceTranscription} />
               </Label>
               <Textarea
                 id="object-description"
@@ -146,6 +217,19 @@ export default function AITechnicalSpecialist() {
                 placeholder="Опишите объект, его состояние, требуемые работы, особенности участка, пожелания клиента..."
                 className="min-h-[200px]"
               />
+            </div>
+
+            {/* Кнопки сохранения и формирования ТЗ */}
+            <div className="flex gap-2">
+              <Button 
+                onClick={saveDescription} 
+                disabled={!objectDescription.trim() && !clientName.trim() && !objectAddress.trim()}
+                variant="outline"
+                className="flex-1"
+              >
+                <Save className="mr-2 h-4 w-4" />
+                Сохранить описание
+              </Button>
             </div>
 
             <Button 
