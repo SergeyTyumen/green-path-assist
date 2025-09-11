@@ -7,8 +7,9 @@ import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
-import { Users, Shield, Search, UserCheck, Crown } from 'lucide-react';
-import { Navigate } from 'react-router-dom';
+import { Users, Shield, Search, UserCheck, Crown, Bell } from 'lucide-react';
+import { Navigate, Link } from 'react-router-dom';
+import { NotificationSettings } from '@/components/NotificationSettings';
 
 interface UserProfile {
   id: string;
@@ -308,6 +309,24 @@ const UserManagement = () => {
           </CardContent>
         </Card>
       </div>
+
+      {/* Настройки уведомлений */}
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Bell className="h-5 w-5 text-primary" />
+              <CardTitle>Настройки уведомлений</CardTitle>
+            </div>
+          </div>
+          <CardDescription>
+            Настройка push-уведомлений для мобильного приложения
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <NotificationSettings />
+        </CardContent>
+      </Card>
 
       {/* Список пользователей */}
       <Card>

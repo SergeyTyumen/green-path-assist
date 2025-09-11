@@ -21,6 +21,7 @@ import {
 import { useTasks, Task } from "@/hooks/useTasks";
 import { useClients } from "@/hooks/useClients";
 import { TaskDialog } from "@/components/TaskDialog";
+import { useNotifications } from "@/hooks/useNotifications";
 import { toast } from "sonner";
 
 export default function Tasks() {
@@ -30,14 +31,19 @@ export default function Tasks() {
   const [selectedClient, setSelectedClient] = useState("all");
   const { tasks, loading, updateTask, deleteTask } = useTasks();
   const { clients } = useClients();
+  const { cancelTaskNotifications } = useNotifications();
 
   const handleCompleteTask = async (task: Task) => {
     await updateTask(task.id, { status: "completed" });
+    // Отменяем уведомления для выполненной задачи
+    await cancelTaskNotifications(task.id);
     toast.success("Задача помечена как выполненная");
   };
 
   const handleDeleteTask = async (taskId: string) => {
     await deleteTask(taskId);
+    // Отменяем уведомления для удаленной задачи
+    await cancelTaskNotifications(taskId);
   };
 
   const getStatusBadge = (status: Task["status"]) => {

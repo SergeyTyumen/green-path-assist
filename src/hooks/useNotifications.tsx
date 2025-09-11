@@ -119,12 +119,13 @@ export function useNotifications() {
     if (!user) return;
 
     try {
-      const { error } = await supabase
+        const deviceInfo = await Device.getInfo();
+        const { error } = await supabase
         .from('user_push_tokens')
         .upsert({
           user_id: user.id,
           token,
-          device_info: await Device.getInfo(),
+          device_info: deviceInfo as any,
           updated_at: new Date().toISOString()
         });
 

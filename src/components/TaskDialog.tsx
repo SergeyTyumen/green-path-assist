@@ -12,6 +12,7 @@ import { CalendarIcon, Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Task, useTasks } from "@/hooks/useTasks";
 import { useClients } from "@/hooks/useClients";
+import { useNotifications } from "@/hooks/useNotifications";
 
 interface TaskDialogProps {
   task?: Task;
@@ -48,6 +49,7 @@ export function TaskDialog({ task, trigger, onClose }: TaskDialogProps) {
 
   const { createTask, updateTask } = useTasks();
   const { clients } = useClients();
+  const { scheduleTaskNotification, notifyNewTask, cancelTaskNotifications } = useNotifications();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -60,8 +62,20 @@ export function TaskDialog({ task, trigger, onClose }: TaskDialogProps) {
 
     if (task) {
       await updateTask(task.id, taskData);
+      // Отменяем старые уведомления и планируем новые при изменении задачи
+      await cancelTaskNotifications(task.id);
+      if (taskData.due_date) {
+        await scheduleTaskNotification({ ...task, ...taskData });
+      }
     } else {
-      await createTask(taskData);
+      const newTask = await createTask(taskData);
+      if (newTask) {
+        // Уведомляем о новой задаче и планируем напоминания
+        await notifyNewTask(newTask);
+        if (taskData.due_date) {
+          await scheduleTaskNotification(newTask);
+        }
+      }
     }
     
     setOpen(false);
