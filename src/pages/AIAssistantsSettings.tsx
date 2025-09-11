@@ -5,7 +5,7 @@ import { Settings, Key, ShieldCheck, Calculator, FileText, TrendingUp, BarChart3
 import { useAuth } from "@/hooks/useAuth";
 import { Navigate } from "react-router-dom";
 import { BaseAISettings } from "@/components/ai-settings/BaseAISettings";
-import TechnicalSpecialistSettings from "@/components/ai-settings/TechnicalSpecialistSettings";
+
 import { APIKeysManager } from "@/components/settings/APIKeysManager";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -17,7 +17,6 @@ const AIAssistantsSettings = () => {
 
   const assistantTabs = [
     { id: "general", name: "Общие настройки", icon: Settings },
-    { id: "technical", name: "AI-Технолог", icon: Building },
     { id: "api", name: "API ключи", icon: Key },
   ];
 
@@ -130,7 +129,6 @@ const AIAssistantsSettings = () => {
             </div>
             <div className="p-6">
               {activeTab === "general" && <BaseAISettings />}
-              {activeTab === "technical" && <TechnicalSpecialistSettings />}
               {activeTab === "api" && <APIKeysManager />}
             </div>
           </CardContent>

@@ -6,11 +6,13 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { Loader2, FileText, User, MapPin, Building, Calculator, ArrowRight, Save, FolderOpen } from "lucide-react";
+import { Loader2, FileText, User, MapPin, Building, Calculator, ArrowRight, Save, FolderOpen, Settings } from "lucide-react";
 import VoiceRecorder from "@/components/VoiceRecorder";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import TechnicalSpecialistSettings from "@/components/ai-settings/TechnicalSpecialistSettings";
 
 interface TechnicalSpecification {
   id: string;
@@ -143,6 +145,14 @@ export default function AITechnicalSpecialist() {
           </p>
         </div>
       </div>
+
+      <Tabs defaultValue="workspace" className="w-full">
+        <TabsList className="grid w-full grid-cols-2">
+          <TabsTrigger value="workspace">Рабочая область</TabsTrigger>
+          <TabsTrigger value="settings">Настройки</TabsTrigger>
+        </TabsList>
+        
+        <TabsContent value="workspace" className="space-y-8">
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         {/* Форма ввода */}
@@ -377,6 +387,12 @@ export default function AITechnicalSpecialist() {
           </div>
         </CardContent>
       </Card>
+        </TabsContent>
+        
+        <TabsContent value="settings">
+          <TechnicalSpecialistSettings />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
