@@ -1,7 +1,8 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useNavigate } from 'react-router-dom';
 import { 
   Bot, 
@@ -16,8 +17,22 @@ import {
   Mic
 } from 'lucide-react';
 
+// Individual assistant settings components
+import { VoiceAssistantSettings } from '@/components/ai-settings/VoiceAssistantSettings';
+import { EstimatorSettings } from '@/components/ai-settings/EstimatorSettings';
+import { SalesManagerSettings } from '@/components/ai-settings/SalesManagerSettings';
+import { AnalystSettings } from '@/components/ai-settings/AnalystSettings';
+import { CompetitorAnalysisSettings } from '@/components/ai-settings/CompetitorAnalysisSettings';
+import { SupplierManagerSettings } from '@/components/ai-settings/SupplierManagerSettings';
+import { ContractorManagerSettings } from '@/components/ai-settings/ContractorManagerSettings';
+import { ProposalManagerSettings } from '@/components/ai-settings/ProposalManagerSettings';
+import { ConsultantSettings } from '@/components/ai-settings/ConsultantSettings';
+import { BaseAISettings } from '@/components/ai-settings/BaseAISettings';
+
 const AIAssistants = () => {
   const navigate = useNavigate();
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [selectedAssistant, setSelectedAssistant] = useState<string | null>(null);
   
   const assistants = [
     {
@@ -28,7 +43,8 @@ const AIAssistants = () => {
       status: 'active',
       features: ['Голосовые команды', 'Управление другими ИИ', 'Диспетчеризация задач', 'Аналитика CRM'],
       color: 'bg-blue-500',
-      route: '/voice-chat'
+      route: '/voice-chat',
+      settingsComponent: 'voice'
     },
     {
       id: 'ai-consultant',
@@ -38,7 +54,8 @@ const AIAssistants = () => {
       status: 'active',
       features: ['База услуг и материалов', 'Консультации клиентов', 'Сбор информации'],
       color: 'bg-purple-500',
-      route: '/ai-consultant'
+      route: '/ai-consultant',
+      settingsComponent: 'consultant'
     },
     {
       id: 'ai-estimator',
@@ -48,7 +65,8 @@ const AIAssistants = () => {
       status: 'active',
       features: ['Автоматический расчёт объёмов', 'Нормы и коэффициенты', 'Экспорт в PDF/Word'],
       color: 'bg-green-500',
-      route: '/ai-estimator'
+      route: '/ai-estimator',
+      settingsComponent: 'estimator'
     },
     {
       id: 'ai-proposal-manager',
@@ -58,7 +76,8 @@ const AIAssistants = () => {
       status: 'active',
       features: ['Оформление КП', 'Автоотправка клиентам', 'Отслеживание статусов'],
       color: 'bg-indigo-500',
-      route: '/ai-proposal-manager'
+      route: '/ai-proposal-manager',
+      settingsComponent: 'proposal'
     },
     {
       id: 'ai-sales-manager',
@@ -68,7 +87,8 @@ const AIAssistants = () => {
       status: 'active',
       features: ['Определение потребностей', 'Ведение воронки продаж', 'Автоматические напоминания'],
       color: 'bg-orange-500',
-      route: '/ai-sales-manager'
+      route: '/ai-sales-manager',
+      settingsComponent: 'sales'
     },
     {
       id: 'ai-supplier-manager',
@@ -78,7 +98,8 @@ const AIAssistants = () => {
       status: 'active',
       features: ['Поиск поставщиков', 'Запрос цен', 'Анализ предложений'],
       color: 'bg-teal-500',
-      route: '/ai-supplier-manager'
+      route: '/ai-supplier-manager',
+      settingsComponent: 'supplier'
     },
     {
       id: 'ai-contractor-manager',
@@ -88,7 +109,8 @@ const AIAssistants = () => {
       status: 'active',
       features: ['Поиск подрядчиков', 'Формирование заданий', 'Контроль сроков'],
       color: 'bg-cyan-500',
-      route: '/ai-contractor-manager'
+      route: '/ai-contractor-manager',
+      settingsComponent: 'contractor'
     },
     {
       id: 'ai-analyst',
@@ -98,7 +120,8 @@ const AIAssistants = () => {
       status: 'active',
       features: ['Автоматические отчеты', 'Анализ источников', 'Рекомендации по бюджету'],
       color: 'bg-emerald-500',
-      route: '/ai-analyst'
+      route: '/ai-analyst',
+      settingsComponent: 'analyst'
     },
     {
       id: 'competitor-analysis',
@@ -108,7 +131,8 @@ const AIAssistants = () => {
       status: 'active',
       features: ['Сравнение КП', 'Анализ цен', 'Поиск акций конкурентов'],
       color: 'bg-red-500',
-      route: '/competitor-analysis'
+      route: '/competitor-analysis',
+      settingsComponent: 'competitor'
     }
   ];
 
@@ -118,6 +142,41 @@ const AIAssistants = () => {
       case 'demo': return 'bg-gray-500 text-white';
       case 'development': return 'bg-yellow-500 text-white';
       default: return 'bg-gray-500 text-white';
+    }
+  };
+
+  const openSettings = (assistantId: string) => {
+    setSelectedAssistant(assistantId);
+    setSettingsOpen(true);
+  };
+
+  const renderSettingsComponent = () => {
+    if (!selectedAssistant) return null;
+
+    const assistant = assistants.find(a => a.id === selectedAssistant);
+    if (!assistant) return null;
+
+    switch (assistant.settingsComponent) {
+      case 'voice':
+        return <VoiceAssistantSettings />;
+      case 'consultant':
+        return <ConsultantSettings />;
+      case 'estimator':
+        return <EstimatorSettings />;
+      case 'proposal':
+        return <ProposalManagerSettings />;
+      case 'sales':
+        return <SalesManagerSettings />;
+      case 'supplier':
+        return <SupplierManagerSettings />;
+      case 'contractor':
+        return <ContractorManagerSettings />;
+      case 'analyst':
+        return <AnalystSettings />;
+      case 'competitor':
+        return <CompetitorAnalysisSettings />;
+      default:
+        return <BaseAISettings />;
     }
   };
 
@@ -168,7 +227,7 @@ const AIAssistants = () => {
                     </div>
                   </div>
                   
-                  <div className="pt-2">
+                  <div className="pt-2 space-y-2">
                     <Button 
                       className="w-full" 
                       variant="outline"
@@ -177,6 +236,15 @@ const AIAssistants = () => {
                     >
                       {assistant.status === 'development' ? 'В разработке' : 'Открыть'}
                     </Button>
+                    <Button 
+                      className="w-full" 
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => openSettings(assistant.id)}
+                    >
+                      <Settings className="h-4 w-4 mr-2" />
+                      Настройки
+                    </Button>
                   </div>
                 </div>
               </CardContent>
@@ -184,6 +252,18 @@ const AIAssistants = () => {
           );
         })}
       </div>
+
+      {/* Settings Dialog */}
+      <Dialog open={settingsOpen} onOpenChange={setSettingsOpen}>
+        <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>
+              {selectedAssistant && assistants.find(a => a.id === selectedAssistant)?.name} - Настройки
+            </DialogTitle>
+          </DialogHeader>
+          {renderSettingsComponent()}
+        </DialogContent>
+      </Dialog>
 
       {/* Quick Stats */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-8">
@@ -222,6 +302,18 @@ const AIAssistants = () => {
             </div>
           </CardContent>
         </Card>
+      </div>
+
+      {/* General Settings Button */}
+      <div className="mt-8 flex justify-center">
+        <Button 
+          variant="outline" 
+          onClick={() => navigate('/ai-assistants-settings')}
+          className="flex items-center gap-2"
+        >
+          <Settings className="h-4 w-4" />
+          Общие настройки и API ключи
+        </Button>
       </div>
     </div>
   );
