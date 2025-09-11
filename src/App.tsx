@@ -2,7 +2,6 @@ import React from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { Layout } from "./components/Layout";
 import { AuthProvider } from "@/hooks/useAuth";
@@ -33,51 +32,47 @@ import AIAssistantsSettings from "./pages/AIAssistantsSettings";
 import AITechnicalSpecialist from "./pages/AITechnicalSpecialist";
 import UserManagement from "./pages/UserManagement";
 
-const queryClient = new QueryClient();
-
 const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <AuthProvider>
-        <Toaster />
-        <Sonner />
-        <BrowserRouter>
-          <Routes>
-            <Route path="/auth" element={<Auth />} />
-            <Route path="/" element={<Layout />}>
-              <Route index element={<Dashboard />} />
-              <Route path="dashboard" element={<Dashboard />} />
-              <Route path="clients" element={<Clients />} />
-              <Route path="estimates" element={<Estimates />} />
-              <Route path="proposals" element={<Proposals />} />
-              <Route path="contractors" element={<Contractors />} />
-              <Route path="suppliers" element={<Suppliers />} />
-              <Route path="nomenclature" element={<Nomenclature />} />
-              <Route path="tasks" element={<Tasks />} />
-              <Route path="archive" element={<Archive />} />
-              <Route path="ai-assistants" element={<AIAssistants />} />
-              <Route path="voice-assistant" element={<VoiceAssistant />} />
-              <Route path="voice-chat" element={<VoiceChatAssistant />} />
-              
-              <Route path="ai-technical-specialist" element={<AITechnicalSpecialist />} />
-              <Route path="ai-analyst" element={<AIAnalystPage />} />
-              <Route path="competitor-analysis" element={<CompetitorAnalysisPage />} />
-              <Route path="ai-estimator" element={<AIEstimator />} />
-              <Route path="ai-consultant" element={<AIConsultant />} />
-              <Route path="ai-proposal-manager" element={<AIProposalManager />} />
-              <Route path="ai-sales-manager" element={<AISalesManager />} />
-              <Route path="ai-supplier-manager" element={<AISupplierManager />} />
-              <Route path="ai-contractor-manager" element={<AIContractorManager />} />
-              <Route path="ai-assistants-settings" element={<AIAssistantsSettings />} />
-              <Route path="user-management" element={<UserManagement />} />
-            </Route>
-            {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-        </BrowserRouter>
-      </AuthProvider>
-    </TooltipProvider>
-  </QueryClientProvider>
+  <TooltipProvider>
+    <AuthProvider>
+      <Toaster />
+      <Sonner />
+      <BrowserRouter>
+        <Routes>
+          <Route path="/auth" element={<Auth />} />
+          <Route path="/" element={<Layout />}>
+            <Route index element={<Dashboard />} />
+            <Route path="dashboard" element={<Dashboard />} />
+            <Route path="clients" element={<Clients />} />
+            <Route path="estimates" element={<Estimates />} />
+            <Route path="proposals" element={<Proposals />} />
+            <Route path="contractors" element={<Contractors />} />
+            <Route path="suppliers" element={<Suppliers />} />
+            <Route path="nomenclature" element={<Nomenclature />} />
+            <Route path="tasks" element={<Tasks />} />
+            <Route path="archive" element={<Archive />} />
+            <Route path="ai-assistants" element={<AIAssistants />} />
+            <Route path="voice-assistant" element={<VoiceAssistant />} />
+            <Route path="voice-chat" element={<VoiceChatAssistant />} />
+            
+            <Route path="ai-technical-specialist" element={<AITechnicalSpecialist />} />
+            <Route path="ai-analyst" element={<AIAnalystPage />} />
+            <Route path="competitor-analysis" element={<CompetitorAnalysisPage />} />
+            <Route path="ai-estimator" element={<AIEstimator />} />
+            <Route path="ai-consultant" element={<AIConsultant />} />
+            <Route path="ai-proposal-manager" element={<AIProposalManager />} />
+            <Route path="ai-sales-manager" element={<AISalesManager />} />
+            <Route path="ai-supplier-manager" element={<AISupplierManager />} />
+            <Route path="ai-contractor-manager" element={<AIContractorManager />} />
+            <Route path="ai-assistants-settings" element={<AIAssistantsSettings />} />
+            <Route path="user-management" element={<UserManagement />} />
+          </Route>
+          {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+          <Route path="*" element={<NotFound />} />
+        </Routes>
+      </BrowserRouter>
+    </AuthProvider>
+  </TooltipProvider>
 );
 
 export default App;
