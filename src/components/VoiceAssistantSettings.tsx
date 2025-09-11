@@ -309,6 +309,7 @@ export function VoiceAssistantSettings() {
             <Label htmlFor="enable-streaming">Потоковая передача ответов</Label>
           </div>
         </CardContent>
+        </Card>
       </TabsContent>
 
       <TabsContent value="interaction" className="space-y-6">
@@ -399,6 +400,7 @@ export function VoiceAssistantSettings() {
             </div>
           </div>
         </CardContent>
+        </Card>
       </TabsContent>
 
       <TabsContent value="voice" className="space-y-6">
