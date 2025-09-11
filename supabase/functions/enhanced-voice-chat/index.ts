@@ -38,6 +38,20 @@ async function callOpenAIWithTools(messages: AIMessage[], settings: UserSettings
       {
         type: "function",
         function: {
+          name: "get_client_info",
+          description: "Получить информацию о клиенте и его задачах",
+          parameters: {
+            type: "object",
+            properties: {
+              client_name: { type: "string", description: "Имя клиента для поиска" }
+            },
+            required: ["client_name"]
+          }
+        }
+      },
+      {
+        type: "function",
+        function: {
           name: "create_client",
           description: "Создать нового клиента",
           parameters: {
@@ -84,6 +98,21 @@ async function callOpenAIWithTools(messages: AIMessage[], settings: UserSettings
               client_name: { type: "string", description: "Имя клиента для привязки (опционально)" }
             },
             required: ["title", "due_date"]
+          }
+        }
+      },
+      {
+        type: "function",
+        function: {
+          name: "complete_task",
+          description: "Отметить задачу как выполненную",
+          parameters: {
+            type: "object",
+            properties: {
+              task_id: { type: "string", description: "ID задачи" },
+              task_title: { type: "string", description: "Название задачи для поиска" },
+              client_name: { type: "string", description: "Имя клиента (для более точного поиска)" }
+            }
           }
         }
       }
@@ -168,6 +197,9 @@ async function executeFunction(functionName: string, args: any, userId: string, 
   console.log(`Executing function: ${functionName} with args:`, args);
   
   switch (functionName) {
+    case 'get_client_info':
+      return await getClientInfo(userId, args);
+
     case 'create_client':
       return await createCrmClient(userId, args);
 
@@ -176,6 +208,9 @@ async function executeFunction(functionName: string, args: any, userId: string, 
 
     case 'create_task':
       return await createTask(userId, args);
+
+    case 'complete_task':
+      return await completeTask(userId, args);
       
     default:
       return { error: `Unknown function: ${functionName}` };
@@ -300,6 +335,156 @@ async function createEstimateViaAI(userId: string, args: any, userToken?: string
       success: false,
       message: `❌ Ошибка при обращении к AI-Сметчику: ${error.message}`
     };
+  }
+}
+
+// Получение информации о клиенте
+async function getClientInfo(userId: string, args: any) {
+  try {
+    const supabaseAdmin = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+    );
+
+    // Ищем клиента по имени
+    const { data: client, error: clientError } = await supabaseAdmin
+      .from('clients')
+      .select('id, name, phone, email, lead_source, created_at, notes, conversion_stage')
+      .eq('user_id', userId)
+      .ilike('name', `%${args.client_name}%`)
+      .order('created_at', { ascending: false })
+      .maybeSingle();
+
+    if (clientError) throw clientError;
+
+    if (!client) {
+      return {
+        success: false,
+        message: `❌ Клиент "${args.client_name}" не найден`
+      };
+    }
+
+    // Получаем задачи клиента
+    const { data: tasks, error: tasksError } = await supabaseAdmin
+      .from('tasks')
+      .select('id, title, description, status, due_date, created_at, priority')
+      .eq('user_id', userId)
+      .eq('client_id', client.id)
+      .order('created_at', { ascending: false });
+
+    if (tasksError) throw tasksError;
+
+    // Получаем сметы клиента
+    const { data: estimates, error: estimatesError } = await supabaseAdmin
+      .from('estimates')
+      .select('id, title, status, total_amount, created_at')
+      .eq('user_id', userId)
+      .eq('client_id', client.id)
+      .order('created_at', { ascending: false });
+
+    if (estimatesError) throw estimatesError;
+
+    return {
+      success: true,
+      client: client,
+      tasks: tasks || [],
+      estimates: estimates || [],
+      message: `ℹ️ Информация о клиенте "${client.name}":\n` +
+        `📞 Телефон: ${client.phone}\n` +
+        `📧 Email: ${client.email || 'не указан'}\n` +
+        `📊 Этап: ${client.conversion_stage}\n` +
+        `📝 Заметки: ${client.notes || 'нет'}\n` +
+        `📋 Задач: ${tasks?.length || 0}\n` +
+        `💰 Смет: ${estimates?.length || 0}`
+    };
+  } catch (error) {
+    console.error('Error getting client info:', error);
+    return { success: false, error: (error as Error).message };
+  }
+}
+
+// Завершение задачи
+async function completeTask(userId: string, args: any) {
+  try {
+    const supabaseAdmin = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+    );
+
+    let task = null;
+
+    // Если передан ID задачи
+    if (args.task_id) {
+      const { data } = await supabaseAdmin
+        .from('tasks')
+        .select('*')
+        .eq('id', args.task_id)
+        .eq('user_id', userId)
+        .maybeSingle();
+      task = data;
+    } else if (args.task_title) {
+      // Поиск по названию задачи
+      let query = supabaseAdmin
+        .from('tasks')
+        .select('*')
+        .eq('user_id', userId)
+        .ilike('title', `%${args.task_title}%`);
+
+      // Если указан клиент, добавляем фильтр
+      if (args.client_name) {
+        const { data: client } = await supabaseAdmin
+          .from('clients')
+          .select('id')
+          .eq('user_id', userId)
+          .ilike('name', `%${args.client_name}%`)
+          .maybeSingle();
+        
+        if (client) {
+          query = query.eq('client_id', client.id);
+        }
+      }
+
+      const { data } = await query
+        .order('created_at', { ascending: false })
+        .maybeSingle();
+      task = data;
+    }
+
+    if (!task) {
+      return {
+        success: false,
+        message: `❌ Задача не найдена`
+      };
+    }
+
+    if (task.status === 'completed') {
+      return {
+        success: true,
+        message: `ℹ️ Задача "${task.title}" уже выполнена`
+      };
+    }
+
+    // Обновляем статус задачи
+    const { data, error } = await supabaseAdmin
+      .from('tasks')
+      .update({ 
+        status: 'completed',
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', task.id)
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    return {
+      success: true,
+      task: data,
+      message: `✅ Задача "${task.title}" отмечена как выполненная`
+    };
+  } catch (error) {
+    console.error('Error completing task:', error);
+    return { success: false, error: (error as Error).message };
   }
 }
 
@@ -452,9 +637,17 @@ serve(async (req) => {
 ТЕКУЩАЯ ДАТА: ${currentDateStr} (${currentDayName})
 
 ОСНОВНЫЕ ФУНКЦИИ:
+- Поиск информации о клиентах через get_client_info (имя клиента)
 - Создание клиентов через create_client (имя, телефон, email, источник лида)
 - Создание смет через AI-Сметчика (указывайте: описание проекта, площадь, клиента, виды работ)
 - Создание задач через create_task (заголовок, описание, дата выполнения)
+- Завершение задач через complete_task (название задачи или ID)
+
+ПОИСК КЛИЕНТОВ:
+ВСЕГДА начинайте с поиска клиента по имени через get_client_info ПЕРЕД любыми действиями:
+- Если упоминается имя клиента - сначала проверьте, существует ли он
+- Получите информацию о его задачах и сметах
+- Анализируйте ситуацию и предлагайте подходящие действия
 
 СОЗДАНИЕ КЛИЕНТОВ:
 Когда пользователь просит создать клиента, используйте функцию create_client:
@@ -478,16 +671,29 @@ serve(async (req) => {
 - При указании относительных дат (понедельник, вторник и т.д.) рассчитывайте от ТЕКУЩЕЙ даты: ${currentDateStr}
 - Если назван клиент - укажите client_name для привязки
 
+ЗАВЕРШЕНИЕ ЗАДАЧ:
+Когда задача выполнена (встреча состоялась, звонок сделан), используйте complete_task:
+- Укажите task_title для поиска задачи
+- Если есть клиент - добавьте client_name для точности
+
+АЛГОРИТМ РАБОТЫ:
+1. Если упоминается клиент - ВСЕГДА сначала get_client_info
+2. Анализируйте полученную информацию о задачах и сметах
+3. Предлагайте логичные следующие шаги:
+   - Если встреча была запланирована и состоялась → complete_task
+   - Если нужна смета для КП → create_estimate
+   - Если нужна новая задача → create_task
+
 ПРИМЕРЫ КОМАНД:
-- "Создай клиента Дениса, звонок с сайта" → create_client
-- "Создай смету на газон 100 кв.м для клиента Дениса" → create_estimate  
-- "Создай встречу в понедельник в 13:00" → create_task
+- "Алексей Федоров" → get_client_info → анализ ситуации
+- "Встретился с Алексеем" → get_client_info → complete_task для встречи
+- "Нужно КП для Алексея" → get_client_info → create_estimate
 
 ВАЖНО: 
-- Определяйте о чем идет речь и какая функция нужна
-- При создании клиентов указывайте источник лида
-- При создании задач ВСЕГДА рассчитывайте даты относительно текущей даты: ${currentDateStr}
-- Сначала создавайте клиента, потом смету для него
+- ВСЕГДА начинайте с поиска клиента, если он упоминается
+- Анализируйте контекст и предлагайте подходящие действия
+- При создании задач рассчитывайте даты от ТЕКУЩЕЙ даты: ${currentDateStr}
+- Логично развивайте цепочку действий: встреча → завершить задачу → создать смету → создать КП
 
 Отвечайте конкретно и по делу. Задавайте уточняющие вопросы если нужно.`;
 
