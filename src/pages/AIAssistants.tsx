@@ -193,7 +193,11 @@ const AIAssistants = () => {
         {assistants.map((assistant) => {
           const Icon = assistant.icon;
           return (
-            <Card key={assistant.id} className="hover:shadow-lg transition-all duration-200">
+            <Card 
+              key={assistant.id} 
+              className="hover:shadow-lg transition-all duration-200 cursor-pointer hover:scale-105"
+              onClick={() => assistant.status !== 'development' && navigate(assistant.route)}
+            >
               <CardHeader>
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
@@ -227,20 +231,15 @@ const AIAssistants = () => {
                     </div>
                   </div>
                   
-                  <div className="pt-2 space-y-2">
-                    <Button 
-                      className="w-full" 
-                      variant="outline"
-                      onClick={() => navigate(assistant.route)}
-                      disabled={assistant.status === 'development'}
-                    >
-                      {assistant.status === 'development' ? 'В разработке' : 'Открыть'}
-                    </Button>
+                  <div className="pt-2">
                     <Button 
                       className="w-full" 
                       variant="ghost"
                       size="sm"
-                      onClick={() => openSettings(assistant.id)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        openSettings(assistant.id);
+                      }}
                     >
                       <Settings className="h-4 w-4 mr-2" />
                       Настройки
