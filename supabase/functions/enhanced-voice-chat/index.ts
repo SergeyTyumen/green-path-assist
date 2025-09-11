@@ -334,14 +334,24 @@ serve(async (req) => {
     const { data: { user }, error: authError } = await supabaseAuth.auth.getUser(token);
 
     if (authError || !user) {
-      console.error('enhanced-voice-chat: Invalid token:', authError);
-      throw new Error('Invalid token');
+      console.error('enhanced-voice-chat: Invalid token:', authError?.message || 'No user found');
+      throw new Error(`Authentication failed: ${authError?.message || 'Invalid token'}`);
     }
 
     console.log('enhanced-voice-chat: User authenticated:', user.id);
 
     console.log('enhanced-voice-chat: Parsing request body...');
-    const { message, conversation_history = [] } = await req.json();
+    let requestBody;
+    try {
+      const rawBody = await req.text();
+      console.log('enhanced-voice-chat: Raw request body:', rawBody.substring(0, 200));
+      requestBody = JSON.parse(rawBody);
+    } catch (parseError) {
+      console.error('enhanced-voice-chat: JSON parse error:', parseError);
+      throw new Error(`Invalid JSON in request body: ${parseError.message}`);
+    }
+    
+    const { message, conversation_history = [] } = requestBody;
 
     if (!message) {
       console.error('enhanced-voice-chat: Message is required');
