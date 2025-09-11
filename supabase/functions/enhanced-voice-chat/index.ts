@@ -8,8 +8,9 @@ const corsHeaders = {
 };
 
 interface AIMessage {
-  role: 'system' | 'user' | 'assistant';
+  role: 'system' | 'user' | 'assistant' | 'tool';
   content: string;
+  tool_call_id?: string;
 }
 
 interface UserSettings {
@@ -28,123 +29,135 @@ async function callOpenAIWithTools(messages: AIMessage[], settings: UserSettings
   try {
     console.log('Sending request to OpenAI with tools support');
 
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${openaiApiKey}`,
-        'Content-Type': 'application/json',
-      },
-      // Build payload dynamically to support both GPT-5/4.1 and legacy models
-      body: JSON.stringify((() => {
-        const configuredModel = (settings?.ai_settings?.openai_model as string) || 'gpt-4o-mini';
-        const isNewModel = configuredModel.startsWith('gpt-5') || configuredModel.startsWith('gpt-4.1') || configuredModel.startsWith('o3') || configuredModel.startsWith('o4');
-        const payload: any = {
-          model: isNewModel ? 'gpt-4o-mini' : configuredModel,
-          messages: messages,
-          tools: [
-            {
-              type: "function",
-              function: {
-                name: "create_client",
-                description: "Создать нового клиента",
-                parameters: {
-                  type: "object",
-                  properties: {
-                    name: { type: "string", description: "Имя клиента" },
-                    phone: { type: "string", description: "Телефон клиента" },
-                    email: { type: "string", description: "Email клиента" },
-                    lead_source: { type: "string", enum: ["сайт", "звонок", "соцсети", "рекомендация", "реклама"], description: "Источник лида" },
-                    notes: { type: "string", description: "Примечания о клиенте" }
-                  },
-                  required: ["name"]
-                }
-              }
+    // We'll keep a running transcript and iteratively satisfy all tool calls
+    const configuredModel = (settings?.ai_settings?.openai_model as string) || 'gpt-4o-mini';
+    const isNewModel = configuredModel.startsWith('gpt-5') || configuredModel.startsWith('gpt-4.1') || configuredModel.startsWith('o3') || configuredModel.startsWith('o4');
+
+    // Tools available to the assistant
+    const tools = [
+      {
+        type: "function",
+        function: {
+          name: "create_client",
+          description: "Создать нового клиента",
+          parameters: {
+            type: "object",
+            properties: {
+              name: { type: "string", description: "Имя клиента" },
+              phone: { type: "string", description: "Телефон клиента" },
+              email: { type: "string", description: "Email клиента" },
+              lead_source: { type: "string", enum: ["сайт", "звонок", "соцсети", "рекомендация", "реклама"], description: "Источник лида" },
+              notes: { type: "string", description: "Примечания о клиенте" }
             },
-            {
-              type: "function",
-              function: {
-                name: "create_estimate",
-                description: "Создать смету через AI-Сметчика",
-                parameters: {
-                  type: "object",
-                  properties: {
-                    project_description: { type: "string", description: "Описание проекта для сметы" },
-                    client_name: { type: "string", description: "Имя клиента (опционально)" },
-                    area: { type: "number", description: "Площадь объекта в кв.м" },
-                    services: { type: "array", items: { type: "string" }, description: "Список услуг для расчета" }
-                  },
-                  required: ["project_description"]
-                }
-              }
-            }
-          ],
-          tool_choice: "auto"
-        };
-        if (isNewModel) {
-          payload.max_completion_tokens = settings?.ai_settings?.max_tokens || 1000;
-        } else {
-          payload.temperature = settings?.ai_settings?.temperature ?? 0.7;
-          payload.max_tokens = settings?.ai_settings?.max_tokens || 1000;
+            required: ["name"]
+          }
         }
-        return payload;
-      })()),
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`OpenAI API error: ${response.status} - ${errorText}`);
-    }
-
-    const data = await response.json();
-    console.log('OpenAI response received');
-
-    // Проверяем, есть ли вызовы функций
-    const message = data.choices[0]?.message;
-    if (message?.tool_calls) {
-      const toolCall = message.tool_calls[0];
-      const functionName = toolCall.function.name;
-      const functionArgs = JSON.parse(toolCall.function.arguments);
-      
-      console.log('Function call detected:', functionName, functionArgs);
-      
-      // Выполняем функцию
-      const functionResult = await executeFunction(functionName, functionArgs, userId, authToken);
-      
-      // Отправляем результат обратно в OpenAI для финального ответа
-      const finalMessages = [
-        ...messages,
-        message,  // assistant message with tool_calls
-        {
-          role: "tool",
-          tool_call_id: toolCall.id,
-          content: JSON.stringify(functionResult)
+      },
+      {
+        type: "function",
+        function: {
+          name: "create_estimate",
+          description: "Создать смету через AI-Сметчика",
+          parameters: {
+            type: "object",
+            properties: {
+              project_description: { type: "string", description: "Описание проекта для сметы" },
+              client_name: { type: "string", description: "Имя клиента (опционально)" },
+              area: { type: "number", description: "Площадь объекта в кв.м" },
+              services: { type: "array", items: { type: "string" }, description: "Список услуг для расчета" }
+            },
+            required: ["project_description"]
+          }
         }
-      ];
+      },
+      {
+        type: "function",
+        function: {
+          name: "create_task",
+          description: "Создать задачу (встреча, звонок и т.п.)",
+          parameters: {
+            type: "object",
+            properties: {
+              title: { type: "string", description: "Заголовок задачи" },
+              description: { type: "string", description: "Описание задачи" },
+              due_date: { type: "string", description: "Дата/время выполнения в ISO-формате (например, 2025-09-15T13:00:00+05:00)" },
+              client_name: { type: "string", description: "Имя клиента для привязки (опционально)" }
+            },
+            required: ["title", "due_date"]
+          }
+        }
+      }
+    ];
 
-      const finalResponse = await fetch('https://api.openai.com/v1/chat/completions', {
+    let runningMessages: any[] = [...messages];
+
+    for (let depth = 0; depth < 5; depth++) { // safety cap to avoid loops
+      const payload: any = {
+        model: isNewModel ? 'gpt-4o-mini' : configuredModel, // use legacy-compatible model for tool calls
+        messages: runningMessages,
+        tools,
+        tool_choice: 'auto'
+      };
+      if (isNewModel) {
+        payload.max_completion_tokens = settings?.ai_settings?.max_tokens || 1000;
+      } else {
+        payload.temperature = settings?.ai_settings?.temperature ?? 0.7;
+        payload.max_tokens = settings?.ai_settings?.max_tokens || 1000;
+      }
+
+      const response = await fetch('https://api.openai.com/v1/chat/completions', {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${openaiApiKey}`,
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          model: settings.ai_settings?.openai_model || 'gpt-4o-mini',
-          messages: finalMessages,
-          temperature: settings.ai_settings?.temperature || 0.7,
-          max_tokens: settings.ai_settings?.max_tokens || 1000,
-        }),
+        body: JSON.stringify(payload),
       });
 
-      if (!finalResponse.ok) {
-        const errorText = await finalResponse.text();
-        throw new Error(`OpenAI final API error: ${finalResponse.status} - ${errorText}`);
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`OpenAI API error: ${response.status} - ${errorText}`);
       }
 
-      const finalData = await finalResponse.json();
-      return finalData.choices?.[0]?.message?.content || 'Функция выполнена, но ответ не получен';
+      const data = await response.json();
+      console.log('OpenAI response received');
+      const assistantMessage = data.choices?.[0]?.message;
+
+      if (!assistantMessage) {
+        return 'Извините, не удалось получить ответ';
+      }
+
+      // Always push the assistant message
+      runningMessages.push(assistantMessage);
+
+      const toolCalls = assistantMessage.tool_calls || [];
+      if (toolCalls.length > 0) {
+        console.log(`Tool calls detected: ${toolCalls.map((t: any) => t.function?.name).join(', ')}`);
+        // Execute each tool call and append its tool result message
+        for (const toolCall of toolCalls) {
+          const functionName = toolCall.function.name;
+          let functionArgs: any = {};
+          try {
+            functionArgs = JSON.parse(toolCall.function.arguments || '{}');
+          } catch (e) {
+            console.warn('Failed to parse tool args:', e);
+          }
+          const functionResult = await executeFunction(functionName, functionArgs, userId, authToken);
+          runningMessages.push({
+            role: 'tool',
+            tool_call_id: toolCall.id,
+            content: JSON.stringify(functionResult ?? {})
+          });
+        }
+        // Continue loop to let the model incorporate tool results
+        continue;
+      }
+
+      // No tool calls => final content
+      return assistantMessage.content || 'Готово';
     }
-    
-    return message?.content || 'Извините, не удалось получить ответ';
+
+    return 'Извините, не удалось завершить обработку за разумное число шагов.';
   } catch (error) {
     console.error('Error calling OpenAI:', error);
     throw new Error(`Ошибка вызова OpenAI: ${error.message}`);
@@ -160,6 +173,9 @@ async function executeFunction(functionName: string, args: any, userId: string, 
 
     case 'create_estimate':
       return await createEstimateViaAI(userId, args, userToken);
+
+    case 'create_task':
+      return await createTask(userId, args);
       
     default:
       return { error: `Unknown function: ${functionName}` };
@@ -168,12 +184,47 @@ async function executeFunction(functionName: string, args: any, userId: string, 
 
 async function createCrmClient(userId: string, clientData: any) {
   try {
-    // Создаем клиент Supabase с service role key для записи в базу
     const supabaseAdmin = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
-    
+
+    // Idempotency: if client with same phone already exists for this user — reuse it
+    let existing = null as any;
+    if (clientData.phone) {
+      const { data: foundByPhone } = await supabaseAdmin
+        .from('clients')
+        .select('*')
+        .eq('user_id', userId)
+        .eq('phone', clientData.phone)
+        .maybeSingle();
+      existing = foundByPhone;
+    }
+    if (!existing && clientData.email) {
+      const { data: foundByEmail } = await supabaseAdmin
+        .from('clients')
+        .select('*')
+        .eq('user_id', userId)
+        .eq('email', clientData.email)
+        .maybeSingle();
+      existing = foundByEmail;
+    }
+
+    if (existing) {
+      // Optionally enrich notes
+      if (clientData.notes) {
+        await supabaseAdmin
+          .from('clients')
+          .update({ notes: `${existing.notes || ''}\n${clientData.notes}`.trim() })
+          .eq('id', existing.id);
+      }
+      return {
+        success: true,
+        client: existing,
+        message: `ℹ️ Клиент с таким контактным данными уже существует: "${existing.name}" (ID: ${existing.id}). Использую существующую запись.`
+      };
+    }
+
     const { data, error } = await supabaseAdmin
       .from('clients')
       .insert({
@@ -181,15 +232,15 @@ async function createCrmClient(userId: string, clientData: any) {
         name: clientData.name,
         phone: clientData.phone || '',
         email: clientData.email || '',
-        lead_source: clientData.lead_source || 'неизвестно',
+        lead_source: clientData.lead_source || 'unknown',
         notes: clientData.notes || '',
         conversion_stage: 'Первый звонок'
       })
       .select()
       .single();
-    
+
     if (error) throw error;
-    
+
     return {
       success: true,
       client: data,
@@ -197,7 +248,7 @@ async function createCrmClient(userId: string, clientData: any) {
     };
   } catch (error) {
     console.error('Error creating client:', error);
-    return { success: false, error: error.message };
+    return { success: false, error: (error as Error).message };
   }
 }
 
@@ -249,6 +300,55 @@ async function createEstimateViaAI(userId: string, args: any, userToken?: string
       success: false,
       message: `❌ Ошибка при обращении к AI-Сметчику: ${error.message}`
     };
+  }
+}
+
+// Создание задач
+async function createTask(userId: string, args: any) {
+  try {
+    const supabaseAdmin = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+    );
+
+    // Resolve client_id by name if provided
+    let client_id: string | null = null;
+    if (args.client_name) {
+      const { data: client } = await supabaseAdmin
+        .from('clients')
+        .select('id')
+        .eq('user_id', userId)
+        .ilike('name', args.client_name)
+        .order('created_at', { ascending: false })
+        .maybeSingle();
+      client_id = client?.id ?? null;
+    }
+
+    const { data, error } = await supabaseAdmin
+      .from('tasks')
+      .insert({
+        user_id: userId,
+        title: args.title,
+        description: args.description || null,
+        due_date: args.due_date || null,
+        client_id: client_id,
+        status: 'pending',
+        priority: 'medium',
+        category: 'meeting'
+      })
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    return {
+      success: true,
+      task: data,
+      message: `✅ Задача создана: "${data.title}" на ${data.due_date || 'указанную дату'}`
+    };
+  } catch (error) {
+    console.error('Error creating task:', error);
+    return { success: false, error: (error as Error).message };
   }
 }
 
