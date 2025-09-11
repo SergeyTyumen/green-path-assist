@@ -11,7 +11,8 @@ import {
   LayoutDashboard,
   Mic,
   MessageCircle,
-  Settings
+  Settings,
+  UserCog
 } from "lucide-react";
 import { NavLink, useLocation } from "react-router-dom";
 
@@ -42,6 +43,7 @@ const navigationItems = [
   { title: "Голосовой помощник", url: "/voice-chat", icon: Mic },
   
   { title: "Настройки ИИ", url: "/ai-assistants-settings", icon: Settings },
+  { title: "Управление пользователями", url: "/user-management", icon: UserCog },
 ];
 
 export function AppSidebar() {

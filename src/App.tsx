@@ -29,6 +29,7 @@ import AISalesManager from "./pages/AISalesManager";
 import AISupplierManager from "./pages/AISupplierManager";
 import AIContractorManager from "./pages/AIContractorManager";
 import AIAssistantsSettings from "./pages/AIAssistantsSettings";
+import UserManagement from "./pages/UserManagement";
 
 const queryClient = new QueryClient();
 
@@ -65,6 +66,7 @@ const App = () => (
               <Route path="ai-supplier-manager" element={<AISupplierManager />} />
               <Route path="ai-contractor-manager" element={<AIContractorManager />} />
               <Route path="ai-assistants-settings" element={<AIAssistantsSettings />} />
+              <Route path="user-management" element={<UserManagement />} />
             </Route>
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />

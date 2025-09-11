@@ -1,19 +1,74 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Settings, Key, ShieldCheck } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { Navigate } from "react-router-dom";
 import { BaseAISettings } from "@/components/ai-settings/BaseAISettings";
 import { APIKeysManager } from "@/components/settings/APIKeysManager";
+import { supabase } from "@/integrations/supabase/client";
 const AIAssistantsSettings = () => {
   const { user } = useAuth();
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [loading, setLoading] = useState(true);
 
-  // Временно делаем всех пользователей администраторами для тестирования
-  // В будущем можно добавить проверку роли из базы данных
-  const isAdmin = true; // user?.email === 'admin@company.com' || user?.user_metadata?.role === 'admin';
+  useEffect(() => {
+    checkAdminRole();
+  }, [user]);
+
+  const checkAdminRole = async () => {
+    if (!user) {
+      setLoading(false);
+      return;
+    }
+    
+    try {
+      const { data, error } = await supabase.rpc('has_role', { 
+        _user_id: user.id, 
+        _role: 'admin' 
+      });
+      
+      if (error) throw error;
+      setIsAdmin(data);
+    } catch (error) {
+      console.error('Error checking admin role:', error);
+      setIsAdmin(false);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="container mx-auto p-6">
+        <div className="flex justify-center items-center h-64">
+          <div className="text-lg">Загрузка...</div>
+        </div>
+      </div>
+    );
+  }
 
   if (!user) {
     return <Navigate to="/auth" replace />;
+  }
+
+  if (!isAdmin) {
+    return (
+      <div className="container mx-auto p-6">
+        <Card className="border-red-200 bg-red-50 dark:border-red-800 dark:bg-red-950">
+          <CardHeader className="pb-3">
+            <div className="flex items-center gap-2">
+              <ShieldCheck className="h-5 w-5 text-red-600" />
+              <CardTitle className="text-red-800 dark:text-red-200">Доступ запрещен</CardTitle>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm text-red-700 dark:text-red-300">
+              У вас нет административных прав для доступа к настройкам системы.
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+    );
   }
 
   return (
