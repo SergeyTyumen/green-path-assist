@@ -86,7 +86,7 @@ async function calculateMaterialConsumption(services: ServiceInput[], userId: st
     // Проверяем существующие нормы для данной услуги
     const { data: norms, error: normsError } = await supabase
       .from('norms')
-      .select('*, materials!norms_material_id_fkey(*)')
+      .select('*')
       .eq('user_id', userId)
       .eq('service_name', service.service)
       .eq('active', true);
@@ -115,12 +115,20 @@ async function calculateMaterialConsumption(services: ServiceInput[], userId: st
       // Используем существующие нормы
       console.log(`Found ${norms.length} norms for service: ${service.service}`);
       
-      materialsToUse = norms.map(norm => ({
-        material: norm.materials,
-        compaction_ratio: norm.compaction_ratio,
-        thickness: norm.thickness,
-        mandatory: norm.mandatory
-      })).filter(item => item.material);
+      // Получаем материалы для каждой нормы
+      for (const norm of norms) {
+        if (norm.material_id) {
+          const material = allMaterials.find(m => m.id === norm.material_id);
+          if (material) {
+            materialsToUse.push({
+              material,
+              compaction_ratio: norm.compaction_ratio,
+              thickness: norm.thickness,
+              mandatory: norm.mandatory
+            });
+          }
+        }
+      }
     } else {
       // Автоматически предлагаем материалы на основе названия услуги
       console.log(`No norms found for service: ${service.service}, suggesting materials`);
