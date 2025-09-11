@@ -42,7 +42,7 @@ const navigationItems = [
   { title: "ИИ-помощники", url: "/ai-assistants", icon: Bot },
   { title: "Голосовой помощник", url: "/voice-chat", icon: Mic },
   
-  { title: "Настройки ИИ", url: "/ai-assistants-settings", icon: Settings },
+  
   { title: "Управление пользователями", url: "/user-management", icon: UserCog },
 ];
 
