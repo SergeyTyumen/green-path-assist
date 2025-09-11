@@ -346,23 +346,62 @@ async function getClientInfo(userId: string, args: any) {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
-    // Ищем клиента по имени
-    const { data: client, error: clientError } = await supabaseAdmin
+    // Split the client_name into parts for flexible search
+    const nameParts = args.client_name.trim().split(/\s+/);
+    
+    // Try different search strategies
+    let clients = [];
+    
+    // Strategy 1: Exact match
+    let { data: exactClients } = await supabaseAdmin
       .from('clients')
       .select('id, name, phone, email, lead_source, created_at, notes, conversion_stage')
       .eq('user_id', userId)
-      .ilike('name', `%${args.client_name}%`)
-      .order('created_at', { ascending: false })
-      .maybeSingle();
+      .ilike('name', args.client_name);
+    
+    if (exactClients && exactClients.length > 0) {
+      clients = exactClients;
+    } else {
+      // Strategy 2: Search for any part of the name
+      for (const part of nameParts) {
+        if (part.length > 1) { // Only search for parts longer than 1 character
+          const { data: partialClients } = await supabaseAdmin
+            .from('clients')
+            .select('id, name, phone, email, lead_source, created_at, notes, conversion_stage')
+            .eq('user_id', userId)
+            .ilike('name', `%${part}%`);
+          
+          if (partialClients) {
+            clients = clients.concat(partialClients);
+          }
+        }
+      }
+      
+      // Remove duplicates
+      clients = clients.filter((client, index, self) => 
+        index === self.findIndex(c => c.id === client.id)
+      );
+    }
 
-    if (clientError) throw clientError;
-
-    if (!client) {
+    if (!clients || clients.length === 0) {
       return {
         success: false,
         message: `❌ Клиент "${args.client_name}" не найден`
       };
     }
+
+    // If multiple clients found, ask for clarification
+    if (clients.length > 1) {
+      return {
+        success: true,
+        multiple_matches: true,
+        clients: clients,
+        message: `⚠️ Найдено несколько клиентов с похожими именами. Уточните, о ком идет речь:\n` + 
+          clients.map((client, index) => `${index + 1}. ${client.name} (${client.phone})`).join('\n')
+      };
+    }
+
+    const client = clients[0];
 
     // Получаем задачи клиента
     const { data: tasks, error: tasksError } = await supabaseAdmin
