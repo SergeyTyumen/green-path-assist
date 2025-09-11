@@ -7,6 +7,7 @@ import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -23,11 +24,39 @@ interface APIKeyConfig {
   test_status?: 'success' | 'error' | 'pending';
 }
 
+// Доступные модели для каждого провайдера
+const modelOptions: Record<string, { label: string; value: string }[]> = {
+  openai: [
+    { label: 'GPT-5 (2025-08-07)', value: 'gpt-5-2025-08-07' },
+    { label: 'GPT-5 Mini (2025-08-07)', value: 'gpt-5-mini-2025-08-07' },
+    { label: 'GPT-5 Nano (2025-08-07)', value: 'gpt-5-nano-2025-08-07' },
+    { label: 'GPT-4.1 (2025-04-14)', value: 'gpt-4.1-2025-04-14' },
+    { label: 'GPT-4.1 Mini (2025-04-14)', value: 'gpt-4.1-mini-2025-04-14' },
+    { label: 'O3 (2025-04-16)', value: 'o3-2025-04-16' },
+    { label: 'O4 Mini (2025-04-16)', value: 'o4-mini-2025-04-16' },
+    { label: 'GPT-4o Mini', value: 'gpt-4o-mini' },
+    { label: 'GPT-4o', value: 'gpt-4o' },
+  ],
+  yandexgpt: [
+    { label: 'YandexGPT', value: 'yandexgpt' },
+    { label: 'YandexGPT Lite', value: 'yandexgpt-lite' },
+    { label: 'YandexGPT Pro', value: 'yandexgpt-pro' },
+  ],
+  anthropic: [
+    { label: 'Claude Opus 4 (2025-08-05)', value: 'claude-opus-4-1-20250805' },
+    { label: 'Claude Sonnet 4 (2025-05-14)', value: 'claude-sonnet-4-20250514' },
+    { label: 'Claude 3.5 Haiku (2024-10-22)', value: 'claude-3-5-haiku-20241022' },
+    { label: 'Claude 3.7 Sonnet (2025-02-19)', value: 'claude-3-7-sonnet-20250219' },
+    { label: 'Claude 3.5 Sonnet (2024-10-22)', value: 'claude-3-5-sonnet-20241022' },
+    { label: 'Claude 3 Opus (2024-02-29)', value: 'claude-3-opus-20240229' },
+  ],
+};
+
 const defaultConfigs: Record<string, Partial<APIKeyConfig>> = {
   openai: {
     provider: 'openai',
     base_url: 'https://api.openai.com/v1',
-    model: 'gpt-4o-mini',
+    model: 'gpt-5-2025-08-07',
     is_active: true
   },
   yandexgpt: {
@@ -44,7 +73,7 @@ const defaultConfigs: Record<string, Partial<APIKeyConfig>> = {
   anthropic: {
     provider: 'anthropic',
     base_url: 'https://api.anthropic.com',
-    model: 'claude-3-haiku-20240307',
+    model: 'claude-sonnet-4-20250514',
     is_active: false
   }
 };
@@ -65,24 +94,32 @@ export const APIKeysManager = () => {
     if (!user) return;
 
     try {
-      // Временно используем localStorage пока типы не обновились
-      const savedKeys = JSON.parse(localStorage.getItem(`api_keys_${user.id}`) || '[]');
+      const storageKey = `api_keys_${user.id}`;
+      const savedKeysRaw = localStorage.getItem(storageKey);
+      const savedKeys = savedKeysRaw ? JSON.parse(savedKeysRaw) : [];
       
-      // Добавляем дефолтные конфигурации если их нет
-      const providers = Object.keys(defaultConfigs);
-      const existingProviders = savedKeys.map((c: APIKeyConfig) => c.provider);
+      // Создаем объект для быстрого поиска сохраненных конфигураций
+      const savedConfigsMap = new Map(
+        savedKeys.map((config: APIKeyConfig) => [config.provider, config])
+      );
       
-      const loadedConfigs = [...savedKeys];
+      // Объединяем дефолтные конфигурации с сохраненными
+      const loadedConfigs: APIKeyConfig[] = [];
       
-      for (const provider of providers) {
-        if (!existingProviders.includes(provider)) {
-          loadedConfigs.push({
-            ...defaultConfigs[provider],
-            api_key: '',
-            id: `temp_${provider}`,
-            user_id: user.id
-          } as APIKeyConfig);
-        }
+      for (const [provider, defaultConfig] of Object.entries(defaultConfigs)) {
+        const savedConfig = savedConfigsMap.get(provider) as APIKeyConfig | undefined;
+        
+        loadedConfigs.push({
+          ...defaultConfig,
+          api_key: savedConfig?.api_key || '',
+          base_url: savedConfig?.base_url || defaultConfig.base_url || '',
+          model: savedConfig?.model || defaultConfig.model || '',
+          is_active: savedConfig?.is_active ?? defaultConfig.is_active ?? false,
+          test_status: savedConfig?.test_status,
+          last_tested: savedConfig?.last_tested,
+          id: savedConfig?.id || `temp_${provider}`,
+          user_id: user.id
+        } as APIKeyConfig);
       }
 
       setConfigs(loadedConfigs);
@@ -102,25 +139,33 @@ export const APIKeysManager = () => {
     if (!user) return;
 
     try {
-      // Временно используем localStorage
+      // Находим конфигурацию для обновления
+      const existingConfig = configs.find(c => c.provider === provider);
+      const updatedConfig = { ...existingConfig, ...configData };
+      
+      // Обновляем массив конфигураций
       const updatedConfigs = configs.map(c => 
         c.provider === provider 
-          ? { ...c, ...configData }
+          ? updatedConfig
           : c
       );
       
+      // Сохраняем в localStorage с правильным ключом
+      const storageKey = `api_keys_${user.id}`;
+      localStorage.setItem(storageKey, JSON.stringify(updatedConfigs));
+      
+      // Обновляем состояние
       setConfigs(updatedConfigs);
-      localStorage.setItem(`api_keys_${user.id}`, JSON.stringify(updatedConfigs));
 
       toast({
         title: "Успешно",
-        description: `API ключ для ${provider} сохранен (локально)`,
+        description: `Настройки для ${provider} сохранены`,
       });
     } catch (error) {
       console.error('Error saving API key:', error);
       toast({
         title: "Ошибка",
-        description: "Не удалось сохранить API ключ",
+        description: "Не удалось сохранить настройки",
         variant: "destructive",
       });
     }
@@ -254,18 +299,28 @@ export const APIKeysManager = () => {
           {(config.provider === 'openai' || config.provider === 'yandexgpt' || config.provider === 'anthropic') && (
             <div className="space-y-2">
               <Label>Модель по умолчанию</Label>
-              <Input
+              <Select
                 value={config.model || ''}
-                onChange={(e) => {
+                onValueChange={(value) => {
                   const newConfigs = configs.map(c =>
                     c.provider === config.provider
-                      ? { ...c, model: e.target.value }
+                      ? { ...c, model: value }
                       : c
                   );
                   setConfigs(newConfigs);
                 }}
-                placeholder="gpt-4o-mini"
-              />
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Выберите модель" />
+                </SelectTrigger>
+                <SelectContent>
+                  {modelOptions[config.provider]?.map((model) => (
+                    <SelectItem key={model.value} value={model.value}>
+                      {model.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           )}
 
