@@ -747,6 +747,72 @@ serve(async (req) => {
             required: ["services"]
           }
         }
+      },
+      // НОВЫЕ ФУНКЦИИ ДЕЛЕГИРОВАНИЯ (Этап 2)
+      {
+        type: "function",
+        function: {
+          name: "delegate_to_estimator",
+          description: "Делегировать расчет сметы AI-Сметчику",
+          parameters: {
+            type: "object",
+            properties: {
+              services: {
+                type: "array",
+                items: {
+                  type: "object",
+                  properties: {
+                    service: { type: "string", description: "Название услуги" },
+                    quantity: { type: "number", description: "Количество" },
+                    unit: { type: "string", description: "Единица измерения" }
+                  }
+                }
+              },
+              client_name: { type: "string", description: "Имя клиента" },
+              project_description: { type: "string", description: "Описание проекта" }
+            },
+            required: ["services"]
+          }
+        }
+      },
+      {
+        type: "function", 
+        function: {
+          name: "delegate_to_consultant",
+          description: "Делегировать консультацию клиента AI-Консультанту",
+          parameters: {
+            type: "object",
+            properties: {
+              question: { type: "string", description: "Вопрос клиента" },
+              client_name: { type: "string", description: "Имя клиента" },
+              context: { type: "object", description: "Контекст разговора" }
+            },
+            required: ["question"]
+          }
+        }
+      },
+      {
+        type: "function",
+        function: {
+          name: "delegate_to_supplier",
+          description: "Делегировать поиск поставщиков AI-Поставщику",
+          parameters: {
+            type: "object", 
+            properties: {
+              categories: {
+                type: "array",
+                items: { type: "string" },
+                description: "Категории материалов"
+              },
+              materials: {
+                type: "array", 
+                items: { type: "string" },
+                description: "Список материалов"
+              }
+            },
+            required: ["categories"]
+          }
+        }
       }
     ];
 
@@ -1081,6 +1147,69 @@ const systemPrompt = `Ты — голосовой ассистент руков�
                 functionResults.push(summary.trim());
               } else {
                 functionResults.push(`❌ Ошибка расчёта материалов: ${result.error}`);
+              }
+              break;
+              
+            // НОВЫЕ ФУНКЦИИ ДЕЛЕГИРОВАНИЯ (Этап 2)
+            case 'delegate_to_estimator':
+              console.log('Делегирование AI-Сметчику:', functionArgs);
+              try {
+                const { data: estimateResult, error } = await supabase.functions.invoke('ai-estimator', {
+                  body: {
+                    action: 'calculate_materials',
+                    services: functionArgs.services,
+                    conversation_mode: true,
+                    client_context: {
+                      name: functionArgs.client_name,
+                      project: functionArgs.project_description
+                    }
+                  }
+                });
+                
+                if (error) throw error;
+                result = estimateResult;
+                functionResults.push(`✅ AI-Сметчик: ${JSON.stringify(estimateResult, null, 2)}`);
+              } catch (error) {
+                functionResults.push(`❌ Ошибка при работе с AI-Сметчиком: ${error.message}`);
+              }
+              break;
+              
+            case 'delegate_to_consultant':
+              console.log('Делегирование AI-Консультанту:', functionArgs);
+              try {
+                const { data: consultResult, error } = await supabase.functions.invoke('ai-consultant', {
+                  body: {
+                    action: 'consultation',
+                    question: functionArgs.question,
+                    context: functionArgs.context || {},
+                    client_name: functionArgs.client_name
+                  }
+                });
+                
+                if (error) throw error;
+                result = consultResult;
+                functionResults.push(`✅ AI-Консультант: ${consultResult.response || JSON.stringify(consultResult)}`);
+              } catch (error) {
+                functionResults.push(`❌ Ошибка при работе с AI-Консультантом: ${error.message}`);
+              }
+              break;
+              
+            case 'delegate_to_supplier':
+              console.log('Делегирование AI-Поставщику:', functionArgs);
+              try {
+                const { data: supplierResult, error } = await supabase.functions.invoke('ai-supplier-manager', {
+                  body: {
+                    action: 'find_suppliers',
+                    categories: functionArgs.categories,
+                    materials: functionArgs.materials || []
+                  }
+                });
+                
+                if (error) throw error;
+                result = supplierResult;
+                functionResults.push(`✅ AI-Поставщик найдел: ${supplierResult.total_found || 0} поставщиков`);
+              } catch (error) {
+                functionResults.push(`❌ Ошибка при работе с AI-Поставщиком: ${error.message}`);
               }
               break;
               
