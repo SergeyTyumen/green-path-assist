@@ -286,15 +286,19 @@ const VoiceChatAssistant = () => {
       const ttsProvider = userVoiceSettings?.tts_provider || 'openai';
       const voiceId = userVoiceSettings?.voice_id || 'alloy';
 
+      // Ограничиваем длину текста для TTS (максимум 4000 символов)
+      const truncatedText = text.length > 4000 ? text.substring(0, 4000) + "..." : text;
+
       console.log('Voice settings for TTS:', { 
         ttsProvider, 
         voiceId, 
+        textLength: truncatedText.length,
         userVoiceSettings 
       });
 
       const response = await supabase.functions.invoke('text-to-speech', {
         body: { 
-          text,
+          text: truncatedText,
           provider: ttsProvider,
           voice: voiceId,
           rate: userVoiceSettings?.speech_rate ?? 1,
@@ -304,7 +308,13 @@ const VoiceChatAssistant = () => {
       });
 
       if (response.error) {
-        throw new Error(response.error.message);
+        console.error('TTS Response error:', response.error);
+        throw new Error(`TTS API error: ${response.error.message || 'Unknown error'}`);
+      }
+
+      if (!response.data) {
+        console.error('TTS No data received:', response);
+        throw new Error('No data received from TTS service');
       }
 
       const { audioContent } = response.data;
