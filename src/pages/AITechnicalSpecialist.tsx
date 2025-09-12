@@ -355,11 +355,23 @@ export default function AITechnicalSpecialist() {
                   <div>
                     <h3 className="font-semibold text-sm text-muted-foreground mb-2">НОРМАТИВНЫЕ ССЫЛКИ</h3>
                     <div className="flex flex-wrap gap-2">
-                      {specification.normative_references.map((ref, index) => (
-                        <Badge key={index} variant="secondary" className="text-xs">
-                          {ref}
+                      {Array.isArray(specification.normative_references) ? (
+                        specification.normative_references.map((ref, index) => (
+                          <Badge key={index} variant="secondary" className="text-xs">
+                            {ref}
+                          </Badge>
+                        ))
+                      ) : specification.normative_references && typeof specification.normative_references === 'object' ? (
+                        Object.values(specification.normative_references).map((ref, index) => (
+                          <Badge key={index} variant="secondary" className="text-xs">
+                            {String(ref)}
+                          </Badge>
+                        ))
+                      ) : (
+                        <Badge variant="secondary" className="text-xs">
+                          Нормативные ссылки не указаны
                         </Badge>
-                      ))}
+                      )}
                     </div>
                   </div>
 
