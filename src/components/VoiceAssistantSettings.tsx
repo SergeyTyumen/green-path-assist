@@ -15,6 +15,7 @@ import { TTSTestButton } from "@/components/TTSTestButton";
 
 interface VoiceSettings {
   tts_provider: 'web_speech' | 'openai' | 'elevenlabs' | 'yandex';
+  voice_provider: 'web_speech' | 'server';
   voice_id: string;
   speech_rate: number;
   speech_pitch: number;
@@ -48,9 +49,10 @@ interface UserSettings {
 
 const defaultSettings: UserSettings = {
   preferred_ai_model: 'openai',
-  interaction_mode: 'text',
+  interaction_mode: 'mixed',
   voice_settings: {
-    tts_provider: 'web_speech',
+    tts_provider: 'openai',
+    voice_provider: 'server',
     voice_id: 'alloy',
     speech_rate: 1.0,
     speech_pitch: 1.0
@@ -458,8 +460,26 @@ export function VoiceAssistantSettings() {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="grid w-full items-center gap-1.5">
-              <Label htmlFor="tts-provider">Провайдер TTS</Label>
+          <div className="grid w-full items-center gap-1.5">
+            <Label htmlFor="voice-provider">Голосовая система</Label>
+            <Select
+              value={settings.voice_settings.voice_provider || 'server'}
+              onValueChange={(value: 'web_speech' | 'server') => 
+                updateVoiceSettings('voice_provider', value)
+              }
+            >
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="web_speech">Только браузер (может не работать на мобильных)</SelectItem>
+                <SelectItem value="server">Умная система (браузер + сервер)</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="grid w-full items-center gap-1.5">
+            <Label htmlFor="tts-provider">Провайдер синтеза речи</Label>
               <Select
                 value={settings.voice_settings.tts_provider}
                 onValueChange={(value: 'web_speech' | 'openai' | 'elevenlabs' | 'yandex') => {

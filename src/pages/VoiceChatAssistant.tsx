@@ -151,8 +151,8 @@ const VoiceChatAssistant = () => {
       addMessage('assistant', response);
       
       // If voice mode is enabled, speak the response
-      if (isVoiceMode && browserSupport.speechSynthesis) {
-        speakResponse(response);
+      if (isVoiceMode) {
+        await speakResponse(response);
       }
     } catch (error) {
       setMessages(prev => prev.filter(m => m.id !== 'thinking'));
@@ -189,38 +189,98 @@ const VoiceChatAssistant = () => {
     }
   };
 
-  // Text-to-speech helper function
-  const speakResponse = (text: string) => {
-    if (!isVoiceMode || !browserSupport.speechSynthesis) return;
-    
-    // Stop any current speech
-    if (window.speechSynthesis.speaking) {
-      window.speechSynthesis.cancel();
+  // Enhanced TTS with fallback to server
+  const speakResponse = async (text: string) => {
+    if (!isVoiceMode) return;
+
+    // Try browser speech synthesis first
+    if (window.speechSynthesis && window.speechSynthesis.getVoices().length > 0) {
+      try {
+        speechSynthesis.cancel();
+
+        const utterance = new SpeechSynthesisUtterance(text);
+        utterance.lang = 'ru-RU';
+        utterance.rate = 0.9;
+        utterance.pitch = 1.0;
+
+        utterance.onstart = () => {
+          setVoiceState(prev => ({ ...prev, isSpeaking: true }));
+        };
+
+        utterance.onend = () => {
+          setVoiceState(prev => ({ ...prev, isSpeaking: false }));
+        };
+
+        utterance.onerror = () => {
+          // Fallback to server TTS on error
+          handleServerTTS(text);
+        };
+
+        speechSynthesis.speak(utterance);
+        return;
+      } catch (error) {
+        console.error('Browser TTS error:', error);
+      }
     }
-    
-    const utterance = new SpeechSynthesisUtterance(text);
-    utterance.rate = 0.9;
-    utterance.pitch = 1;
-    utterance.volume = 0.8;
-    utterance.lang = 'ru-RU';
-    
-    utterance.onstart = () => {
-      setVoiceState(prev => ({ ...prev, isSpeaking: true }));
-    };
-    
-    utterance.onend = () => {
-      setVoiceState(prev => ({ ...prev, isSpeaking: false }));
-    };
-    
-    speechSynthesis.speak(utterance);
+
+    // Fallback to server TTS
+    handleServerTTS(text);
   };
 
-  // Voice input implementation
+  // Server-based text-to-speech fallback
+  const handleServerTTS = async (text: string) => {
+    try {
+      setVoiceState(prev => ({ ...prev, isSpeaking: true }));
+
+      const response = await supabase.functions.invoke('text-to-speech', {
+        body: { 
+          text,
+          provider: 'openai',
+          voice: 'alloy'
+        }
+      });
+
+      if (response.error) {
+        throw new Error(response.error.message);
+      }
+
+      const { audioContent } = response.data;
+      if (audioContent) {
+        // Play base64 audio
+        const audio = new Audio(`data:audio/mp3;base64,${audioContent}`);
+        
+        audio.onended = () => {
+          setVoiceState(prev => ({ ...prev, isSpeaking: false }));
+        };
+
+        audio.onerror = () => {
+          setVoiceState(prev => ({ ...prev, isSpeaking: false }));
+          toast({
+            title: 'Ошибка озвучки',
+            description: 'Не удалось воспроизвести аудио',
+            variant: 'destructive'
+          });
+        };
+
+        await audio.play();
+      }
+    } catch (error) {
+      console.error('Server TTS error:', error);
+      setVoiceState(prev => ({ ...prev, isSpeaking: false }));
+      toast({
+        title: 'Ошибка синтеза речи',
+        description: 'Голосовой ответ недоступен',
+        variant: 'destructive'
+      });
+    }
+  };
+
+  // Voice input with fallback to server STT
   const handleVoiceInput = async () => {
     if (!browserSupport.mediaDevices) {
       toast({
         title: 'Голосовой ввод недоступен',
-        description: 'Ваш браузер не поддерживает доступ к микрофону. Попробуйте Chrome, Firefox или Safari.',
+        description: 'Ваш браузер не поддерживает голосовой ввод',
         variant: 'destructive'
       });
       return;
@@ -236,55 +296,136 @@ const VoiceChatAssistant = () => {
       return;
     }
 
+    // Try Web Speech API first
+    const hasWebSpeech = !!(window as any).webkitSpeechRecognition || !!(window as any).SpeechRecognition;
+    
+    if (hasWebSpeech) {
+      try {
+        setVoiceState(prev => ({ ...prev, isListening: true }));
+        
+        const recognition = new (window as any).webkitSpeechRecognition() || new (window as any).SpeechRecognition();
+        recognition.lang = 'ru-RU';
+        recognition.continuous = false;
+        recognition.interimResults = false;
+
+        recognition.onresult = (event: any) => {
+          const transcript = event.results[0][0].transcript;
+          setInputValue(transcript);
+          setVoiceState(prev => ({ ...prev, isListening: false }));
+          
+          toast({
+            title: 'Голос распознан',
+            description: `Текст: "${transcript}"`
+          });
+        };
+
+        recognition.onerror = (event: any) => {
+          console.error('Speech recognition error:', event.error);
+          setVoiceState(prev => ({ ...prev, isListening: false }));
+          
+          // Fallback to server STT on error
+          handleServerSTT();
+        };
+
+        recognition.onend = () => {
+          setVoiceState(prev => ({ ...prev, isListening: false }));
+        };
+
+        recognition.start();
+        
+        toast({
+          title: 'Слушаю...',
+          description: 'Говорите четко и медленно'
+        });
+
+      } catch (error) {
+        console.error('Error starting Web Speech:', error);
+        handleServerSTT(); // Fallback to server STT
+      }
+    } else {
+      handleServerSTT(); // Use server STT if Web Speech not available
+    }
+  };
+
+  // Server-based speech-to-text fallback
+  const handleServerSTT = async () => {
+    let mediaRecorder: MediaRecorder | null = null;
+    let chunks: Blob[] = [];
+
     try {
-      // Start listening
       setVoiceState(prev => ({ ...prev, isListening: true }));
       
-      const recognition = new (window as any).webkitSpeechRecognition() || new (window as any).SpeechRecognition();
-      recognition.lang = 'ru-RU';
-      recognition.continuous = false;
-      recognition.interimResults = false;
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      mediaRecorder = new MediaRecorder(stream);
+      
+      mediaRecorder.ondataavailable = (event) => {
+        if (event.data.size > 0) {
+          chunks.push(event.data);
+        }
+      };
 
-      recognition.onresult = (event: any) => {
-        const transcript = event.results[0][0].transcript;
-        setInputValue(transcript);
-        setVoiceState(prev => ({ ...prev, isListening: false }));
+      mediaRecorder.onstop = async () => {
+        const audioBlob = new Blob(chunks, { type: 'audio/webm' });
+        chunks = [];
         
-        toast({
-          title: 'Голос распознан',
-          description: `Текст: "${transcript}"`
-        });
+        try {
+          // Convert to base64
+          const reader = new FileReader();
+          reader.onload = async () => {
+            const base64Audio = (reader.result as string).split(',')[1];
+            
+            // Send to server STT
+            const response = await supabase.functions.invoke('speech-to-text', {
+              body: { audio: base64Audio }
+            });
+
+            if (response.error) {
+              throw new Error(response.error.message);
+            }
+
+            const transcript = response.data?.text;
+            if (transcript) {
+              setInputValue(transcript);
+              toast({
+                title: 'Голос распознан (сервер)',
+                description: `Текст: "${transcript}"`
+              });
+            }
+          };
+          reader.readAsDataURL(audioBlob);
+        } catch (error) {
+          console.error('Server STT error:', error);
+          toast({
+            title: 'Ошибка распознавания',
+            description: 'Не удалось распознать речь',
+            variant: 'destructive'
+          });
+        } finally {
+          setVoiceState(prev => ({ ...prev, isListening: false }));
+          stream.getTracks().forEach(track => track.stop());
+        }
       };
 
-      recognition.onerror = (event: any) => {
-        console.error('Speech recognition error:', event.error);
-        setVoiceState(prev => ({ ...prev, isListening: false }));
-        
-        toast({
-          title: 'Ошибка распознавания',
-          description: 'Не удалось распознать речь. Попробуйте еще раз.',
-          variant: 'destructive'
-        });
-      };
-
-      recognition.onend = () => {
-        setVoiceState(prev => ({ ...prev, isListening: false }));
-      };
-
-      recognition.start();
+      mediaRecorder.start();
       
       toast({
-        title: 'Слушаю...',
-        description: 'Говорите четко и медленно'
+        title: 'Запись...',
+        description: 'Нажмите еще раз для остановки'
       });
 
+      // Auto-stop after 10 seconds
+      setTimeout(() => {
+        if (mediaRecorder?.state === 'recording') {
+          mediaRecorder.stop();
+        }
+      }, 10000);
+
     } catch (error) {
-      console.error('Error starting voice input:', error);
+      console.error('Error with server STT:', error);
       setVoiceState(prev => ({ ...prev, isListening: false }));
-      
       toast({
-        title: 'Ошибка голосового ввода',
-        description: 'Голосовое распознавание не поддерживается в этом браузере',
+        title: 'Ошибка записи',
+        description: 'Не удалось получить доступ к микрофону',
         variant: 'destructive'
       });
     }
