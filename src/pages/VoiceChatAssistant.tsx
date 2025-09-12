@@ -271,15 +271,7 @@ const VoiceChatAssistant = () => {
       return;
     }
 
-    const openaiKey = await getOpenAIKey(user.id);
-    if (!openaiKey) {
-      toast({
-        title: 'API ключ не найден',
-        description: 'Настройте OpenAI API ключ в разделе "Настройки" → "API Ключи"',
-        variant: 'destructive'
-      });
-      return;
-    }
+    // Не требуем ключ заранее — он будет получен на сервере из БД
     try {
       setVoiceState(prev => ({ ...prev, isSpeaking: true }));
 
@@ -303,8 +295,7 @@ const VoiceChatAssistant = () => {
           provider: ttsProvider,
           voice: voiceId,
           rate: userVoiceSettings?.speech_rate ?? 1,
-          pitch: userVoiceSettings?.speech_pitch ?? 1,
-          apiKey: openaiKey
+          pitch: userVoiceSettings?.speech_pitch ?? 1
         }
       });
 
