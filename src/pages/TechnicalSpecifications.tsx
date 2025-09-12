@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useTechnicalSpecifications } from '@/hooks/useTechnicalSpecifications';
 import { useNavigate } from 'react-router-dom';
@@ -184,6 +184,9 @@ const TechnicalSpecifications = () => {
                 <X className="w-4 h-4" />
               </Button>
             </DialogTitle>
+            <DialogDescription>
+              Подробная информация о техническом задании
+            </DialogDescription>
           </DialogHeader>
           <ScrollArea className="max-h-[60vh] pr-4">
             {selectedSpec && (
@@ -209,38 +212,47 @@ const TechnicalSpecifications = () => {
                   </div>
                 </div>
                 
-                {selectedSpec.description && (
+                {selectedSpec.object_description && (
                   <div>
                     <h3 className="font-semibold text-sm text-muted-foreground mb-2">Описание объекта</h3>
                     <div className="bg-muted p-4 rounded-lg">
-                      <p className="whitespace-pre-wrap">{selectedSpec.description}</p>
+                      <p className="whitespace-pre-wrap">{selectedSpec.object_description}</p>
                     </div>
                   </div>
                 )}
 
-                {selectedSpec.requirements && (
+                {selectedSpec.work_scope && (
                   <div>
-                    <h3 className="font-semibold text-sm text-muted-foreground mb-2">Требования</h3>
+                    <h3 className="font-semibold text-sm text-muted-foreground mb-2">Объем работ</h3>
                     <div className="bg-muted p-4 rounded-lg">
-                      <p className="whitespace-pre-wrap">{selectedSpec.requirements}</p>
+                      <p className="whitespace-pre-wrap">{selectedSpec.work_scope}</p>
                     </div>
                   </div>
                 )}
 
-                {selectedSpec.technical_details && (
+                {selectedSpec.materials_spec && (
                   <div>
-                    <h3 className="font-semibold text-sm text-muted-foreground mb-2">Технические детали</h3>
+                    <h3 className="font-semibold text-sm text-muted-foreground mb-2">Спецификация материалов</h3>
                     <div className="bg-muted p-4 rounded-lg">
-                      <p className="whitespace-pre-wrap">{selectedSpec.technical_details}</p>
+                      <pre className="whitespace-pre-wrap text-sm">{JSON.stringify(selectedSpec.materials_spec, null, 2)}</pre>
                     </div>
                   </div>
                 )}
 
-                {selectedSpec.deliverables && (
+                {selectedSpec.normative_references && (
                   <div>
-                    <h3 className="font-semibold text-sm text-muted-foreground mb-2">Результаты работ</h3>
+                    <h3 className="font-semibold text-sm text-muted-foreground mb-2">Нормативные ссылки</h3>
                     <div className="bg-muted p-4 rounded-lg">
-                      <p className="whitespace-pre-wrap">{selectedSpec.deliverables}</p>
+                      <pre className="whitespace-pre-wrap text-sm">{JSON.stringify(selectedSpec.normative_references, null, 2)}</pre>
+                    </div>
+                  </div>
+                )}
+
+                {selectedSpec.quality_requirements && (
+                  <div>
+                    <h3 className="font-semibold text-sm text-muted-foreground mb-2">Требования к качеству</h3>
+                    <div className="bg-muted p-4 rounded-lg">
+                      <p className="whitespace-pre-wrap">{selectedSpec.quality_requirements}</p>
                     </div>
                   </div>
                 )}
@@ -254,11 +266,29 @@ const TechnicalSpecifications = () => {
                   </div>
                 )}
 
-                {selectedSpec.notes && (
+                {selectedSpec.safety_requirements && (
                   <div>
-                    <h3 className="font-semibold text-sm text-muted-foreground mb-2">Дополнительные заметки</h3>
+                    <h3 className="font-semibold text-sm text-muted-foreground mb-2">Требования безопасности</h3>
                     <div className="bg-muted p-4 rounded-lg">
-                      <p className="whitespace-pre-wrap">{selectedSpec.notes}</p>
+                      <p className="whitespace-pre-wrap">{selectedSpec.safety_requirements}</p>
+                    </div>
+                  </div>
+                )}
+
+                {selectedSpec.acceptance_criteria && (
+                  <div>
+                    <h3 className="font-semibold text-sm text-muted-foreground mb-2">Критерии приемки</h3>
+                    <div className="bg-muted p-4 rounded-lg">
+                      <p className="whitespace-pre-wrap">{selectedSpec.acceptance_criteria}</p>
+                    </div>
+                  </div>
+                )}
+
+                {selectedSpec.additional_requirements && (
+                  <div>
+                    <h3 className="font-semibold text-sm text-muted-foreground mb-2">Дополнительные требования</h3>
+                    <div className="bg-muted p-4 rounded-lg">
+                      <p className="whitespace-pre-wrap">{selectedSpec.additional_requirements}</p>
                     </div>
                   </div>
                 )}
