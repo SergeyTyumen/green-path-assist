@@ -116,6 +116,46 @@ async function callOpenAIWithTools(messages: AIMessage[], settings: UserSettings
           }
         }
       }
+,
+      {
+        type: "function",
+        function: {
+          name: "get_tasks",
+          description: "Получить список задач пользователя с фильтрами (все, на сегодня, просроченные, по статусу)",
+          parameters: {
+            type: "object",
+            properties: {
+              scope: { type: "string", enum: ["all", "today", "overdue", "by_status"], description: "Область выборки" },
+              status: { type: "string", enum: ["pending", "in-progress", "completed", "overdue"], description: "Фильтр по статусу, если scope=by_status" },
+              limit: { type: "number", description: "Лимит кол-ва записей (по умолчанию 20)" },
+              include_details: { type: "boolean", description: "Включать подробности (описание)" }
+            }
+          }
+        }
+      },
+      {
+        type: "function",
+        function: {
+          name: "get_tasks_stats",
+          description: "Получить статистику задач: всего, на сегодня, просроченные, по статусам",
+          parameters: { type: "object", properties: {} }
+        }
+      },
+      {
+        type: "function",
+        function: {
+          name: "get_clients",
+          description: "Получить список клиентов с фильтрами (по статусу или этапу)",
+          parameters: {
+            type: "object",
+            properties: {
+              status: { type: "string", description: "Статус клиента из поля status (new, active, и т.п.)" },
+              conversion_stage: { type: "string", description: "Этап конверсии клиента" },
+              limit: { type: "number", description: "Лимит кол-ва записей (по умолчанию 20)" }
+            }
+          }
+        }
+      }
     ];
 
     let runningMessages: any[] = [...messages];
@@ -211,6 +251,15 @@ async function executeFunction(functionName: string, args: any, userId: string, 
 
     case 'complete_task':
       return await completeTask(userId, args);
+
+    case 'get_tasks':
+      return await getTasks(userId, args);
+
+    case 'get_tasks_stats':
+      return await getTasksStats(userId);
+
+    case 'get_clients':
+      return await getClients(userId, args);
       
     default:
       return { error: `Unknown function: ${functionName}` };
@@ -576,6 +625,157 @@ async function createTask(userId: string, args: any) {
   }
 }
 
+// Получение задач с фильтрами
+async function getTasks(userId: string, args: any) {
+  try {
+    const supabaseAdmin = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+    );
+
+    const todayStr = new Date().toISOString().split('T')[0];
+    const limit = Math.max(1, Math.min(Number(args?.limit) || 20, 100));
+    const scope = args?.scope || 'all';
+    const status = args?.status as string | undefined;
+
+    let query = supabaseAdmin
+      .from('tasks')
+      .select('id, title, status, priority, due_date, category')
+      .eq('user_id', userId);
+
+    if (scope === 'today') {
+      query = query.eq('due_date', todayStr).neq('status', 'completed');
+    } else if (scope === 'overdue') {
+      query = query.lt('due_date', todayStr).neq('status', 'completed');
+    } else if (scope === 'by_status' && status) {
+      if (status === 'overdue') {
+        query = query.lt('due_date', todayStr).neq('status', 'completed');
+      } else {
+        query = query.eq('status', status);
+      }
+    }
+
+    const { data, error } = await query
+      .order('due_date', { ascending: true })
+      .order('created_at', { ascending: false })
+      .limit(limit);
+
+    if (error) throw error;
+
+    const tasks = data || [];
+
+    const titleMap: Record<string, string> = {
+      all: 'все задачи',
+      today: 'задачи на сегодня',
+      overdue: 'просроченные задачи',
+      by_status: `задачи со статусом "${status || ''}"`
+    };
+
+    const header = titleMap[scope] || 'задачи';
+    const list = tasks
+      .map((t) => `• ${t.title} — ${t.status}, приоритет: ${t.priority}${t.due_date ? `, срок: ${t.due_date}` : ''}`)
+      .join('\n');
+
+    const message = tasks.length
+      ? `Нашёл ${tasks.length} (${header}):\n${list}`
+      : `Задачи (${header}) не найдены`;
+
+    return { success: true, tasks, message };
+  } catch (error) {
+    console.error('Error getting tasks:', error);
+    return { success: false, error: (error as Error).message };
+  }
+}
+
+// Статистика задач
+async function getTasksStats(userId: string) {
+  try {
+    const supabaseAdmin = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+    );
+
+    const todayStr = new Date().toISOString().split('T')[0];
+
+    const totalQ = supabaseAdmin.from('tasks').select('*', { count: 'exact', head: true }).eq('user_id', userId);
+    const todayQ = supabaseAdmin.from('tasks').select('*', { count: 'exact', head: true }).eq('user_id', userId).eq('due_date', todayStr).neq('status', 'completed');
+    const overdueQ = supabaseAdmin.from('tasks').select('*', { count: 'exact', head: true }).eq('user_id', userId).lt('due_date', todayStr).neq('status', 'completed');
+    const pendingQ = supabaseAdmin.from('tasks').select('*', { count: 'exact', head: true }).eq('user_id', userId).eq('status', 'pending');
+    const inProgressQ = supabaseAdmin.from('tasks').select('*', { count: 'exact', head: true }).eq('user_id', userId).eq('status', 'in-progress');
+    const completedQ = supabaseAdmin.from('tasks').select('*', { count: 'exact', head: true }).eq('user_id', userId).eq('status', 'completed');
+
+    const [total, today, overdue, pending, inProgress, completed] = await Promise.all([
+      totalQ, todayQ, overdueQ, pendingQ, inProgressQ, completedQ
+    ]);
+
+    const message = `Статистика задач:\n` +
+      `• Всего: ${total.count ?? 0}\n` +
+      `• На сегодня: ${today.count ?? 0}\n` +
+      `• Просроченные: ${overdue.count ?? 0}\n` +
+      `• По статусам — ожидание: ${pending.count ?? 0}, в работе: ${inProgress.count ?? 0}, выполнено: ${completed.count ?? 0}`;
+
+    return {
+      success: true,
+      stats: {
+        total: total.count ?? 0,
+        today: today.count ?? 0,
+        overdue: overdue.count ?? 0,
+        by_status: {
+          pending: pending.count ?? 0,
+          in_progress: inProgress.count ?? 0,
+          completed: completed.count ?? 0
+        }
+      },
+      message
+    };
+  } catch (error) {
+    console.error('Error getting tasks stats:', error);
+    return { success: false, error: (error as Error).message };
+  }
+}
+
+// Получение списка клиентов
+async function getClients(userId: string, args: any) {
+  try {
+    const supabaseAdmin = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+    );
+
+    const limit = Math.max(1, Math.min(Number(args?.limit) || 20, 100));
+    let query = supabaseAdmin
+      .from('clients')
+      .select('id, name, phone, email, status, conversion_stage, created_at')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false })
+      .limit(limit);
+
+    if (args?.status) {
+      query = query.eq('status', args.status);
+    }
+    if (args?.conversion_stage) {
+      query = query.eq('conversion_stage', args.conversion_stage);
+    }
+
+    const { data, error } = await query;
+    if (error) throw error;
+
+    const clients = data || [];
+    const list = clients
+      .map((c) => `• ${c.name}${c.phone ? ` (${c.phone})` : ''} — статус: ${c.status}, этап: ${c.conversion_stage}`)
+      .join('\n');
+
+    const message = clients.length
+      ? `Найдено клиентов: ${clients.length}\n${list}`
+      : 'Клиенты не найдены';
+
+    return { success: true, clients, message };
+  } catch (error) {
+    console.error('Error getting clients:', error);
+    return { success: false, error: (error as Error).message };
+  }
+}
+
 async function getUserSettings(userId: string): Promise<UserSettings> {
   // Создаем клиент Supabase с service role key для чтения профилей
   const supabaseAdmin = createClient(
@@ -677,6 +877,9 @@ serve(async (req) => {
 
 ОСНОВНЫЕ ФУНКЦИИ:
 - Поиск информации о клиентах через get_client_info (имя клиента)
+- Список клиентов через get_clients (фильтры: status, conversion_stage, limit)
+- Список задач через get_tasks (scope: all/today/overdue/by_status, status, limit)
+- Статистика задач через get_tasks_stats (всего, сегодня, просроченные, по статусам)
 - Создание клиентов через create_client (имя, телефон, email, источник лида)
 - Создание смет через AI-Сметчика (указывайте: описание проекта, площадь, клиента, виды работ)
 - Создание задач через create_task (заголовок, описание, дата выполнения)
@@ -688,6 +891,8 @@ serve(async (req) => {
 - Получите информацию о его задачах и сметах
 - Анализируйте ситуацию и предлагайте подходящие действия
 
+ЗАПРОСЫ БЕЗ КЛИЕНТА:
+- Для "Покажи мои задачи", "задачи на сегодня", "сколько просроченных" используйте get_tasks и/или get_tasks_stats
 СОЗДАНИЕ КЛИЕНТОВ:
 Когда пользователь просит создать клиента, используйте функцию create_client:
 - Обязательно укажите name (имя клиента)
