@@ -39,6 +39,7 @@ interface VoiceState {
 const VoiceChatAssistant = () => {
   const { user } = useAuth();
   const { toast } = useToast();
+  const [userVoiceSettings, setUserVoiceSettings] = useState<any>(null);
   const [messages, setMessages] = useState<Message[]>([
     {
       id: '1',
@@ -61,6 +62,28 @@ const VoiceChatAssistant = () => {
   });
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // Load user voice settings
+  useEffect(() => {
+    const loadVoiceSettings = async () => {
+      if (!user) return;
+      
+      try {
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('voice_settings')
+          .eq('user_id', user.id)
+          .single();
+          
+        if (error) throw error;
+        setUserVoiceSettings(data?.voice_settings);
+      } catch (error) {
+        console.error('Error loading voice settings:', error);
+      }
+    };
+    
+    loadVoiceSettings();
+  }, [user]);
 
   // Check browser capabilities
   useEffect(() => {
@@ -253,11 +276,15 @@ const VoiceChatAssistant = () => {
     try {
       setVoiceState(prev => ({ ...prev, isSpeaking: true }));
 
+      // Получаем голосовые настройки из профиля пользователя
+      const ttsProvider = userVoiceSettings?.tts_provider || 'openai';
+      const voiceId = userVoiceSettings?.voice_id || 'alloy';
+
       const response = await supabase.functions.invoke('text-to-speech', {
         body: { 
           text,
-          provider: 'openai',
-          voice: 'alloy',
+          provider: ttsProvider,
+          voice: voiceId,
           apiKey: openaiKey
         }
       });
