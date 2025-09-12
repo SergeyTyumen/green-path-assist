@@ -6,6 +6,19 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// Safe ArrayBuffer -> base64 encoder to avoid call stack overflow
+function arrayBufferToBase64(buffer: ArrayBuffer): string {
+  const bytes = new Uint8Array(buffer);
+  const chunkSize = 0x8000; // 32KB chunks
+  let binary = '';
+  for (let i = 0; i < bytes.length; i += chunkSize) {
+    const chunk = bytes.subarray(i, i + chunkSize);
+    // Convert chunk to string safely
+    binary += String.fromCharCode(...chunk);
+  }
+  return btoa(binary);
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -98,7 +111,7 @@ async function generateOpenAITTS(text: string, voice: string, apiKey?: string): 
   }
 
   const arrayBuffer = await response.arrayBuffer();
-  return btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)));
+  return arrayBufferToBase64(arrayBuffer);
 }
 
 async function generateElevenLabsTTS(text: string, voiceId: string, apiKey: string): Promise<string> {
@@ -125,7 +138,7 @@ async function generateElevenLabsTTS(text: string, voiceId: string, apiKey: stri
   }
 
   const arrayBuffer = await response.arrayBuffer();
-  return btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)));
+  return arrayBufferToBase64(arrayBuffer);
 }
 
 async function generateYandexTTS(text: string, voice: string, apiKey: string): Promise<string> {
@@ -150,5 +163,5 @@ async function generateYandexTTS(text: string, voice: string, apiKey: string): P
   }
 
   const arrayBuffer = await response.arrayBuffer();
-  return btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)));
+  return arrayBufferToBase64(arrayBuffer);
 }

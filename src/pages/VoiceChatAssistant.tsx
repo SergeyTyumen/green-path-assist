@@ -473,9 +473,10 @@ const VoiceChatAssistant = () => {
               }
             });
 
-            if (response.error) {
-              throw new Error(response.error.message);
-            }
+      if (response.error) {
+        console.error('TTS Response error:', response.error);
+        throw new Error(`TTS API error: ${response.error.message || 'Unknown error'}`);
+      }
 
             const transcript = response.data?.text;
             if (transcript) {
