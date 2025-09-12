@@ -128,10 +128,15 @@ export default function VoiceRecorder({ onTranscription }: VoiceRecorderProps) {
 
   return (
     <Button
-      onClick={isRecording ? stopRecording : startRecording}
+      onMouseDown={!isProcessing ? startRecording : undefined}
+      onMouseUp={isRecording ? stopRecording : undefined}
+      onMouseLeave={isRecording ? stopRecording : undefined}
+      onTouchStart={!isProcessing ? startRecording : undefined}
+      onTouchEnd={isRecording ? stopRecording : undefined}
       disabled={isProcessing}
       variant={isRecording ? "destructive" : "outline"}
       size="sm"
+      className="select-none"
     >
       {isProcessing ? (
         <>
@@ -141,12 +146,12 @@ export default function VoiceRecorder({ onTranscription }: VoiceRecorderProps) {
       ) : isRecording ? (
         <>
           <MicOff className="h-4 w-4 mr-2" />
-          Остановить
+          Удерживайте для записи
         </>
       ) : (
         <>
           <Mic className="h-4 w-4 mr-2" />
-          Голосовой ввод
+          Удерживайте для записи
         </>
       )}
     </Button>
