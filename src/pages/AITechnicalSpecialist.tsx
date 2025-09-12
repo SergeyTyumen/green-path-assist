@@ -324,8 +324,29 @@ export default function AITechnicalSpecialist() {
 
                   <div>
                     <h3 className="font-semibold text-sm text-muted-foreground mb-2">СПЕЦИФИКАЦИЯ МАТЕРИАЛОВ</h3>
-                    <div className="text-sm whitespace-pre-line bg-muted/50 p-3 rounded-md">
-                      {specification.materials_spec}
+                    <div className="text-sm bg-muted/50 p-3 rounded-md space-y-2">
+                      {typeof specification.materials_spec === 'string' ? (
+                        <div className="whitespace-pre-line">{specification.materials_spec}</div>
+                      ) : specification.materials_spec && typeof specification.materials_spec === 'object' ? (
+                        Object.entries(specification.materials_spec).map(([key, value]: [string, any]) => (
+                          <div key={key} className="border-b border-muted pb-2 last:border-b-0">
+                            <div className="font-medium capitalize">{key.replace(/_/g, ' ')}</div>
+                            {typeof value === 'object' && value !== null ? (
+                              <div className="ml-4 text-xs text-muted-foreground">
+                                {Object.entries(value).map(([subKey, subValue]) => (
+                                  <div key={subKey}>
+                                    <span className="font-medium">{subKey}:</span> {String(subValue)}
+                                  </div>
+                                ))}
+                              </div>
+                            ) : (
+                              <div className="ml-4 text-xs text-muted-foreground">{String(value)}</div>
+                            )}
+                          </div>
+                        ))
+                      ) : (
+                        <div>Спецификация материалов не загружена</div>
+                      )}
                     </div>
                   </div>
 
