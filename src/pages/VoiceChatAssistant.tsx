@@ -62,10 +62,13 @@ const VoiceChatAssistant = () => {
   // Check browser capabilities
   useEffect(() => {
     const checkBrowserSupport = () => {
+      const hasWebkitSpeech = !!(window as any).webkitSpeechRecognition;
+      const hasSpeechRecognition = !!(window as any).SpeechRecognition;
+      
       setBrowserSupport({
         mediaDevices: !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia),
         speechSynthesis: !!window.speechSynthesis,
-        mediaRecorder: !!window.MediaRecorder
+        mediaRecorder: !!window.MediaRecorder && (hasWebkitSpeech || hasSpeechRecognition)
       });
     };
     
@@ -212,8 +215,8 @@ const VoiceChatAssistant = () => {
     speechSynthesis.speak(utterance);
   };
 
-  // Simple voice input (fallback for unsupported browsers)
-  const handleVoiceInput = () => {
+  // Voice input implementation
+  const handleVoiceInput = async () => {
     if (!browserSupport.mediaDevices) {
       toast({
         title: 'Голосовой ввод недоступен',
@@ -223,11 +226,68 @@ const VoiceChatAssistant = () => {
       return;
     }
 
-    // For now, show message about text input
-    toast({
-      title: 'Временно используйте текст',
-      description: 'Пока используйте текстовый ввод. Голосовая функция будет улучшена в следующем обновлении.'
-    });
+    if (voiceState.isListening) {
+      // Stop listening
+      setVoiceState(prev => ({ ...prev, isListening: false }));
+      toast({
+        title: 'Запись остановлена',
+        description: 'Голосовой ввод завершен'
+      });
+      return;
+    }
+
+    try {
+      // Start listening
+      setVoiceState(prev => ({ ...prev, isListening: true }));
+      
+      const recognition = new (window as any).webkitSpeechRecognition() || new (window as any).SpeechRecognition();
+      recognition.lang = 'ru-RU';
+      recognition.continuous = false;
+      recognition.interimResults = false;
+
+      recognition.onresult = (event: any) => {
+        const transcript = event.results[0][0].transcript;
+        setInputValue(transcript);
+        setVoiceState(prev => ({ ...prev, isListening: false }));
+        
+        toast({
+          title: 'Голос распознан',
+          description: `Текст: "${transcript}"`
+        });
+      };
+
+      recognition.onerror = (event: any) => {
+        console.error('Speech recognition error:', event.error);
+        setVoiceState(prev => ({ ...prev, isListening: false }));
+        
+        toast({
+          title: 'Ошибка распознавания',
+          description: 'Не удалось распознать речь. Попробуйте еще раз.',
+          variant: 'destructive'
+        });
+      };
+
+      recognition.onend = () => {
+        setVoiceState(prev => ({ ...prev, isListening: false }));
+      };
+
+      recognition.start();
+      
+      toast({
+        title: 'Слушаю...',
+        description: 'Говорите четко и медленно'
+      });
+
+    } catch (error) {
+      console.error('Error starting voice input:', error);
+      setVoiceState(prev => ({ ...prev, isListening: false }));
+      
+      toast({
+        title: 'Ошибка голосового ввода',
+        description: 'Голосовое распознавание не поддерживается в этом браузере',
+        variant: 'destructive'
+      });
+    }
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
