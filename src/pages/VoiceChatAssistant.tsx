@@ -222,9 +222,10 @@ const VoiceChatAssistant = () => {
 
     // Check user TTS provider settings
     const ttsProvider = userVoiceSettings?.tts_provider || 'openai';
+    const useBrowserTTS = (userVoiceSettings?.voice_provider === 'web_speech') || ttsProvider === 'web_speech';
     
-    // Use browser TTS only when web_speech is selected
-    if (ttsProvider === 'web_speech' && window.speechSynthesis && window.speechSynthesis.getVoices().length > 0) {
+    // Use browser TTS when explicitly selected via voice_provider or tts_provider
+    if (useBrowserTTS && window.speechSynthesis) {
       try {
         speechSynthesis.cancel();
 
