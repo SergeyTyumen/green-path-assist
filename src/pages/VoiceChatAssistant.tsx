@@ -76,6 +76,7 @@ const VoiceChatAssistant = () => {
           .single();
           
         if (error) throw error;
+        console.log('Loaded voice settings from profile:', data?.voice_settings);
         setUserVoiceSettings(data?.voice_settings);
       } catch (error) {
         console.error('Error loading voice settings:', error);
@@ -279,6 +280,12 @@ const VoiceChatAssistant = () => {
       // Получаем голосовые настройки из профиля пользователя
       const ttsProvider = userVoiceSettings?.tts_provider || 'openai';
       const voiceId = userVoiceSettings?.voice_id || 'alloy';
+
+      console.log('Voice settings for TTS:', { 
+        ttsProvider, 
+        voiceId, 
+        userVoiceSettings 
+      });
 
       const response = await supabase.functions.invoke('text-to-speech', {
         body: { 
