@@ -220,15 +220,24 @@ const VoiceChatAssistant = () => {
   const speakResponse = async (text: string) => {
     if (!isVoiceMode) return;
 
-    // Try browser speech synthesis first
-    if (window.speechSynthesis && window.speechSynthesis.getVoices().length > 0) {
+    // Respect user voice settings: if provider is not web_speech -> use server TTS
+    const ttsProvider = userVoiceSettings?.tts_provider || 'openai';
+    const voiceProvider = userVoiceSettings?.voice_provider || 'server';
+
+    // Use browser TTS only when explicitly selected
+    if (
+      ttsProvider === 'web_speech' &&
+      voiceProvider !== 'server' &&
+      window.speechSynthesis &&
+      window.speechSynthesis.getVoices().length > 0
+    ) {
       try {
         speechSynthesis.cancel();
 
         const utterance = new SpeechSynthesisUtterance(text);
         utterance.lang = 'ru-RU';
-        utterance.rate = 0.9;
-        utterance.pitch = 1.0;
+        utterance.rate = userVoiceSettings?.speech_rate ?? 1.0;
+        utterance.pitch = userVoiceSettings?.speech_pitch ?? 1.0;
 
         utterance.onstart = () => {
           setVoiceState(prev => ({ ...prev, isSpeaking: true }));
@@ -250,7 +259,7 @@ const VoiceChatAssistant = () => {
       }
     }
 
-    // Fallback to server TTS
+    // Otherwise use server TTS with selected provider/voice
     handleServerTTS(text);
   };
 
@@ -292,6 +301,8 @@ const VoiceChatAssistant = () => {
           text,
           provider: ttsProvider,
           voice: voiceId,
+          rate: userVoiceSettings?.speech_rate ?? 1,
+          pitch: userVoiceSettings?.speech_pitch ?? 1,
           apiKey: openaiKey
         }
       });
