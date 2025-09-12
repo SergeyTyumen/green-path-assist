@@ -129,6 +129,16 @@ export function VoiceAssistantSettings() {
 
       if (error) throw error;
 
+      // Дополнительно сохраняем в localStorage для доступа из getAPIKeys
+      if (user) {
+        const storageKey = `user_settings_${user.id}`;
+        localStorage.setItem(storageKey, JSON.stringify({
+          preferred_ai_model: settings.preferred_ai_model,
+          interaction_mode: settings.interaction_mode,
+          ai_settings: settings.ai_settings
+        }));
+      }
+
       toast({
         title: "Настройки сохранены",
         description: "Настройки голосового помощника успешно обновлены",
