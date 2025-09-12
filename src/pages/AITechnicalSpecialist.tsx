@@ -9,6 +9,8 @@ import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
+import { getAIConfigForAssistant } from "@/utils/getAPIKeys";
 import { Loader2, FileText, User, MapPin, Building, Calculator, ArrowRight, Save, FolderOpen, Settings } from "lucide-react";
 import VoiceRecorder from "@/components/VoiceRecorder";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -29,6 +31,7 @@ interface TechnicalSpecification {
 }
 
 export default function AITechnicalSpecialist() {
+  const { user } = useAuth();
   const [loading, setLoading] = useState(false);
   const [objectDescription, setObjectDescription] = useState("");
   const [clientName, setClientName] = useState("");
@@ -69,11 +72,23 @@ export default function AITechnicalSpecialist() {
 
     setLoading(true);
     try {
+      const aiConfig = getAIConfigForAssistant(user!.id, 'technical-specialist');
+      if (!aiConfig?.apiKey) {
+        toast({
+          title: "API ключ не найден",
+          description: "Настройте API ключ в разделе 'Настройки' → 'API Ключи'",
+          variant: "destructive"
+        });
+        setLoading(false);
+        return;
+      }
+
       const { data, error } = await supabase.functions.invoke('ai-technical-specialist', {
         body: {
           object_description: objectDescription,
           client_name: clientName,
           object_address: objectAddress,
+          aiConfig // Передаем настройки AI
         },
       });
 

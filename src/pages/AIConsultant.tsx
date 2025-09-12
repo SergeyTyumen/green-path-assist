@@ -32,6 +32,8 @@ import {
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/hooks/useAuth';
+import { getAIConfigForAssistant } from '@/utils/getAPIKeys';
 
 interface ChatMessage {
   id: string;
@@ -69,6 +71,7 @@ interface IntegrationConfig {
 }
 
 const AIConsultant = () => {
+  const { user } = useAuth();
   const { toast } = useToast();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [inputMessage, setInputMessage] = useState('');
@@ -116,6 +119,11 @@ const AIConsultant = () => {
 
   const generateAIResponse = async (userMessage: string): Promise<string> => {
     try {
+      const aiConfig = getAIConfigForAssistant(user!.id, 'consultant');
+      if (!aiConfig?.apiKey) {
+        throw new Error('API ключ не найден. Настройте API ключ в разделе настроек.');
+      }
+
       // Вызываем AI Consultant Edge Function
       const { data, error } = await supabase.functions.invoke('ai-consultant', {
         body: {
@@ -123,7 +131,8 @@ const AIConsultant = () => {
           context: {
             source: 'website',
             knowledge_base: knowledgeBase
-          }
+          },
+          aiConfig // Передаем настройки AI
         }
       });
 

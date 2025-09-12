@@ -24,6 +24,8 @@ import {
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/hooks/useAuth';
+import { getAIConfigForAssistant } from '@/utils/getAPIKeys';
 
 interface SupplierRequest {
   id: string;
@@ -46,6 +48,7 @@ interface SupplierResponse {
 }
 
 const AISupplierManager = () => {
+  const { user } = useAuth();
   const { toast } = useToast();
   const [requests, setRequests] = useState<SupplierRequest[]>([
     {
@@ -116,6 +119,17 @@ const AISupplierManager = () => {
     setSearching(true);
     
     try {
+      const aiConfig = getAIConfigForAssistant(user!.id, 'supplier-manager');
+      if (!aiConfig?.apiKey) {
+        toast({
+          title: "API ключ не найден",
+          description: "Настройте API ключ в разделе 'Настройки' → 'API Ключи'",
+          variant: "destructive"
+        });
+        setSearching(false);
+        return;
+      }
+
       // Вызываем AI Supplier Manager для поиска поставщиков
       const { data, error } = await supabase.functions.invoke('ai-supplier-manager', {
         body: {
@@ -126,7 +140,8 @@ const AISupplierManager = () => {
             quantity: parseInt(newRequest.quantity) || 1,
             unit: newRequest.unit,
             deadline: newRequest.deadline
-          }
+          },
+          aiConfig // Передаем настройки AI
         }
       });
 

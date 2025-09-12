@@ -26,6 +26,8 @@ import {
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/hooks/useAuth';
+import { getAIConfigForAssistant } from '@/utils/getAPIKeys';
 
 interface ContractorTask {
   id: string;
@@ -45,6 +47,7 @@ interface ContractorTask {
 }
 
 const AIContractorManager = () => {
+  const { user } = useAuth();
   const { toast } = useToast();
   const [tasks, setTasks] = useState<ContractorTask[]>([
     {
@@ -148,6 +151,17 @@ const AIContractorManager = () => {
     setSearching(true);
     
     try {
+      const aiConfig = getAIConfigForAssistant(user!.id, 'contractor-manager');
+      if (!aiConfig?.apiKey) {
+        toast({
+          title: "API ключ не найден",
+          description: "Настройте API ключ в разделе 'Настройки' → 'API Ключи'",
+          variant: "destructive"
+        });
+        setSearching(false);
+        return;
+      }
+
       // Вызываем AI Contractor Manager для поиска подрядчиков
       const { data, error } = await supabase.functions.invoke('ai-contractor-manager', {
         body: {
@@ -160,7 +174,8 @@ const AIContractorManager = () => {
               budget: parseInt(newTask.budget) || 0,
               deadline: newTask.deadline
             }
-          }
+          },
+          aiConfig // Передаем настройки AI
         }
       });
 

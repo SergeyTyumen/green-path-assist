@@ -25,8 +25,11 @@ import { useToast } from '@/hooks/use-toast';
 import { useProposals } from '@/hooks/useProposals';
 import { useClients } from '@/hooks/useClients';
 import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/hooks/useAuth';
+import { getAIConfigForAssistant } from '@/utils/getAPIKeys';
 
 const AIProposalManager = () => {
+  const { user } = useAuth();
   const { toast } = useToast();
   const { proposals, loading, createProposal, updateProposal } = useProposals();
   const { clients } = useClients();
@@ -79,6 +82,17 @@ const AIProposalManager = () => {
     setGenerating(true);
     
     try {
+      const aiConfig = getAIConfigForAssistant(user!.id, 'proposal-manager');
+      if (!aiConfig?.apiKey) {
+        toast({
+          title: "API ключ не найден",
+          description: "Настройте API ключ в разделе 'Настройки' → 'API Ключи'",
+          variant: "destructive"
+        });
+        setGenerating(false);
+        return;
+      }
+
       // Сначала создаем КП через AI Proposal Manager
       const { data, error } = await supabase.functions.invoke('ai-proposal-manager', {
         body: {
@@ -89,7 +103,8 @@ const AIProposalManager = () => {
             description: newProposal.description,
             amount: 0,
             expires_at: new Date(Date.now() + newProposal.validDays * 24 * 60 * 60 * 1000).toISOString()
-          }
+          },
+          aiConfig // Передаем настройки AI
         }
       });
 
