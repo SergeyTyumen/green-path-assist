@@ -220,17 +220,11 @@ const VoiceChatAssistant = () => {
   const speakResponse = async (text: string) => {
     if (!isVoiceMode) return;
 
-    // Respect user voice settings: if provider is not web_speech -> use server TTS
+    // Check user TTS provider settings
     const ttsProvider = userVoiceSettings?.tts_provider || 'openai';
-    const voiceProvider = userVoiceSettings?.voice_provider || 'server';
-
-    // Use browser TTS only when explicitly selected
-    if (
-      ttsProvider === 'web_speech' &&
-      voiceProvider !== 'server' &&
-      window.speechSynthesis &&
-      window.speechSynthesis.getVoices().length > 0
-    ) {
+    
+    // Use browser TTS only when web_speech is selected
+    if (ttsProvider === 'web_speech' && window.speechSynthesis && window.speechSynthesis.getVoices().length > 0) {
       try {
         speechSynthesis.cancel();
 
@@ -247,7 +241,9 @@ const VoiceChatAssistant = () => {
           setVoiceState(prev => ({ ...prev, isSpeaking: false }));
         };
 
-        utterance.onerror = () => {
+        utterance.onerror = (error) => {
+          console.error('Browser TTS error:', error);
+          setVoiceState(prev => ({ ...prev, isSpeaking: false }));
           // Fallback to server TTS on error
           handleServerTTS(text);
         };
@@ -259,7 +255,7 @@ const VoiceChatAssistant = () => {
       }
     }
 
-    // Otherwise use server TTS with selected provider/voice
+    // Use server TTS for OpenAI, ElevenLabs, Yandex or as fallback
     handleServerTTS(text);
   };
 
