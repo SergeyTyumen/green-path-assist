@@ -1,12 +1,14 @@
 import { useState } from 'react';
 import { format } from 'date-fns';
 import { ru } from 'date-fns/locale';
-import { Download, Eye, FileText, Trash2, Plus } from 'lucide-react';
+import { Download, Eye, FileText, Trash2, Plus, X } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import { useTechnicalSpecifications } from '@/hooks/useTechnicalSpecifications';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
@@ -14,6 +16,8 @@ import { toast } from 'sonner';
 const TechnicalSpecifications = () => {
   const { specifications, loading, deleteSpecification } = useTechnicalSpecifications();
   const navigate = useNavigate();
+  const [selectedSpec, setSelectedSpec] = useState<any>(null);
+  const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -42,7 +46,8 @@ const TechnicalSpecifications = () => {
   };
 
   const handleView = (spec: any) => {
-    navigate(`/ai-technical-specialist?view=${spec.id}`);
+    setSelectedSpec(spec);
+    setIsViewDialogOpen(true);
   };
 
   if (loading) {
@@ -164,6 +169,104 @@ const TechnicalSpecifications = () => {
           )}
         </CardContent>
       </Card>
+
+      {/* View Dialog */}
+      <Dialog open={isViewDialogOpen} onOpenChange={setIsViewDialogOpen}>
+        <DialogContent className="max-w-4xl max-h-[80vh]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center justify-between">
+              {selectedSpec?.title || 'Техническое задание'}
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setIsViewDialogOpen(false)}
+              >
+                <X className="w-4 h-4" />
+              </Button>
+            </DialogTitle>
+          </DialogHeader>
+          <ScrollArea className="max-h-[60vh] pr-4">
+            {selectedSpec && (
+              <div className="space-y-6">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <h3 className="font-semibold text-sm text-muted-foreground">Клиент</h3>
+                    <p>{selectedSpec.client_name || 'Не указан'}</p>
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-sm text-muted-foreground">Статус</h3>
+                    <Badge className={getStatusColor(selectedSpec.status)}>
+                      {getStatusText(selectedSpec.status)}
+                    </Badge>
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-sm text-muted-foreground">Дата создания</h3>
+                    <p>{format(new Date(selectedSpec.created_at), 'dd.MM.yyyy HH:mm', { locale: ru })}</p>
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-sm text-muted-foreground">Адрес объекта</h3>
+                    <p>{selectedSpec.object_address || 'Не указан'}</p>
+                  </div>
+                </div>
+                
+                {selectedSpec.description && (
+                  <div>
+                    <h3 className="font-semibold text-sm text-muted-foreground mb-2">Описание объекта</h3>
+                    <div className="bg-muted p-4 rounded-lg">
+                      <p className="whitespace-pre-wrap">{selectedSpec.description}</p>
+                    </div>
+                  </div>
+                )}
+
+                {selectedSpec.requirements && (
+                  <div>
+                    <h3 className="font-semibold text-sm text-muted-foreground mb-2">Требования</h3>
+                    <div className="bg-muted p-4 rounded-lg">
+                      <p className="whitespace-pre-wrap">{selectedSpec.requirements}</p>
+                    </div>
+                  </div>
+                )}
+
+                {selectedSpec.technical_details && (
+                  <div>
+                    <h3 className="font-semibold text-sm text-muted-foreground mb-2">Технические детали</h3>
+                    <div className="bg-muted p-4 rounded-lg">
+                      <p className="whitespace-pre-wrap">{selectedSpec.technical_details}</p>
+                    </div>
+                  </div>
+                )}
+
+                {selectedSpec.deliverables && (
+                  <div>
+                    <h3 className="font-semibold text-sm text-muted-foreground mb-2">Результаты работ</h3>
+                    <div className="bg-muted p-4 rounded-lg">
+                      <p className="whitespace-pre-wrap">{selectedSpec.deliverables}</p>
+                    </div>
+                  </div>
+                )}
+
+                {selectedSpec.timeline && (
+                  <div>
+                    <h3 className="font-semibold text-sm text-muted-foreground mb-2">Временные рамки</h3>
+                    <div className="bg-muted p-4 rounded-lg">
+                      <p className="whitespace-pre-wrap">{selectedSpec.timeline}</p>
+                    </div>
+                  </div>
+                )}
+
+                {selectedSpec.notes && (
+                  <div>
+                    <h3 className="font-semibold text-sm text-muted-foreground mb-2">Дополнительные заметки</h3>
+                    <div className="bg-muted p-4 rounded-lg">
+                      <p className="whitespace-pre-wrap">{selectedSpec.notes}</p>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+          </ScrollArea>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
