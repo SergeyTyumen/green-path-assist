@@ -12,6 +12,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { APIKeysManager } from "@/components/settings/APIKeysManager";
 import { TTSTestButton } from "@/components/TTSTestButton";
+import { getOpenAIKey } from "@/utils/getAPIKeys";
 
 interface VoiceSettings {
   tts_provider: 'web_speech' | 'openai' | 'elevenlabs' | 'yandex';
@@ -621,6 +622,8 @@ export function VoiceAssistantSettings() {
                       ? settings.voice_settings.elevenlabs_api_key
                       : settings.voice_settings.tts_provider === 'yandex'
                       ? settings.voice_settings.yandex_api_key
+                      : settings.voice_settings.tts_provider === 'openai'
+                      ? getOpenAIKey(user?.id || '')
                       : undefined
                   }
                 />
