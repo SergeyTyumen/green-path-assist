@@ -212,20 +212,20 @@ const TechnicalSpecifications = () => {
                   </div>
                 </div>
                 
-                {selectedSpec.object_description && (
+                {selectedSpec.work_scope && (
                   <div>
-                    <h3 className="font-semibold text-sm text-muted-foreground mb-2">Описание объекта</h3>
+                    <h3 className="font-semibold text-sm text-muted-foreground mb-2">Объем работ (сгенерировано)</h3>
                     <div className="bg-muted p-4 rounded-lg">
-                      <p className="whitespace-pre-wrap">{selectedSpec.object_description}</p>
+                      <p className="whitespace-pre-wrap">{selectedSpec.work_scope}</p>
                     </div>
                   </div>
                 )}
 
-                {selectedSpec.work_scope && (
+                {selectedSpec.object_description && (
                   <div>
-                    <h3 className="font-semibold text-sm text-muted-foreground mb-2">Объем работ</h3>
+                    <h3 className="font-semibold text-sm text-muted-foreground mb-2">Исходное описание клиента</h3>
                     <div className="bg-muted p-4 rounded-lg">
-                      <p className="whitespace-pre-wrap">{selectedSpec.work_scope}</p>
+                      <p className="whitespace-pre-wrap">{selectedSpec.object_description}</p>
                     </div>
                   </div>
                 )}
