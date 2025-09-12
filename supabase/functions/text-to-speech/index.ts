@@ -22,7 +22,7 @@ serve(async (req) => {
 
     switch (provider) {
       case 'openai':
-        audioContent = await generateOpenAITTS(text, voice || 'alloy');
+        audioContent = await generateOpenAITTS(text, voice || 'alloy', apiKey);
         break;
       
       case 'elevenlabs':
@@ -73,16 +73,15 @@ serve(async (req) => {
   }
 });
 
-async function generateOpenAITTS(text: string, voice: string): Promise<string> {
-  const openaiKey = Deno.env.get('OPENAI_API_KEY');
-  if (!openaiKey) {
-    throw new Error('OpenAI API key not configured');
+async function generateOpenAITTS(text: string, voice: string, apiKey?: string): Promise<string> {
+  if (!apiKey) {
+    throw new Error('OpenAI API key is required');
   }
 
   const response = await fetch('https://api.openai.com/v1/audio/speech', {
     method: 'POST',
     headers: {
-      'Authorization': `Bearer ${openaiKey}`,
+      'Authorization': `Bearer ${apiKey}`,
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({

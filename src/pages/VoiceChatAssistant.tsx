@@ -18,6 +18,8 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/hooks/useAuth';
+import { getOpenAIKey } from '@/utils/getAPIKeys';
 
 interface Message {
   id: string;
@@ -35,6 +37,7 @@ interface VoiceState {
 }
 
 const VoiceChatAssistant = () => {
+  const { user } = useAuth();
   const { toast } = useToast();
   const [messages, setMessages] = useState<Message[]>([
     {
@@ -229,6 +232,24 @@ const VoiceChatAssistant = () => {
 
   // Server-based text-to-speech fallback
   const handleServerTTS = async (text: string) => {
+    if (!user) {
+      toast({
+        title: 'Ошибка авторизации',
+        description: 'Войдите в систему для использования голосовых функций',
+        variant: 'destructive'
+      });
+      return;
+    }
+
+    const openaiKey = getOpenAIKey(user.id);
+    if (!openaiKey) {
+      toast({
+        title: 'API ключ не найден',
+        description: 'Настройте OpenAI API ключ в разделе "Настройки" → "API Ключи"',
+        variant: 'destructive'
+      });
+      return;
+    }
     try {
       setVoiceState(prev => ({ ...prev, isSpeaking: true }));
 
@@ -236,7 +257,8 @@ const VoiceChatAssistant = () => {
         body: { 
           text,
           provider: 'openai',
-          voice: 'alloy'
+          voice: 'alloy',
+          apiKey: openaiKey
         }
       });
 
@@ -349,6 +371,24 @@ const VoiceChatAssistant = () => {
 
   // Server-based speech-to-text fallback
   const handleServerSTT = async () => {
+    if (!user) {
+      toast({
+        title: 'Ошибка авторизации',
+        description: 'Войдите в систему для использования голосовых функций',
+        variant: 'destructive'
+      });
+      return;
+    }
+
+    const openaiKey = getOpenAIKey(user.id);
+    if (!openaiKey) {
+      toast({
+        title: 'API ключ не найден',
+        description: 'Настройте OpenAI API ключ в разделе "Настройки" → "API Ключи"',
+        variant: 'destructive'
+      });
+      return;
+    }
     let mediaRecorder: MediaRecorder | null = null;
     let chunks: Blob[] = [];
 
@@ -376,7 +416,10 @@ const VoiceChatAssistant = () => {
             
             // Send to server STT
             const response = await supabase.functions.invoke('speech-to-text', {
-              body: { audio: base64Audio }
+              body: { 
+                audio: base64Audio,
+                apiKey: openaiKey
+              }
             });
 
             if (response.error) {

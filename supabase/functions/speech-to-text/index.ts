@@ -42,15 +42,14 @@ serve(async (req) => {
   }
 
   try {
-    const { audio } = await req.json();
-    const openaiApiKey = Deno.env.get('OPENAI_API_KEY');
+    const { audio, apiKey } = await req.json();
     
     if (!audio) {
       throw new Error('No audio data provided');
     }
 
-    if (!openaiApiKey) {
-      throw new Error('OPENAI_API_KEY not found');
+    if (!apiKey) {
+      throw new Error('OpenAI API key is required');
     }
 
     // Process audio in chunks
@@ -67,7 +66,7 @@ serve(async (req) => {
     const response = await fetch('https://api.openai.com/v1/audio/transcriptions', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${openaiApiKey}`,
+        'Authorization': `Bearer ${apiKey}`,
       },
       body: formData,
     });
