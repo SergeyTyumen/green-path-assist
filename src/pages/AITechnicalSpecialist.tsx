@@ -168,26 +168,28 @@ export default function AITechnicalSpecialist() {
           </CardHeader>
           <CardContent className="space-y-4">
             {/* Сохраненные описания */}
-            {savedDescriptions.length > 0 && (
-              <div className="space-y-2">
-                <Label className="flex items-center gap-2">
-                  <FolderOpen className="h-4 w-4" />
-                  Загрузить сохраненное описание
-                </Label>
-                <Select value={selectedSavedId} onValueChange={loadDescription}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Выберите сохраненное описание" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {savedDescriptions.map((saved) => (
-                      <SelectItem key={saved.id} value={saved.id}>
-                        {saved.name} ({new Date(saved.data.savedAt).toLocaleDateString()})
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            )}
+            <div className="space-y-2">
+              <Label className="flex items-center gap-2">
+                <FolderOpen className="h-4 w-4" />
+                Загрузить сохраненное описание
+              </Label>
+              <Select value={selectedSavedId} onValueChange={loadDescription} disabled={savedDescriptions.length === 0}>
+                <SelectTrigger className="bg-background">
+                  <SelectValue placeholder={
+                    savedDescriptions.length === 0 
+                      ? "Нет сохраненных описаний" 
+                      : "Выберите сохраненное описание"
+                  } />
+                </SelectTrigger>
+                <SelectContent>
+                  {savedDescriptions.map((saved) => (
+                    <SelectItem key={saved.id} value={saved.id}>
+                      {saved.name} ({new Date(saved.data.savedAt).toLocaleDateString()})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
 
             <div className="space-y-2">
               <Label htmlFor="client-name" className="flex items-center gap-2">
