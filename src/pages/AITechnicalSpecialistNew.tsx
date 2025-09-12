@@ -114,10 +114,16 @@ const AITechnicalSpecialist = () => {
 
       if (error) throw error;
 
-      setGeneratedSpecification(data);
+      const spec = (data && (data as any).specification) || (data as any)?.data?.specification || (data as any)?.spec || data;
+      if (!spec || (typeof spec === 'object' && Object.keys(spec).length === 0)) {
+        toast.error('Модель вернула пустой результат. Попробуйте уточнить описание.');
+        return;
+      }
+
+      setGeneratedSpecification(spec as TechnicalSpecification);
       
       // Сохраняем техническое задание в базу данных
-      await saveTechnicalSpecification(data);
+      await saveTechnicalSpecification(spec as TechnicalSpecification);
       
       toast.success('Техническое задание успешно сгенерировано и сохранено');
     } catch (error) {
