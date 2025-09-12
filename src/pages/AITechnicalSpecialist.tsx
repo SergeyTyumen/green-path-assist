@@ -34,17 +34,28 @@ export default function AITechnicalSpecialist() {
   const [clientName, setClientName] = useState("");
   const [objectAddress, setObjectAddress] = useState("");
   const [specification, setSpecification] = useState<TechnicalSpecification | null>(null);
-  const [savedDescriptions, setSavedDescriptions] = useState<Array<{id: string, name: string, data: any}>>([]);
+  const [savedDescriptions, setSavedDescriptions] = useState<Array<{id: string, name: string, object_description: string, client_name: string, object_address: string, created_at: string}>>([]);
   const [selectedSavedId, setSelectedSavedId] = useState<string>("");
   const { toast } = useToast();
 
-  // Load saved descriptions from localStorage
+  // Load saved descriptions from Supabase
   useEffect(() => {
-    const saved = localStorage.getItem('saved-descriptions');
-    if (saved) {
-      setSavedDescriptions(JSON.parse(saved));
-    }
+    loadSavedDescriptions();
   }, []);
+
+  const loadSavedDescriptions = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('saved_object_descriptions')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      setSavedDescriptions(data || []);
+    } catch (error) {
+      console.error('Error loading saved descriptions:', error);
+    }
+  };
 
   const generateSpecification = async () => {
     if (!objectDescription.trim()) {
@@ -85,30 +96,44 @@ export default function AITechnicalSpecialist() {
     }
   };
 
-  const saveDescription = () => {
+  const saveDescription = async () => {
     const name = prompt("Введите название для сохранения:");
     if (name && (objectDescription.trim() || clientName.trim() || objectAddress.trim())) {
-      const newSaved = {
-        id: Date.now().toString(),
-        name,
-        data: { objectDescription, clientName, objectAddress, savedAt: new Date().toISOString() }
-      };
-      const updated = [...savedDescriptions, newSaved];
-      setSavedDescriptions(updated);
-      localStorage.setItem('saved-descriptions', JSON.stringify(updated));
-      toast({
-        title: "Описание сохранено",
-        description: `Сохранено как "${name}"`,
-      });
+      try {
+        const { error } = await supabase
+          .from('saved_object_descriptions')
+          .insert({
+            name,
+            object_description: objectDescription,
+            client_name: clientName,
+            object_address: objectAddress,
+            user_id: (await supabase.auth.getUser()).data.user?.id
+          });
+
+        if (error) throw error;
+
+        await loadSavedDescriptions();
+        toast({
+          title: "Описание сохранено",
+          description: `Сохранено как "${name}"`,
+        });
+      } catch (error) {
+        console.error('Error saving description:', error);
+        toast({
+          variant: "destructive",
+          title: "Ошибка",
+          description: "Не удалось сохранить описание",
+        });
+      }
     }
   };
 
   const loadDescription = (id: string) => {
     const saved = savedDescriptions.find(s => s.id === id);
     if (saved) {
-      setObjectDescription(saved.data.objectDescription || "");
-      setClientName(saved.data.clientName || "");
-      setObjectAddress(saved.data.objectAddress || "");
+      setObjectDescription(saved.object_description || "");
+      setClientName(saved.client_name || "");
+      setObjectAddress(saved.object_address || "");
       setSelectedSavedId(id);
       toast({
         title: "Описание загружено",
@@ -184,7 +209,7 @@ export default function AITechnicalSpecialist() {
                 <SelectContent>
                   {savedDescriptions.map((saved) => (
                     <SelectItem key={saved.id} value={saved.id}>
-                      {saved.name} ({new Date(saved.data.savedAt).toLocaleDateString()})
+                      {saved.name} ({new Date(saved.created_at).toLocaleDateString()})
                     </SelectItem>
                   ))}
                 </SelectContent>

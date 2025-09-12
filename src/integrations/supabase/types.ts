@@ -1149,6 +1149,39 @@ export type Database = {
           },
         ]
       }
+      saved_object_descriptions: {
+        Row: {
+          client_name: string | null
+          created_at: string
+          id: string
+          name: string
+          object_address: string | null
+          object_description: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          client_name?: string | null
+          created_at?: string
+          id?: string
+          name: string
+          object_address?: string | null
+          object_description?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          client_name?: string | null
+          created_at?: string
+          id?: string
+          name?: string
+          object_address?: string | null
+          object_description?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       services: {
         Row: {
           category: string
