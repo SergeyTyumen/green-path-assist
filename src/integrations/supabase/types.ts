@@ -1385,6 +1385,66 @@ export type Database = {
         }
         Relationships: []
       }
+      technical_specifications: {
+        Row: {
+          acceptance_criteria: string | null
+          additional_requirements: string | null
+          client_name: string | null
+          created_at: string
+          id: string
+          materials_spec: Json | null
+          normative_references: Json | null
+          object_address: string | null
+          object_description: string | null
+          quality_requirements: string | null
+          safety_requirements: string | null
+          status: string
+          timeline: string | null
+          title: string
+          updated_at: string
+          user_id: string
+          work_scope: string | null
+        }
+        Insert: {
+          acceptance_criteria?: string | null
+          additional_requirements?: string | null
+          client_name?: string | null
+          created_at?: string
+          id?: string
+          materials_spec?: Json | null
+          normative_references?: Json | null
+          object_address?: string | null
+          object_description?: string | null
+          quality_requirements?: string | null
+          safety_requirements?: string | null
+          status?: string
+          timeline?: string | null
+          title: string
+          updated_at?: string
+          user_id: string
+          work_scope?: string | null
+        }
+        Update: {
+          acceptance_criteria?: string | null
+          additional_requirements?: string | null
+          client_name?: string | null
+          created_at?: string
+          id?: string
+          materials_spec?: Json | null
+          normative_references?: Json | null
+          object_address?: string | null
+          object_description?: string | null
+          quality_requirements?: string | null
+          safety_requirements?: string | null
+          status?: string
+          timeline?: string | null
+          title?: string
+          updated_at?: string
+          user_id?: string
+          work_scope?: string | null
+        }
+        Relationships: []
+      }
       templates: {
         Row: {
           content: string

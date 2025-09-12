@@ -29,7 +29,8 @@ import AISalesManager from "./pages/AISalesManager";
 import AISupplierManager from "./pages/AISupplierManager";
 import AIContractorManager from "./pages/AIContractorManager";
 import AIAssistantsSettings from "./pages/AIAssistantsSettings";
-import AITechnicalSpecialist from "./pages/AITechnicalSpecialist";
+import AITechnicalSpecialist from "./pages/AITechnicalSpecialistNew";
+import TechnicalSpecifications from "./pages/TechnicalSpecifications";
 import UserManagement from "./pages/UserManagement";
 
 const App = () => (
@@ -56,6 +57,7 @@ const App = () => (
             <Route path="voice-chat" element={<VoiceChatAssistant />} />
             
             <Route path="ai-technical-specialist" element={<AITechnicalSpecialist />} />
+            <Route path="technical-specifications" element={<TechnicalSpecifications />} />
             <Route path="ai-analyst" element={<AIAnalystPage />} />
             <Route path="competitor-analysis" element={<CompetitorAnalysisPage />} />
             <Route path="ai-estimator" element={<AIEstimator />} />

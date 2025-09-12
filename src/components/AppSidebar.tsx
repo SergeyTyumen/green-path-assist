@@ -34,6 +34,7 @@ const navigationItems = [
   { title: "Дашборд", url: "/", icon: LayoutDashboard },
   { title: "Клиенты и заявки", url: "/clients", icon: Users },
   { title: "AI-Технолог", url: "/ai-technical-specialist", icon: HardHat },
+  { title: "Технические задания", url: "/technical-specifications", icon: FileText },
   { title: "Сметы", url: "/estimates", icon: Calculator },
   { title: "Коммерческие предложения", url: "/proposals", icon: FileText },
   { title: "Подрядчики", url: "/contractors", icon: Wrench },
