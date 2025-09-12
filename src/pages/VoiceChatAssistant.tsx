@@ -271,7 +271,7 @@ const VoiceChatAssistant = () => {
       return;
     }
 
-    const openaiKey = getOpenAIKey(user.id);
+    const openaiKey = await getOpenAIKey(user.id);
     if (!openaiKey) {
       toast({
         title: 'API ключ не найден',
@@ -432,7 +432,7 @@ const VoiceChatAssistant = () => {
       return;
     }
 
-    const openaiKey = getOpenAIKey(user.id);
+    const openaiKey = await getOpenAIKey(user.id);
     if (!openaiKey) {
       toast({
         title: 'API ключ не найден',

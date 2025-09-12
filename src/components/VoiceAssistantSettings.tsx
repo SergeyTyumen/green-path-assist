@@ -623,7 +623,7 @@ export function VoiceAssistantSettings() {
                       : settings.voice_settings.tts_provider === 'yandex'
                       ? settings.voice_settings.yandex_api_key
                       : settings.voice_settings.tts_provider === 'openai'
-                      ? getOpenAIKey(user?.id || '')
+                      ? 'will-get-from-db'  // TTSTestButton will handle async retrieval
                       : undefined
                   }
                 />

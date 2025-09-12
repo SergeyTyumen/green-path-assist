@@ -1,5 +1,6 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.52.1';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -19,6 +20,33 @@ function arrayBufferToBase64(buffer: ArrayBuffer): string {
   return btoa(binary);
 }
 
+// Initialize Supabase client for database access
+const supabaseUrl = Deno.env.get('SUPABASE_URL') || '';
+const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
+const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
+// Get API key from database
+async function getAPIKeyFromDatabase(userId: string, provider: string): Promise<string | null> {
+  try {
+    const { data, error } = await supabase
+      .from('api_keys')
+      .select('api_key')
+      .eq('user_id', userId)
+      .eq('provider', provider)
+      .single();
+
+    if (error) {
+      console.error(`Error fetching ${provider} API key:`, error);
+      return null;
+    }
+
+    return data?.api_key || null;
+  } catch (error) {
+    console.error(`Error accessing database for ${provider} key:`, error);
+    return null;
+  }
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -31,25 +59,61 @@ serve(async (req) => {
       throw new Error('Text is required');
     }
 
+    // Get user ID from JWT token
+    const authHeader = req.headers.get('authorization');
+    if (!authHeader) {
+      throw new Error('Authorization required');
+    }
+
+    const token = authHeader.replace('Bearer ', '');
+    const { data: { user }, error: authError } = await supabase.auth.getUser(token);
+    
+    if (authError || !user) {
+      throw new Error('Invalid authorization');
+    }
+
+    // Try to get API key from database first, fallback to provided key
+    let finalApiKey = apiKey;
+    
+    if (provider === 'openai') {
+      const dbKey = await getAPIKeyFromDatabase(user.id, 'openai');
+      if (dbKey) {
+        finalApiKey = dbKey;
+      } else if (!apiKey) {
+        // Fallback to global secret
+        finalApiKey = Deno.env.get('OPENAI_API_KEY');
+      }
+    } else if (provider === 'elevenlabs') {
+      const dbKey = await getAPIKeyFromDatabase(user.id, 'elevenlabs');
+      if (dbKey) {
+        finalApiKey = dbKey;
+      }
+    } else if (provider === 'yandex') {
+      const dbKey = await getAPIKeyFromDatabase(user.id, 'yandexgpt');
+      if (dbKey) {
+        finalApiKey = dbKey;
+      }
+    }
+
     let audioContent: string;
 
     switch (provider) {
       case 'openai':
-        audioContent = await generateOpenAITTS(text, voice || 'alloy', apiKey);
+        audioContent = await generateOpenAITTS(text, voice || 'alloy', finalApiKey);
         break;
       
       case 'elevenlabs':
-        if (!apiKey) {
+        if (!finalApiKey) {
           throw new Error('ElevenLabs API key is required');
         }
-        audioContent = await generateElevenLabsTTS(text, voice || '9BWtsMINqrJLrRacOk9x', apiKey);
+        audioContent = await generateElevenLabsTTS(text, voice || '9BWtsMINqrJLrRacOk9x', finalApiKey);
         break;
       
       case 'yandex':
-        if (!apiKey) {
+        if (!finalApiKey) {
           throw new Error('Yandex API key is required');
         }
-        audioContent = await generateYandexTTS(text, voice || 'alena', apiKey);
+        audioContent = await generateYandexTTS(text, voice || 'alena', finalApiKey);
         break;
       
       case 'web_speech':
