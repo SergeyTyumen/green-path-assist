@@ -75,7 +75,7 @@ const AIAnalystPage = () => {
         .select('*')
         .order('created_at', { ascending: false });
 
-      const aiConfig = getAIConfigForAssistant(user!.id, 'analyst');
+      const aiConfig = await getAIConfigForAssistant(user!.id, 'analyst');
       if (!aiConfig?.apiKey) {
         toast({
           title: "API ключ не найден",

@@ -82,7 +82,7 @@ const AIProposalManager = () => {
     setGenerating(true);
     
     try {
-      const aiConfig = getAIConfigForAssistant(user!.id, 'proposal-manager');
+      const aiConfig = await getAIConfigForAssistant(user!.id, 'proposal-manager');
       if (!aiConfig?.apiKey) {
         toast({
           title: "API ключ не найден",

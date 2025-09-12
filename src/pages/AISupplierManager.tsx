@@ -119,7 +119,7 @@ const AISupplierManager = () => {
     setSearching(true);
     
     try {
-      const aiConfig = getAIConfigForAssistant(user!.id, 'supplier-manager');
+      const aiConfig = await getAIConfigForAssistant(user!.id, 'supplier-manager');
       if (!aiConfig?.apiKey) {
         toast({
           title: "API ключ не найден",

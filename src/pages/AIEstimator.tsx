@@ -156,7 +156,7 @@ const AIEstimator = () => {
     setCalculating(true);
     
     try {
-      const aiConfig = getAIConfigForAssistant(user!.id, 'estimator');
+      const aiConfig = await getAIConfigForAssistant(user!.id, 'estimator');
       if (!aiConfig?.apiKey) {
         toast({
           title: "API ключ не найден",

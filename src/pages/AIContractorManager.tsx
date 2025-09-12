@@ -151,7 +151,7 @@ const AIContractorManager = () => {
     setSearching(true);
     
     try {
-      const aiConfig = getAIConfigForAssistant(user!.id, 'contractor-manager');
+      const aiConfig = await getAIConfigForAssistant(user!.id, 'contractor-manager');
       if (!aiConfig?.apiKey) {
         toast({
           title: "API ключ не найден",

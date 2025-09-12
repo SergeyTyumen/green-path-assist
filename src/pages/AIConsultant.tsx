@@ -119,7 +119,7 @@ const AIConsultant = () => {
 
   const generateAIResponse = async (userMessage: string): Promise<string> => {
     try {
-      const aiConfig = getAIConfigForAssistant(user!.id, 'consultant');
+      const aiConfig = await getAIConfigForAssistant(user!.id, 'consultant');
       if (!aiConfig?.apiKey) {
         throw new Error('API ключ не найден. Настройте API ключ в разделе настроек.');
       }

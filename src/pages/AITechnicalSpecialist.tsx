@@ -72,7 +72,7 @@ export default function AITechnicalSpecialist() {
 
     setLoading(true);
     try {
-      const aiConfig = getAIConfigForAssistant(user!.id, 'technical-specialist');
+      const aiConfig = await getAIConfigForAssistant(user!.id, 'technical-specialist');
       if (!aiConfig?.apiKey) {
         toast({
           title: "API ключ не найден",
