@@ -157,6 +157,22 @@ async function callOpenAIWithTools(messages: AIMessage[], settings: UserSettings
             }
           }
         }
+      },
+      {
+        type: "function",
+        function: {
+          name: "create_technical_specification",
+          description: "Создать техническое задание для строительных работ через AI-Технолога",
+          parameters: {
+            type: "object",
+            properties: {
+              object_description: { type: "string", description: "Подробное описание объекта и требуемых работ" },
+              client_name: { type: "string", description: "Имя клиента" },
+              object_address: { type: "string", description: "Адрес объекта" }
+            },
+            required: ["object_description"]
+          }
+        }
       }
     ];
 
@@ -360,6 +376,9 @@ async function executeFunction(functionName: string, args: any, userId: string, 
 
     case 'get_clients':
       return await getClients(userId, args);
+
+    case 'create_technical_specification':
+      return await createTechnicalSpecification(userId, args, userToken);
       
     default:
       return { error: `Unknown function: ${functionName}` };
@@ -999,6 +1018,7 @@ serve(async (req) => {
 - Статистика задач через get_tasks_stats (всего, сегодня, просроченные, по статусам)
 - Создание клиентов через create_client (имя, телефон, email, источник лида)
 - Создание смет через AI-Сметчика (указывайте: описание проекта, площадь, клиента, виды работ)
+- Создание технических заданий через create_technical_specification (описание объекта, клиент, адрес)
 - Создание задач через create_task (заголовок, описание, дата выполнения)
 - Завершение задач через complete_task (название задачи или ID)
 
@@ -1135,5 +1155,52 @@ async function saveConversationHistory(userId: string, userMessage: string, aiRe
     }
   } catch (error) {
     console.error('Error in saveConversationHistory:', error);
+  }
+}
+
+// Создание технического задания через AI-Технолога
+async function createTechnicalSpecification(userId: string, args: any, userToken?: string) {
+  try {
+    console.log('Creating technical specification via AI-Technical-Specialist:', args);
+    
+    // Создаем клиент Supabase с service role key для вызова функций
+    const supabaseAdmin = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+    );
+    
+    const { data, error } = await supabaseAdmin.functions.invoke('ai-technical-specialist', {
+      body: {
+        object_description: args.object_description,
+        client_name: args.client_name,
+        object_address: args.object_address
+      },
+      headers: {
+        Authorization: `Bearer ${userToken}`
+      }
+    });
+
+    if (error) {
+      console.error('Error calling ai-technical-specialist:', error);
+      return { 
+        success: false, 
+        error: 'Ошибка при вызове AI-Технолога',
+        details: error.message 
+      };
+    }
+
+    console.log('Technical specification created successfully:', data);
+    
+    return {
+      success: true,
+      specification: data.specification,
+      message: `✅ Техническое задание создано для объекта: ${args.object_description.substring(0, 50)}...`
+    };
+  } catch (error) {
+    console.error('Error in createTechnicalSpecification:', error);
+    return { 
+      success: false, 
+      error: (error as Error).message 
+    };
   }
 }
