@@ -138,6 +138,15 @@ export function Auth() {
                 <Button type="submit" className="w-full" disabled={loading}>
                   {loading ? "Вход..." : "Войти"}
                 </Button>
+                
+                <div className="text-center">
+                  <a 
+                    href="/forgot-password" 
+                    className="text-sm text-primary hover:underline"
+                  >
+                    Забыли пароль?
+                  </a>
+                </div>
               </form>
             </TabsContent>
           </Tabs>

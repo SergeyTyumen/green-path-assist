@@ -34,6 +34,8 @@ import TechnicalSpecifications from "./pages/TechnicalSpecifications";
 import UserManagement from "./pages/UserManagement";
 import UserProfile from "./pages/UserProfile";
 import { RegistrationRequest } from "./pages/RegistrationRequest";
+import { ForgotPassword } from "./pages/ForgotPassword";
+import { ResetPassword } from "./pages/ResetPassword";
 
 const App = () => (
   <TooltipProvider>
@@ -44,6 +46,8 @@ const App = () => (
         <Routes>
           <Route path="/auth" element={<Auth />} />
           <Route path="/registration-request" element={<RegistrationRequest />} />
+          <Route path="/forgot-password" element={<ForgotPassword />} />
+          <Route path="/reset-password" element={<ResetPassword />} />
           <Route path="/" element={<Layout />}>
             <Route index element={<Dashboard />} />
             <Route path="dashboard" element={<Dashboard />} />
