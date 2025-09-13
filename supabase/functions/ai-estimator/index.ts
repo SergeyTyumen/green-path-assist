@@ -411,6 +411,11 @@ async function handleConversationalRequest(task: string, data: any, userId: stri
   // ПРИОРИТЕТ: Проверяем наличие технического задания
   const hasDetailedTechnicalTask = checkForTechnicalTask(task, data);
   
+  // Если есть technical_task_id, работаем с готовым ТЗ
+  if (data.technical_task_id) {
+    return await createEstimateFromTechnicalTask(data, userId);
+  }
+  
   if (!hasDetailedTechnicalTask) {
     return {
       needs_technical_task: true,
@@ -456,6 +461,86 @@ async function handleConversationalRequest(task: string, data: any, userId: stri
 
   // Создаем смету на основе данных
   return await createEstimateFromConversation(task, data, clientInfo, userId);
+}
+
+// Создание сметы из технического задания
+async function createEstimateFromTechnicalTask(data: any, userId: string): Promise<any> {
+  try {
+    console.log('Creating estimate from technical task:', data.technical_task_id);
+
+    // Получаем данные из технического задания
+    const { data: technicalTask, error } = await supabase
+      .from('technical_specifications')
+      .select('*')
+      .eq('id', data.technical_task_id)
+      .eq('user_id', userId)
+      .single();
+
+    if (error || !technicalTask) {
+      return {
+        success: false,
+        error: 'Техническое задание не найдено'
+      };
+    }
+
+    console.log('Found technical task:', technicalTask.title);
+
+    // Парсим объем работ из технического задания
+    const services = parseServicesFromWorkScope(technicalTask.work_scope);
+    
+    if (services.length === 0) {
+      return {
+        success: false,
+        error: 'В техническом задании не найдены четко определенные объемы работ. Обновите ТЗ с указанием конкретных услуг и их объемов.'
+      };
+    }
+
+    console.log('Parsed services from work scope:', services);
+
+    // Ищем клиента по имени из ТЗ
+    let clientInfo = null;
+    if (technicalTask.client_name) {
+      const { data: client } = await supabase
+        .from('clients')
+        .select('*')
+        .eq('user_id', userId)
+        .eq('name', technicalTask.client_name)
+        .single();
+      
+      clientInfo = client;
+    }
+
+    // Рассчитываем материалы
+    const calculations = await calculateMaterialConsumption(services, userId);
+
+    // Создаем смету в базе
+    const result = await createFullEstimate(
+      `Смета по ТЗ: ${technicalTask.title}`,
+      clientInfo?.id || null,
+      calculations,
+      userId
+    );
+
+    return {
+      success: true,
+      response: formatEstimateResponseFromTechnicalTask(calculations, technicalTask, clientInfo),
+      estimate_id: result.estimate.id,
+      calculations: calculations,
+      total_amount: result.estimate.total_amount,
+      technical_task: {
+        id: technicalTask.id,
+        title: technicalTask.title,
+        client_name: technicalTask.client_name
+      }
+    };
+
+  } catch (error) {
+    console.error('Error creating estimate from technical task:', error);
+    return {
+      success: false,
+      error: `Ошибка при создании сметы из ТЗ: ${error.message}`
+    };
+  }
 }
 
 // Создание сметы из диалогового режима
@@ -579,6 +664,105 @@ function parseServicesFromText(text: string): ServiceInput[] {
   }
 
   return services;
+}
+
+// Парсинг услуг из объема работ технического задания
+function parseServicesFromWorkScope(workScope: string): ServiceInput[] {
+  if (!workScope) return [];
+  
+  const services: ServiceInput[] = [];
+  const lines = workScope.split('\n');
+  
+  for (const line of lines) {
+    const trimmedLine = line.trim().toLowerCase();
+    
+    // Ищем строки с количественными показателями
+    const patterns = [
+      // Газон/озеленение: "газон 150 м²", "устройство газона 200м2"
+      { regex: /(?:газон|озеленение|трав).*?(\d+(?:\.\d+)?)\s*(м²|кв)/i, service: 'Устройство газона', unit: 'м²' },
+      
+      // Дорожки/мощение: "дорожки 50 м²", "мощение 80м2"
+      { regex: /(?:дорожк|мощение|плитка|брусчатка).*?(\d+(?:\.\d+)?)\s*(м²|кв)/i, service: 'Мощение дорожек', unit: 'м²' },
+      
+      // Дренаж: "дренаж 100 м.п.", "дренажная система 150м"
+      { regex: /(?:дренаж|водоотвод).*?(\d+(?:\.\d+)?)\s*(м\.п|п\.м|м(?!\²))/i, service: 'Устройство дренажа', unit: 'м.п' },
+      
+      // Бордюры: "бордюры 80 м.п."
+      { regex: /(?:бордюр|поребрик).*?(\d+(?:\.\d+)?)\s*(м\.п|п\.м|м(?!\²))/i, service: 'Установка бордюров', unit: 'м.п' },
+      
+      // Освещение: "освещение 12 шт", "светильники 15 точек"
+      { regex: /(?:освещение|светильник|фонар).*?(\d+(?:\.\d+)?)\s*(шт|точ)/i, service: 'Устройство освещения', unit: 'шт' },
+      
+      // Автополив: "автополив 200 м²", "система полива"
+      { regex: /(?:автополив|полив|орошение).*?(\d+(?:\.\d+)?)\s*(м²|кв)/i, service: 'Система автополива', unit: 'м²' }
+    ];
+    
+    for (const pattern of patterns) {
+      const match = line.match(pattern.regex);
+      if (match) {
+        const quantity = parseFloat(match[1]);
+        services.push({
+          service: pattern.service,
+          quantity: quantity,
+          unit: pattern.unit
+        });
+        break; // Прерываем поиск для этой строки
+      }
+    }
+  }
+  
+  return services;
+}
+
+// Форматирование ответа для сметы из технического задания
+function formatEstimateResponseFromTechnicalTask(calculations: ServiceOutput[], technicalTask: any, clientInfo: any): string {
+  let response = `✅ Смета создана на основе технического задания!\n\n`;
+  
+  response += `📋 Техническое задание: "${technicalTask.title}"\n`;
+  
+  if (clientInfo) {
+    response += `👤 Клиент: ${clientInfo.name}\n`;
+    if (clientInfo.phone) response += `📞 Телефон: ${clientInfo.phone}\n`;
+  } else if (technicalTask.client_name) {
+    response += `👤 Клиент: ${technicalTask.client_name}\n`;
+  }
+  
+  if (technicalTask.object_address) {
+    response += `📍 Адрес объекта: ${technicalTask.object_address}\n`;
+  }
+  
+  response += `\n📋 Расчет по позициям:\n\n`;
+
+  let totalAmount = 0;
+  
+  calculations.forEach((calc, index) => {
+    response += `${index + 1}. 🔹 ${calc.service} (${calc.quantity} ${calc.unit})\n`;
+    
+    if (calc.materials && calc.materials.length > 0) {
+      calc.materials.forEach(material => {
+        if (material.error) {
+          response += `   ❌ ${material.name}: ${material.error}\n`;
+        } else {
+          response += `   • ${material.name}: ${material.quantity} ${material.unit}`;
+          if (material.total_price) {
+            response += ` = ${material.total_price.toFixed(2)} руб.`;
+          }
+          response += '\n';
+        }
+      });
+    }
+    
+    if (calc.total_cost) {
+      response += `   💰 Итого за позицию: ${calc.total_cost.toFixed(2)} руб.\n`;
+      totalAmount += calc.total_cost;
+    }
+    response += '\n';
+  });
+
+  response += `💰 **ОБЩАЯ СТОИМОСТЬ: ${totalAmount.toFixed(2)} руб.**\n\n`;
+  response += `✅ Смета сохранена в системе и готова к отправке клиенту`;
+
+  return response;
 }
 
 // Форматирование ответа

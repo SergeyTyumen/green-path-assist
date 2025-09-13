@@ -283,8 +283,95 @@ async function getCommandHistory(userId: string, limit = 10) {
 }
 
 // Функция создания сметы через AI-Сметчика
+// Функция создания сметы через AI-Сметчика на основе технического задания
+async function createEstimateFromTechnicalTask(data: any, userId: string) {
+  console.log('Creating estimate from technical task:', data);
+  
+  try {
+    // Ищем техническое задание по ID или по клиенту
+    let technicalTask = null;
+    
+    if (data.technical_task_id) {
+      // Получаем по ID
+      const { data: task, error } = await supabase
+        .from('technical_specifications')
+        .select('*')
+        .eq('id', data.technical_task_id)
+        .eq('user_id', userId)
+        .single();
+      
+      if (!error && task) {
+        technicalTask = task;
+      }
+    } else if (data.client_name) {
+      // Ищем последнее ТЗ для клиента
+      const { data: tasks, error } = await supabase
+        .from('technical_specifications')
+        .select('*')
+        .eq('user_id', userId)
+        .eq('client_name', data.client_name)
+        .order('created_at', { ascending: false })
+        .limit(1);
+      
+      if (!error && tasks && tasks.length > 0) {
+        technicalTask = tasks[0];
+      }
+    }
+
+    if (!technicalTask) {
+      return {
+        success: false,
+        error: 'Техническое задание не найдено. Сначала создайте ТЗ через AI Technical Specialist.',
+        action_needed: 'create_technical_task'
+      };
+    }
+
+    // Передаем данные из технического задания в AI-сметчик
+    const { data: result, error } = await supabase.functions.invoke('ai-estimator', {
+      body: {
+        conversation_mode: true,
+        action: `Создать смету на основе технического задания`,
+        data: {
+          technical_task_id: technicalTask.id,
+          object_description: technicalTask.object_description,
+          work_scope: technicalTask.work_scope,
+          materials_spec: technicalTask.materials_spec,
+          client_name: technicalTask.client_name,
+          object_address: technicalTask.object_address,
+          quality_requirements: technicalTask.quality_requirements,
+          timeline: technicalTask.timeline
+        }
+      },
+      headers: {
+        Authorization: `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`
+      }
+    });
+
+    if (error) throw error;
+    
+    return {
+      ...result,
+      technical_task: {
+        id: technicalTask.id,
+        title: technicalTask.title,
+        client_name: technicalTask.client_name
+      }
+    };
+    
+  } catch (error) {
+    console.error('Error creating estimate from technical task:', error);
+    throw error;
+  }
+}
+
 async function createEstimateViaAI(data: any, userId: string) {
   console.log('Creating estimate via AI:', data);
+  
+  // Проверяем, есть ли ссылка на техническое задание
+  if (data.technical_task_id || data.client_name) {
+    return await createEstimateFromTechnicalTask(data, userId);
+  }
+  
   try {
     const { data: result, error } = await supabase.functions.invoke('ai-estimator', {
       body: {
@@ -654,6 +741,20 @@ serve(async (req) => {
       {
         type: "function",
         function: {
+          name: "create_estimate_from_technical_task",
+          description: "Создать смету на основе технического задания через AI-Сметчика",
+          parameters: {
+            type: "object",
+            properties: {
+              technical_task_id: { type: "string", description: "ID конкретного технического задания" },
+              client_name: { type: "string", description: "Имя клиента для поиска последнего ТЗ" }
+            }
+          }
+        }
+      },
+      {
+        type: "function",
+        function: {
           name: "delegate_to_ai_assistant",
           description: "Делегировать задачу специализированному AI-ассистенту",
           parameters: {
@@ -972,6 +1073,13 @@ const systemPrompt = `Ты — голосовой ассистент руков�
 - "отправить КП" → ai_agent: "AI-КП-менеджер"
 - "консультация клиента" → ai_agent: "AI-Консультант"
 
+СОЗДАНИЕ СМЕТ:
+- "создать смету для клиента X" → create_estimate
+- "составить смету по техническому заданию для клиента Y" → create_estimate_from_technical_task
+- "сделать смету на основе ТЗ" → create_estimate_from_technical_task
+- Если упоминается техническое задание или ТЗ - ВСЕГДА используй create_estimate_from_technical_task
+- Если нет упоминания ТЗ, но есть клиент - сначала проверь, есть ли для него ТЗ
+
 ОБРАБОТКА СЛОЖНЫХ КОМАНД:
 Если команда содержит несколько действий, выполняй их последовательно:
 1. Создай/найди клиента
@@ -1157,6 +1265,18 @@ const systemPrompt = `Ты — голосовой ассистент руков�
                 functionResults.push(`✅ Смета успешно создана через AI-Сметчика: ${result.response || result.estimate_id}`);
               } else {
                 functionResults.push(`❌ Ошибка создания сметы: ${result.error}`);
+              }
+              break;
+
+            case 'create_estimate_from_technical_task':
+              result = await createEstimateFromTechnicalTask(functionArgs, userId);
+              if (result.success) {
+                const techTask = result.technical_task;
+                functionResults.push(`✅ Смета создана на основе ТЗ "${techTask?.title}" для клиента "${techTask?.client_name}": ${result.response || result.estimate_id}`);
+              } else if (result.action_needed === 'create_technical_task') {
+                functionResults.push(`ℹ️ ${result.error}`);
+              } else {
+                functionResults.push(`❌ Ошибка создания сметы из ТЗ: ${result.error}`);
               }
               break;
 
