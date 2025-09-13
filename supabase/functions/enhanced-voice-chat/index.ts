@@ -171,6 +171,12 @@ async function callOpenAIWithTools(messages: AIMessage[], settings: UserSettings
       const configuredModel = (settings?.ai_settings?.openai_model as string) || 'gpt-4o-mini';
       console.log(`Using configured AI model: ${configuredModel}`);
       
+      // Определяем тип модели для правильных параметров API
+      const isNewModel = configuredModel.includes('gpt-5') || 
+                        configuredModel.includes('gpt-4.1') || 
+                        configuredModel.includes('o3') || 
+                        configuredModel.includes('o4');
+      
       const payload: any = {
         model: configuredModel, // use the actual configured model
         messages: runningMessages
