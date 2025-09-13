@@ -159,10 +159,10 @@ async function callOpenAIWithTools(messages: AIMessage[], settings: UserSettings
     // Сокращаем максимальное количество итераций для быстроты
     for (let depth = 0; depth < 5; depth++) { // safety cap to avoid loops
       const configuredModel = (settings?.ai_settings?.openai_model as string) || 'gpt-4o-mini';
-      const isNewModel = configuredModel.startsWith('gpt-5') || configuredModel.startsWith('gpt-4.1') || configuredModel.startsWith('o3') || configuredModel.startsWith('o4');
+      console.log(`Using configured AI model: ${configuredModel}`);
       
       const payload: any = {
-        model: isNewModel ? 'gpt-4o-mini' : configuredModel, // use legacy-compatible model for tool calls
+        model: configuredModel, // use the actual configured model
         messages: runningMessages,
         tools,
         tool_choice: 'auto'
