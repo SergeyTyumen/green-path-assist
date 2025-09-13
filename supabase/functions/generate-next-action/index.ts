@@ -1,10 +1,6 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.52.1'
-
-const openAIApiKey = Deno.env.get('OPENAI_API_KEY');
-const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -12,166 +8,156 @@ const corsHeaders = {
 };
 
 serve(async (req) => {
-  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
-    
-    const { 
-      clientData, 
-      userId 
-    } = await req.json();
+    const supabaseClient = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
+    );
 
-    console.log('Generating next action for client:', clientData.name);
+    const authHeader = req.headers.get('Authorization')!;
+    const { data: { user } } = await supabaseClient.auth.getUser(authHeader.replace('Bearer ', ''));
 
-    // Получаем задачи клиента
-    const { data: tasks } = await supabase
-      .from('tasks')
-      .select('*')
-      .eq('user_id', userId)
-      .eq('client_id', clientData.id || null); // Для новых клиентов может не быть ID
-
-    // Получаем этапы клиента
-    const { data: stages } = await supabase
-      .from('client_stages')
-      .select('*')
-      .eq('user_id', userId)
-      .eq('client_id', clientData.id || null)
-      .order('stage_order');
-
-    // Формируем контекст для ИИ
-    const clientContext = {
-      name: clientData.name,
-      status: clientData.status,
-      services: clientData.services || [],
-      budget: clientData.budget,
-      project_area: clientData.project_area,
-      project_description: clientData.project_description,
-      notes: clientData.notes,
-      tasks: tasks || [],
-      stages: stages || []
-    };
-
-    // Определяем текущий этап воронки продаж
-    const currentStage = stages?.find(stage => !stage.completed);
-    const completedStages = stages?.filter(stage => stage.completed) || [];
-    
-    // Формируем промпт для ИИ
-    const prompt = `
-Ты - ИИ-помощник для CRM системы ландшафтной компании. Проанализируй информацию о клиенте и сгенерируй короткое и конкретное следующее действие.
-
-ИНФОРМАЦИЯ О КЛИЕНТЕ:
-- Имя: ${clientContext.name}
-- Статус: ${getStatusLabel(clientContext.status)}
-- Услуги: ${clientContext.services.map(s => getServiceLabel(s)).join(', ')}
-- Бюджет: ${clientContext.budget ? `₽${clientContext.budget.toLocaleString()}` : 'не указан'}
-- Площадь: ${clientContext.project_area ? `${clientContext.project_area}м²` : 'не указана'}
-- Описание проекта: ${clientContext.project_description || 'не указано'}
-- Заметки: ${clientContext.notes || 'нет заметок'}
-
-ТЕКУЩИЙ ЭТАП ВОРОНКИ:
-${currentStage ? `Текущий этап: "${currentStage.stage_name}"` : 'Этапы не настроены'}
-
-ЗАВЕРШЕННЫЕ ЭТАПЫ:
-${completedStages.length > 0 ? completedStages.map(s => `✓ ${s.stage_name}`).join('\n') : 'Нет завершенных этапов'}
-
-АКТИВНЫЕ ЗАДАЧИ:
-${clientContext.tasks.length > 0 ? 
-  clientContext.tasks.filter(t => t.status !== 'completed').map(t => `- ${t.title} (${t.status})`).join('\n') : 
-  'Нет активных задач'}
-
-ЗАВЕРШЕННЫЕ ЗАДАЧИ:
-${clientContext.tasks.filter(t => t.status === 'completed').map(t => `✓ ${t.title}`).join('\n') || 'Нет завершенных задач'}
-
-ТРЕБОВАНИЯ К ОТВЕТУ:
-1. Ответ должен быть максимально коротким (до 50 слов)
-2. Конкретное действие с указанием примерной даты (если применимо)
-3. Учитывай статус клиента и текущий этап воронки
-4. Если нет активных задач - предложи логичное следующее действие
-5. Отвечай только текстом действия, без дополнительных объяснений
-
-Примеры хороших ответов:
-- "Позвонить клиенту для уточнения деталей проекта до 15.01.2024"
-- "Подготовить коммерческое предложение по автополиву"
-- "Назначить встречу на объекте для замера"
-- "Отправить примеры работ по ландшафтному дизайну"
-`;
-
-    if (!openAIApiKey) {
-      throw new Error('OpenAI API key not configured');
+    if (!user) {
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+        status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
     }
 
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+    const { context, currentStage, clientData, projectData } = await req.json();
+    console.log('Generate Next Action request:', { context, currentStage });
+
+    // Get OpenAI API key
+    const { data: apiKeyData } = await supabaseClient
+      .from('api_keys')
+      .select('api_key')
+      .eq('user_id', user.id)
+      .eq('provider', 'openai')
+      .single();
+
+    if (!apiKeyData?.api_key) {
+      return new Response(JSON.stringify({ 
+        error: 'OpenAI API key not found. Please add your API key in settings.' 
+      }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    // Get recent client activity and history
+    const { data: recentHistory } = await supabaseClient
+      .from('voice_command_history')
+      .select('*')
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: false })
+      .limit(10);
+
+    const { data: clientTasks } = await supabaseClient
+      .from('tasks')
+      .select('*')
+      .eq('user_id', user.id)
+      .eq('client_id', clientData?.id || null)
+      .order('created_at', { ascending: false })
+      .limit(5);
+
+    const systemPrompt = `Вы - AI Система Генерации Следующих Действий, которая анализирует текущий контекст и предлагает оптимальные следующие шаги в работе с клиентами и проектами.
+
+Ваши основные функции:
+1. Анализ текущего этапа взаимодействия с клиентом
+2. Предложение следующих логических действий
+3. Приоритизация задач по важности и срочности
+4. Автоматизация рутинных процессов
+5. Оптимизация воронки продаж
+
+Стадии клиента и возможные действия:
+- new: Первый звонок, квалификация лида
+- qualified: Назначение замера, техническое ТЗ
+- measured: Подготовка сметы, расчет материалов
+- estimated: Подготовка КП, презентация предложения
+- negotiating: Корректировка условий, работа с возражениями
+- contracted: Подписание договора, планирование работ
+- in_progress: Контроль выполнения, промежуточные отчеты
+- completed: Закрытие проекта, получение отзыва
+
+История активности: ${JSON.stringify(recentHistory, null, 2)}
+Текущие задачи: ${JSON.stringify(clientTasks, null, 2)}
+
+Формат ответа должен содержать:
+1. Рекомендуемые действия (приоритетные)
+2. Временные рамки выполнения
+3. Ответственного исполнителя или AI-ассистента
+4. Автоматизируемые задачи
+5. Потенциальные риски и их предотвращение`;
+
+    const openAIResponse = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${openAIApiKey}`,
+        'Authorization': `Bearer ${apiKeyData.api_key}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'gpt-4o-mini',
+        model: 'gpt-4.1-2025-04-14',
         messages: [
-          { 
-            role: 'system', 
-            content: 'Ты - эксперт по работе с клиентами в ландшафтной сфере. Генерируй короткие, конкретные и практичные следующие действия.' 
-          },
-          { role: 'user', content: prompt }
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: `Контекст: ${context}\n\nТекущий этап: ${currentStage}\n\nДанные клиента: ${JSON.stringify(clientData)}\n\nДанные проекта: ${JSON.stringify(projectData)}` }
         ],
-        max_tokens: 100,
-        temperature: 0.3,
+        max_tokens: 2000,
+        temperature: 0.7,
       }),
     });
 
-    if (!response.ok) {
-      throw new Error(`OpenAI API error: ${response.status}`);
+    if (!openAIResponse.ok) {
+      const errorData = await openAIResponse.json();
+      console.error('OpenAI API error:', errorData);
+      throw new Error(`OpenAI API error: ${errorData.error?.message || 'Unknown error'}`);
     }
 
-    const data = await response.json();
-    const nextAction = data.choices[0].message.content.trim();
+    const openAIData = await openAIResponse.json();
+    const recommendations = openAIData.choices[0].message.content;
 
-    console.log('Generated next action:', nextAction);
+    // Structure the response
+    const nextActions = {
+      immediate: [], // Действия на сегодня
+      shortTerm: [], // Действия на неделю
+      longTerm: [], // Долгосрочные действия
+      automated: [], // Автоматизируемые задачи
+      assistantTasks: [], // Задачи для AI-ассистентов
+      risks: [] // Потенциальные риски
+    };
+
+    // Save recommendations to database
+    await supabaseClient
+      .from('voice_command_history')
+      .insert({
+        user_id: user.id,
+        transcript: `Генерация следующих действий для этапа: ${currentStage}`,
+        actions: [{ 
+          type: 'next_action_generation', 
+          context,
+          currentStage,
+          recommendations: nextActions 
+        }],
+        status: 'completed'
+      });
 
     return new Response(JSON.stringify({ 
-      nextAction,
-      success: true 
+      nextActions,
+      rawRecommendations: recommendations,
+      currentStage,
+      timestamp: new Date().toISOString()
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
 
   } catch (error) {
-    console.error('Error in generate-next-action function:', error);
-    return new Response(JSON.stringify({ 
-      error: error.message,
-      success: false 
-    }), {
+    console.error('Error in Generate Next Action:', error);
+    return new Response(JSON.stringify({ error: error.message }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   }
 });
-
-function getStatusLabel(status: string): string {
-  const labels = {
-    "new": "Новый",
-    "in-progress": "В работе", 
-    "proposal-sent": "КП отправлено",
-    "call-scheduled": "Созвон назначен",
-    "postponed": "Отложено",
-    "closed": "Закрыт"
-  };
-  return labels[status as keyof typeof labels] || status;
-}
-
-function getServiceLabel(service: string): string {
-  const labels = {
-    "landscape-design": "Ландшафтный дизайн",
-    "auto-irrigation": "Автополив", 
-    "lawn": "Газон",
-    "planting": "Посадка растений",
-    "hardscape": "Мощение",
-    "maintenance": "Обслуживание"
-  };
-  return labels[service as keyof typeof labels] || service;
-}

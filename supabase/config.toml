@@ -7,10 +7,37 @@ verify_jwt = true
 verify_jwt = true
 
 [functions.ai-analyst] 
-verify_jwt = true
+verify_jwt = false
+
+[functions.ai-estimator]
+verify_jwt = false
+
+[functions.ai-consultant]
+verify_jwt = false
+
+[functions.ai-sales-manager]
+verify_jwt = false
+
+[functions.ai-proposal-manager]
+verify_jwt = false
+
+[functions.ai-supplier-manager]
+verify_jwt = false
+
+[functions.ai-technical-specialist]
+verify_jwt = false
+
+[functions.ai-contractor-manager]
+verify_jwt = false
 
 [functions.competitor-analysis]
-verify_jwt = true
+verify_jwt = false
+
+[functions.generate-next-action]
+verify_jwt = false
+
+[functions.assistant-router]
+verify_jwt = false
 
 [functions.text-to-speech]
 verify_jwt = true
