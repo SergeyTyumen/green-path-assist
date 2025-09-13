@@ -408,6 +408,23 @@ async function createFullEstimate(
 async function handleConversationalRequest(task: string, data: any, userId: string): Promise<any> {
   console.log('Handling conversational estimator request:', task);
 
+  // ПРИОРИТЕТ: Проверяем наличие технического задания
+  const hasDetailedTechnicalTask = checkForTechnicalTask(task, data);
+  
+  if (!hasDetailedTechnicalTask) {
+    return {
+      needs_technical_task: true,
+      response: `Для составления точной сметы мне нужно техническое задание.\n\n` +
+                `Пожалуйста, обратитесь к AI Technical Specialist для создания подробного ТЗ с:\n` +
+                `• Детальным описанием объекта\n` +
+                `• Точными объемами работ\n` +
+                `• Техническими требованиями\n` +
+                `• Материалами и их характеристиками\n\n` +
+                `После получения ТЗ я смогу создать точную смету с расчетом материалов и стоимости.`,
+      action_needed: 'create_technical_task'
+    };
+  }
+
   // Анализируем запрос и извлекаем информацию
   const missingInfo = [];
   let clientInfo = null;
@@ -480,6 +497,39 @@ async function createEstimateFromConversation(task: string, data: any, clientInf
       error: `Ошибка при создании сметы: ${error.message}`
     };
   }
+}
+
+// Проверка наличия детального технического задания
+function checkForTechnicalTask(task: string, data: any): boolean {
+  // Проверяем наличие подробного ТЗ
+  if (data.technical_specification || data.detailed_task) {
+    return true;
+  }
+
+  // Проверяем наличие детальной информации в тексте запроса
+  const hasDetailedInfo = [
+    // Детальные объемы работ
+    /\d+\s*(м²|м³|м\.п|шт|кг|тн).*?\d+\s*(м²|м³|м\.п|шт|кг|тн)/i.test(task),
+    
+    // Технические характеристики
+    /(толщина|глубина|высота|плотность|марка|класс|ГОСТ|ТУ)/i.test(task),
+    
+    // Конкретные материалы
+    /(бетон.*?марки|песок.*?фракции|щебень.*?фракции|геотекстиль.*?плотности)/i.test(task),
+    
+    // Подробное описание объекта
+    data.object_description && data.object_description.length > 100,
+    
+    // Список конкретных услуг с объемами
+    data.services && Array.isArray(data.services) && data.services.length > 0
+  ];
+
+  // Должно быть минимум 3 критерия из списка для считающегося детальным ТЗ
+  const detailLevel = hasDetailedInfo.filter(Boolean).length;
+  
+  console.log('Technical task detail level:', detailLevel, 'criteria met');
+  
+  return detailLevel >= 3;
 }
 
 // Парсинг услуг из текста
