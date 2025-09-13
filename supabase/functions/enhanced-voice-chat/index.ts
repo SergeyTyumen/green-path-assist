@@ -452,6 +452,12 @@ async function createEstimateViaAI(userId: string, args: any, userToken?: string
         estimate_id: data.estimate_id,
         total_amount: data.total_amount
       };
+    } else if (data && (data.needs_technical_task || data.action_needed === 'create_technical_task')) {
+      return {
+        success: false,
+        needs_technical_task: true,
+        message: `⚠️ Для создания сметы нужно техническое задание.\n\nПредлагаю:\n1️⃣ Обратиться к AI Technical Specialist для создания подробного ТЗ\n2️⃣ Указать точные объемы работ и материалы\n3️⃣ После получения ТЗ - повторно создать смету\n\nХотите создать техническое задание через AI Technical Specialist?`
+      };
     } else {
       return {
         success: false,
@@ -460,6 +466,15 @@ async function createEstimateViaAI(userId: string, args: any, userToken?: string
     }
   } catch (error) {
     console.error('Error in createEstimateViaAI:', error);
+    
+    // Если ошибка связана с отсутствием ТЗ, предлагаем создать его
+    if (data?.needs_technical_task || data?.action_needed === 'create_technical_task') {
+      return {
+        success: false,
+        message: `⚠️ Для создания сметы нужно техническое задание.\n\nПредлагаю:\n1️⃣ Обратиться к AI Technical Specialist для создания подробного ТЗ\n2️⃣ Указать точные объемы работ и материалы\n3️⃣ После получения ТЗ - повторно создать смету\n\nХотите создать техническое задание через AI Technical Specialist?`
+      };
+    }
+    
     return {
       success: false,
       message: `❌ Ошибка при обращении к AI-Сметчику: ${error.message}`
