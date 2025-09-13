@@ -13,7 +13,8 @@ import {
   MessageCircle,
   Settings,
   UserCog,
-  HardHat
+  HardHat,
+  User
 } from "lucide-react";
 import { NavLink, useLocation } from "react-router-dom";
 
@@ -45,7 +46,7 @@ const navigationItems = [
   { title: "ИИ-помощники", url: "/ai-assistants", icon: Bot },
   { title: "Голосовой помощник", url: "/voice-chat", icon: Mic },
   
-  
+  { title: "Профили пользователей", url: "/user-profile", icon: User },
   { title: "Управление пользователями", url: "/user-management", icon: UserCog },
 ];
 

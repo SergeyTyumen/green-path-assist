@@ -6,15 +6,22 @@ export interface Profile {
   id: string;
   user_id: string;
   full_name: string | null;
-  email: string | null;
   phone: string | null;
+  user_type: string | null;
+  company_name: string | null;
+  created_at: string;
+  updated_at: string;
+  preferred_ai_model: string | null;
+  interaction_mode: string | null;
+  voice_settings: any;
+  ai_settings: any;
+  advanced_features: any;
+  email: string | null;
   position: string | null;
   department: string | null;
   telegram_username: string | null;
   whatsapp_phone: string | null;
   avatar_url: string | null;
-  created_at: string;
-  updated_at: string;
 }
 
 export function useProfiles() {

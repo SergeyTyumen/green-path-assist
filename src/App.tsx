@@ -32,6 +32,7 @@ import AIAssistantsSettings from "./pages/AIAssistantsSettings";
 import AITechnicalSpecialist from "./pages/AITechnicalSpecialistNew";
 import TechnicalSpecifications from "./pages/TechnicalSpecifications";
 import UserManagement from "./pages/UserManagement";
+import UserProfile from "./pages/UserProfile";
 
 const App = () => (
   <TooltipProvider>
@@ -68,6 +69,7 @@ const App = () => (
             <Route path="ai-contractor-manager" element={<AIContractorManager />} />
             <Route path="ai-assistants-settings" element={<AIAssistantsSettings />} />
             <Route path="user-management" element={<UserManagement />} />
+            <Route path="user-profile" element={<UserProfile />} />
           </Route>
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />

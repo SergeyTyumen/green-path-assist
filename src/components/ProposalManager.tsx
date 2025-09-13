@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { SendDocumentDialog } from '@/components/SendDocumentDialog';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
@@ -29,9 +30,11 @@ export function ProposalManager({ clientId, clientName }: ProposalManagerProps) 
   const { proposals, loading, createProposal, updateProposal } = useProposals();
   const { user } = useAuth();
   const [selectedTemplate, setSelectedTemplate] = useState('');
-  const [showCreateForm, setShowCreateForm] = useState(false);
+  const [sendDialogOpen, setSendDialogOpen] = useState(false);
+  const [selectedProposal, setSelectedProposal] = useState<any>(null);
   const [proposalTitle, setProposalTitle] = useState('');
   const [proposalContent, setProposalContent] = useState('');
+  const [showCreateForm, setShowCreateForm] = useState(false);
 
   // Фильтруем предложения для текущего клиента
   const clientProposals = proposals.filter(p => p.client_id === clientId);
@@ -83,12 +86,17 @@ export function ProposalManager({ clientId, clientName }: ProposalManagerProps) 
     window.open('/ai-assistants/ai-proposal-manager', '_blank');
   };
 
-  const sendByEmail = (proposalId: string) => {
-    toast.success('КП отправлено по электронной почте');
+  const openSendDialog = (proposal: any) => {
+    setSelectedProposal(proposal);
+    setSendDialogOpen(true);
   };
 
-  const sendByMessenger = (proposalId: string) => {
-    toast.success('КП отправлено в мессенджер');
+  const sendByEmail = (proposal: any) => {
+    openSendDialog(proposal);
+  };
+
+  const sendByMessenger = (proposal: any) => {
+    openSendDialog(proposal);
   };
 
   const viewProposalPDF = (proposalId: string) => {
@@ -202,10 +210,10 @@ export function ProposalManager({ clientId, clientName }: ProposalManagerProps) 
                         <Send className="h-3 w-3" />
                       </Button>
                     )}
-                    <Button variant="ghost" size="sm" onClick={() => sendByEmail(proposal.id)}>
+                    <Button variant="ghost" size="sm" onClick={() => sendByEmail(proposal)}>
                       <Mail className="h-3 w-3" />
                     </Button>
-                    <Button variant="ghost" size="sm" onClick={() => sendByMessenger(proposal.id)}>
+                    <Button variant="ghost" size="sm" onClick={() => sendByMessenger(proposal)}>
                       <MessageSquare className="h-3 w-3" />
                     </Button>
                   </div>
@@ -235,6 +243,18 @@ export function ProposalManager({ clientId, clientName }: ProposalManagerProps) 
           </div>
         )}
       </CardContent>
+
+      {selectedProposal && (
+        <SendDocumentDialog
+          open={sendDialogOpen}
+          onOpenChange={setSendDialogOpen}
+          documentType="proposal"
+          documentId={selectedProposal.id}
+          documentTitle={selectedProposal.title}
+          clientId={clientId}
+          clientName={clientName}
+        />
+      )}
     </Card>
   );
 }

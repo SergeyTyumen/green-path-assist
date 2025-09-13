@@ -1031,47 +1031,65 @@ export type Database = {
         Row: {
           advanced_features: Json | null
           ai_settings: Json | null
+          avatar_url: string | null
           company_name: string | null
           created_at: string
+          department: string | null
+          email: string | null
           full_name: string | null
           id: string
           interaction_mode: string | null
           phone: string | null
+          position: string | null
           preferred_ai_model: string | null
+          telegram_username: string | null
           updated_at: string
           user_id: string
           user_type: string | null
           voice_settings: Json | null
+          whatsapp_phone: string | null
         }
         Insert: {
           advanced_features?: Json | null
           ai_settings?: Json | null
+          avatar_url?: string | null
           company_name?: string | null
           created_at?: string
+          department?: string | null
+          email?: string | null
           full_name?: string | null
           id?: string
           interaction_mode?: string | null
           phone?: string | null
+          position?: string | null
           preferred_ai_model?: string | null
+          telegram_username?: string | null
           updated_at?: string
           user_id: string
           user_type?: string | null
           voice_settings?: Json | null
+          whatsapp_phone?: string | null
         }
         Update: {
           advanced_features?: Json | null
           ai_settings?: Json | null
+          avatar_url?: string | null
           company_name?: string | null
           created_at?: string
+          department?: string | null
+          email?: string | null
           full_name?: string | null
           id?: string
           interaction_mode?: string | null
           phone?: string | null
+          position?: string | null
           preferred_ai_model?: string | null
+          telegram_username?: string | null
           updated_at?: string
           user_id?: string
           user_type?: string | null
           voice_settings?: Json | null
+          whatsapp_phone?: string | null
         }
         Relationships: []
       }
