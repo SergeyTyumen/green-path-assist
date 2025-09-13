@@ -777,36 +777,6 @@ const VoiceChatAssistant = () => {
                 )}
               </div>
               
-              {/* Status indicators for advanced features */}
-              {userVoiceSettings && (
-                <div className="flex flex-wrap gap-1 mt-1">
-                  {userVoiceSettings?.advanced_features?.enable_function_calling !== false && (
-                    <Badge variant="secondary" className="text-xs px-1 py-0">
-                      🔧
-                    </Badge>
-                  )}
-                  {userVoiceSettings?.advanced_features?.enable_memory !== false && (
-                    <Badge variant="secondary" className="text-xs px-1 py-0">
-                      🧠
-                    </Badge>
-                  )}
-                  {userVoiceSettings?.advanced_features?.auto_save_conversations !== false && (
-                    <Badge variant="secondary" className="text-xs px-1 py-0">
-                      💾
-                    </Badge>
-                  )}
-                  {userVoiceSettings?.advanced_features?.privacy_mode && (
-                    <Badge variant="destructive" className="text-xs px-1 py-0">
-                      🔒
-                    </Badge>
-                  )}
-                  {userVoiceSettings?.ai_settings?.enable_streaming && (
-                    <Badge variant="outline" className="text-xs px-1 py-0">
-                      ⚡
-                    </Badge>
-                  )}
-                </div>
-              )}
             </div>
           </div>
           
