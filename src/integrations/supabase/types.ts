@@ -627,6 +627,57 @@ export type Database = {
           },
         ]
       }
+      document_sends: {
+        Row: {
+          created_at: string
+          delivered_at: string | null
+          document_id: string
+          document_type: string
+          error_message: string | null
+          id: string
+          recipient_contact: string
+          recipient_id: string
+          recipient_type: string
+          send_method: string
+          sent_at: string | null
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          delivered_at?: string | null
+          document_id: string
+          document_type: string
+          error_message?: string | null
+          id?: string
+          recipient_contact: string
+          recipient_id: string
+          recipient_type: string
+          send_method: string
+          sent_at?: string | null
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          delivered_at?: string | null
+          document_id?: string
+          document_type?: string
+          error_message?: string | null
+          id?: string
+          recipient_contact?: string
+          recipient_id?: string
+          recipient_type?: string
+          send_method?: string
+          sent_at?: string | null
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       estimate_items: {
         Row: {
           created_at: string
