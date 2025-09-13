@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { format } from 'date-fns';
 import { ru } from 'date-fns/locale';
-import { Download, Eye, FileText, Trash2, Plus, X, Edit3 } from 'lucide-react';
+import { Download, Eye, FileText, Trash2, Plus, X, Edit3, Sparkles } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -15,6 +15,8 @@ import { Label } from '@/components/ui/label';
 import { useTechnicalSpecifications } from '@/hooks/useTechnicalSpecifications';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
+import { supabase } from '@/integrations/supabase/client';
+import { Checkbox } from '@/components/ui/checkbox';
 
 const TechnicalSpecifications = () => {
   const { specifications, loading, deleteSpecification, updateSpecification } = useTechnicalSpecifications();
@@ -23,6 +25,10 @@ const TechnicalSpecifications = () => {
   const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [editFormData, setEditFormData] = useState<any>({});
+  const [showSmartEdit, setShowSmartEdit] = useState(false);
+  const [editInstructions, setEditInstructions] = useState('');
+  const [fieldsToEdit, setFieldsToEdit] = useState<string[]>([]);
+  const [isSmartEditing, setIsSmartEditing] = useState(false);
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -99,6 +105,56 @@ const TechnicalSpecifications = () => {
     } catch (error) {
       toast.error('Ошибка при обновлении технического задания');
     }
+  };
+
+  const handleSmartEdit = async () => {
+    if (!selectedSpec || !editInstructions.trim() || fieldsToEdit.length === 0) {
+      toast.error('Укажите инструкции по редактированию и выберите поля для изменения');
+      return;
+    }
+
+    setIsSmartEditing(true);
+    
+    try {
+      const { data, error } = await supabase.functions.invoke('edit-technical-specification', {
+        body: {
+          specification_id: selectedSpec.id,
+          edit_instructions: editInstructions,
+          fields_to_edit: fieldsToEdit,
+          current_specification: selectedSpec
+        }
+      });
+
+      if (error) throw error;
+
+      toast.success('Техническое задание успешно отредактировано');
+      setShowSmartEdit(false);
+      setEditInstructions('');
+      setFieldsToEdit([]);
+      setIsEditDialogOpen(false);
+      // Перезагружаем данные
+      window.location.reload();
+    } catch (error) {
+      console.error('Ошибка умного редактирования:', error);
+      toast.error('Ошибка при редактировании технического задания');
+    } finally {
+      setIsSmartEditing(false);
+    }
+  };
+
+  const fieldLabels = {
+    title: 'Название',
+    object_description: 'Описание объекта',
+    client_name: 'Имя клиента',
+    object_address: 'Адрес объекта',
+    work_scope: 'Объем работ',
+    materials_spec: 'Спецификация материалов',
+    normative_references: 'Нормативные ссылки',
+    quality_requirements: 'Требования к качеству',
+    timeline: 'Временные рамки',
+    safety_requirements: 'Требования безопасности',
+    acceptance_criteria: 'Критерии приемки',
+    additional_requirements: 'Дополнительные требования'
   };
 
   if (loading) {
@@ -370,12 +426,78 @@ const TechnicalSpecifications = () => {
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
         <DialogContent className="max-w-4xl max-h-[80vh]">
           <DialogHeader>
-            <DialogTitle>Редактировать техническое задание</DialogTitle>
+            <DialogTitle className="flex items-center justify-between">
+              Редактировать техническое задание
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowSmartEdit(!showSmartEdit)}
+                >
+                  <Sparkles className="w-4 h-4 mr-1" />
+                  {showSmartEdit ? 'Ручное редактирование' : 'Умное редактирование'}
+                </Button>
+              </div>
+            </DialogTitle>
             <DialogDescription>
-              Внесите необходимые изменения в техническое задание
+              {showSmartEdit 
+                ? 'Опишите, что нужно изменить, и AI внесет точные правки только в указанные поля'
+                : 'Внесите необходимые изменения в техническое задание вручную'
+              }
             </DialogDescription>
           </DialogHeader>
           <ScrollArea className="max-h-[60vh] pr-4">
+            {showSmartEdit ? (
+              <div className="space-y-4">
+                <div>
+                  <Label htmlFor="edit_instructions">Инструкции по редактированию</Label>
+                  <Textarea
+                    id="edit_instructions"
+                    rows={3}
+                    placeholder="Например: Увеличь объем песка в 2 раза, добавь требования по гидроизоляции фундамента, измени сроки на 15 рабочих дней..."
+                    value={editInstructions}
+                    onChange={(e) => setEditInstructions(e.target.value)}
+                  />
+                </div>
+
+                <div>
+                  <Label>Выберите поля для редактирования:</Label>
+                  <div className="grid grid-cols-2 gap-2 mt-2">
+                    {Object.entries(fieldLabels).map(([field, label]) => (
+                      <div key={field} className="flex items-center space-x-2">
+                        <Checkbox
+                          id={field}
+                          checked={fieldsToEdit.includes(field)}
+                          onCheckedChange={(checked) => {
+                            if (checked) {
+                              setFieldsToEdit([...fieldsToEdit, field]);
+                            } else {
+                              setFieldsToEdit(fieldsToEdit.filter(f => f !== field));
+                            }
+                          }}
+                        />
+                        <Label htmlFor={field} className="text-sm">{label}</Label>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="flex justify-end gap-2 pt-4">
+                  <Button
+                    variant="outline"
+                    onClick={() => setIsEditDialogOpen(false)}
+                  >
+                    Отмена
+                  </Button>
+                  <Button
+                    onClick={handleSmartEdit}
+                    disabled={isSmartEditing || !editInstructions.trim() || fieldsToEdit.length === 0}
+                  >
+                    {isSmartEditing ? 'Обрабатываем...' : 'Применить изменения'}
+                  </Button>
+                </div>
+              </div>
+            ) : (
             <div className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div>
@@ -507,6 +629,7 @@ const TechnicalSpecifications = () => {
                 </Button>
               </div>
             </div>
+            )}
           </ScrollArea>
         </DialogContent>
       </Dialog>
