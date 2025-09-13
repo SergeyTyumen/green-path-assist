@@ -20,7 +20,7 @@ interface UserSettings {
   ai_settings: any;
 }
 
-async function callOpenAIWithTools(messages: AIMessage[], settings: UserSettings, userId: string, authToken?: string): Promise<string> {
+async function callOpenAIWithTools(messages: AIMessage[], settings: UserSettings, userId: string, authToken?: string, enableStreaming?: boolean): Promise<string | ReadableStream> {
   const openaiApiKey = Deno.env.get('OPENAI_API_KEY');
   if (!openaiApiKey) {
     throw new Error('OpenAI API key not configured');
@@ -168,6 +168,11 @@ async function callOpenAIWithTools(messages: AIMessage[], settings: UserSettings
         tool_choice: 'auto'
       };
       
+      // Добавляем поддержку streaming только если включена и нет tool calls в предыдущих сообщениях
+      if (enableStreaming && depth === 0) {
+        payload.stream = true;
+      }
+      
       if (isNewModel) {
         payload.max_completion_tokens = settings?.ai_settings?.max_tokens || 1000;
       } else {
@@ -187,6 +192,12 @@ async function callOpenAIWithTools(messages: AIMessage[], settings: UserSettings
       if (!response.ok) {
         const errorText = await response.text();
         throw new Error(`OpenAI API error: ${response.status} - ${errorText}`);
+      }
+
+      // Если включен streaming и это первый depth, возвращаем поток
+      if (enableStreaming && depth === 0 && payload.stream) {
+        console.log('Returning streaming response');
+        return createStreamingResponse(response);
       }
 
       const data = await response.json();
@@ -232,6 +243,74 @@ async function callOpenAIWithTools(messages: AIMessage[], settings: UserSettings
     console.error('Error calling OpenAI:', error);
     throw new Error(`Ошибка вызова OpenAI: ${error.message}`);
   }
+}
+
+// Функция для создания потокового ответа
+function createStreamingResponse(openaiResponse: Response): ReadableStream {
+  const reader = openaiResponse.body?.getReader();
+  
+  if (!reader) {
+    throw new Error('No response body');
+  }
+
+  return new ReadableStream({
+    async start(controller) {
+      const decoder = new TextDecoder();
+      let buffer = '';
+
+      try {
+        while (true) {
+          const { done, value } = await reader.read();
+          
+          if (done) {
+            // Отправляем финальный chunk с окончанием
+            const finalChunk = JSON.stringify({ 
+              type: 'done',
+              content: '' 
+            }) + '\n';
+            controller.enqueue(new TextEncoder().encode(finalChunk));
+            controller.close();
+            break;
+          }
+
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split('\n');
+          buffer = lines.pop() || '';
+
+          for (const line of lines) {
+            if (line.trim() === '') continue;
+            
+            if (line.startsWith('data: ')) {
+              const data = line.slice(6);
+              
+              if (data === '[DONE]') {
+                continue;
+              }
+
+              try {
+                const parsed = JSON.parse(data);
+                const content = parsed.choices?.[0]?.delta?.content;
+                
+                if (content) {
+                  // Отправляем только контент, обернутый в простой JSON
+                  const chunk = JSON.stringify({ 
+                    type: 'content',
+                    content: content 
+                  }) + '\n';
+                  controller.enqueue(new TextEncoder().encode(chunk));
+                }
+              } catch (e) {
+                console.warn('Failed to parse streaming chunk:', e);
+              }
+            }
+          }
+        }
+      } catch (error) {
+        console.error('Streaming error:', error);
+        controller.error(error);
+      }
+    }
+  });
 }
 
 async function executeFunction(functionName: string, args: any, userId: string, userToken?: string): Promise<any> {
@@ -822,6 +901,10 @@ serve(async (req) => {
     // Получаем настройки пользователя
     const userSettings = await getUserSettings(user.id);
 
+    // Проверяем настройку потоковой передачи
+    const enableStreaming = userSettings?.ai_settings?.enable_streaming === true;
+    console.log('enhanced-voice-chat: Streaming enabled:', enableStreaming);
+
     // Получаем текущую дату для правильного расчета дат
     const currentDate = new Date();
     const currentDateStr = currentDate.toISOString().split('T')[0];
@@ -865,11 +948,25 @@ serve(async (req) => {
 
     console.log('enhanced-voice-chat: Calling OpenAI with tools...');
     // Вызываем OpenAI с поддержкой функций для работы с базой данных
-    const aiResponse = await callOpenAIWithTools(messages, userSettings, user.id, token);
+    const aiResponse = await callOpenAIWithTools(messages, userSettings, user.id, token, enableStreaming);
 
-    console.log('enhanced-voice-chat: OpenAI response received, saving to history...');
+    console.log('enhanced-voice-chat: OpenAI response received');
     
-    console.log('enhanced-voice-chat: Returning success response');
+    // Если ответ - это поток, возвращаем потоковый ответ
+    if (aiResponse instanceof ReadableStream) {
+      console.log('enhanced-voice-chat: Returning streaming response');
+      return new Response(aiResponse, {
+        headers: { 
+          ...corsHeaders, 
+          'Content-Type': 'text/plain; charset=utf-8',
+          'Cache-Control': 'no-cache',
+          'Connection': 'keep-alive'
+        },
+      });
+    }
+    
+    // Иначе возвращаем обычный JSON ответ
+    console.log('enhanced-voice-chat: Returning standard response');
     return new Response(JSON.stringify({
       response: aiResponse,
       model_used: 'enhanced-voice-chat',

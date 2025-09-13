@@ -174,8 +174,23 @@ const VoiceChatAssistant = () => {
     // Get AI response
     try {
       const response = await generateResponse(userMessage);
-      setMessages(prev => prev.filter(m => m.id !== 'thinking'));
-      addMessage('assistant', response);
+      
+      // Убираем thinking индикатор только если не было streaming (при streaming сообщение уже добавлено)
+      setMessages(prev => {
+        const hasStreamingResponse = prev.some(m => m.id !== 'thinking' && m.type === 'assistant' && m.timestamp.getTime() > thinkingMessage.timestamp.getTime());
+        if (hasStreamingResponse) {
+          // Если уже есть streaming ответ, только убираем thinking
+          return prev.filter(m => m.id !== 'thinking');
+        } else {
+          // Если нет streaming ответа, убираем thinking и добавляем обычный ответ
+          return prev.filter(m => m.id !== 'thinking').concat([{
+            id: Date.now().toString(),
+            type: 'assistant',
+            content: response,
+            timestamp: new Date()
+          }]);
+        }
+      });
       
       // If voice mode is enabled, speak the response
       if (isVoiceMode) {
@@ -187,32 +202,121 @@ const VoiceChatAssistant = () => {
     }
   }, [inputValue, addMessage, isVoiceMode, browserSupport.speechSynthesis]);
 
-  // Generate AI response using edge function directly
+  // Generate AI response with streaming support
   const generateResponse = async (userMessage: string): Promise<string> => {
     try {
       console.log('Calling enhanced-voice-chat edge function...');
       
-      const { data, error } = await supabase.functions.invoke('enhanced-voice-chat', {
-        body: { 
-          message: userMessage, 
-          conversation_history: messages.slice(-10).map(m => ({
-            type: m.type,
-            content: m.content
-          }))
-        }
-      });
-
-      if (error) {
-        console.error('Edge function error:', error);
-        throw error;
+      // Получаем пользователя для аутентификации
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        throw new Error('User not authenticated');
       }
+
+      // Делаем прямой fetch запрос для поддержки streaming
+      const response = await fetch(
+        `https://nxyzmxqtzsvjezmkmkja.supabase.co/functions/v1/enhanced-voice-chat`,
+        {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${session.access_token}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            message: userMessage,
+            conversation_history: messages.slice(-10).map(m => ({
+              role: m.type,
+              content: m.content
+            }))
+          })
+        }
+      );
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`HTTP ${response.status}: ${errorText}`);
+      }
+
+      // Проверяем, потоковый ли это ответ
+      const contentType = response.headers.get('content-type');
       
-      console.log('Response from edge function:', data);
-      return data?.response || 'Ответ получен от голосового помощника';
+      if (contentType?.includes('text/plain')) {
+        // Потоковый ответ
+        console.log('Processing streaming response...');
+        return await handleStreamingResponse(response);
+      } else {
+        // Обычный JSON ответ
+        const data = await response.json();
+        console.log('Response from edge function:', data);
+        return data?.response || 'Ответ получен от голосового помощника';
+      }
       
     } catch (error) {
       console.error('Error calling enhanced-voice-chat:', error);
       return 'Извините, произошла ошибка при обработке запроса. Проверьте настройки API или попробуйте позже.';
+    }
+  };
+
+  // Обработка потокового ответа
+  const handleStreamingResponse = async (response: Response): Promise<string> => {
+    const reader = response.body?.getReader();
+    if (!reader) {
+      throw new Error('No response body');
+    }
+
+    const decoder = new TextDecoder();
+    let fullResponse = '';
+    let currentMessageId = '';
+
+    try {
+      while (true) {
+        const { done, value } = await reader.read();
+        
+        if (done) {
+          break;
+        }
+
+        const chunk = decoder.decode(value, { stream: true });
+        const lines = chunk.split('\n').filter(line => line.trim());
+
+        for (const line of lines) {
+          try {
+            const parsed = JSON.parse(line);
+            
+            if (parsed.type === 'content') {
+              fullResponse += parsed.content;
+              
+              // Обновляем сообщение в реальном времени
+              if (!currentMessageId) {
+                currentMessageId = Date.now().toString();
+                setMessages(prev => [...prev, {
+                  id: currentMessageId,
+                  type: 'assistant',
+                  content: parsed.content,
+                  timestamp: new Date()
+                }]);
+              } else {
+                setMessages(prev => 
+                  prev.map(msg => 
+                    msg.id === currentMessageId 
+                      ? { ...msg, content: fullResponse }
+                      : msg
+                  )
+                );
+              }
+            } else if (parsed.type === 'done') {
+              console.log('Streaming completed');
+            }
+          } catch (e) {
+            console.warn('Failed to parse streaming chunk:', e);
+          }
+        }
+      }
+
+      return fullResponse;
+      
+    } finally {
+      reader.releaseLock();
     }
   };
 
