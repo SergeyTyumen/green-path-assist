@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { format } from 'date-fns';
 import { ru } from 'date-fns/locale';
-import { Download, Eye, FileText, Trash2, Plus, X } from 'lucide-react';
+import { Download, Eye, FileText, Trash2, Plus, X, Edit3 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -9,15 +9,20 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Textarea } from '@/components/ui/textarea';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { useTechnicalSpecifications } from '@/hooks/useTechnicalSpecifications';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 
 const TechnicalSpecifications = () => {
-  const { specifications, loading, deleteSpecification } = useTechnicalSpecifications();
+  const { specifications, loading, deleteSpecification, updateSpecification } = useTechnicalSpecifications();
   const navigate = useNavigate();
   const [selectedSpec, setSelectedSpec] = useState<any>(null);
   const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [editFormData, setEditFormData] = useState<any>({});
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -48,6 +53,52 @@ const TechnicalSpecifications = () => {
   const handleView = (spec: any) => {
     setSelectedSpec(spec);
     setIsViewDialogOpen(true);
+  };
+
+  const handleEdit = (spec: any) => {
+    setSelectedSpec(spec);
+    setEditFormData({
+      title: spec.title || '',
+      client_name: spec.client_name || '',
+      object_address: spec.object_address || '',
+      object_description: spec.object_description || '',
+      work_scope: spec.work_scope || '',
+      materials_spec: typeof spec.materials_spec === 'string' ? spec.materials_spec : JSON.stringify(spec.materials_spec, null, 2),
+      normative_references: Array.isArray(spec.normative_references) ? spec.normative_references.join('\n') : (spec.normative_references || ''),
+      quality_requirements: spec.quality_requirements || '',
+      timeline: spec.timeline || '',
+      safety_requirements: spec.safety_requirements || '',
+      acceptance_criteria: spec.acceptance_criteria || '',
+      additional_requirements: spec.additional_requirements || ''
+    });
+    setIsEditDialogOpen(true);
+  };
+
+  const handleSaveEdit = async () => {
+    if (!selectedSpec) return;
+    
+    try {
+      const updatedData = {
+        title: editFormData.title,
+        client_name: editFormData.client_name,
+        object_address: editFormData.object_address,
+        object_description: editFormData.object_description,
+        work_scope: editFormData.work_scope,
+        materials_spec: editFormData.materials_spec,
+        normative_references: editFormData.normative_references.split('\n').filter((line: string) => line.trim()),
+        quality_requirements: editFormData.quality_requirements,
+        timeline: editFormData.timeline,
+        safety_requirements: editFormData.safety_requirements,
+        acceptance_criteria: editFormData.acceptance_criteria,
+        additional_requirements: editFormData.additional_requirements
+      };
+      
+      await updateSpecification(selectedSpec.id, updatedData);
+      setIsEditDialogOpen(false);
+      toast.success('Техническое задание обновлено');
+    } catch (error) {
+      toast.error('Ошибка при обновлении технического задания');
+    }
   };
 
   if (loading) {
@@ -122,6 +173,13 @@ const TechnicalSpecifications = () => {
                         <Button
                           variant="outline"
                           size="sm"
+                          onClick={() => handleEdit(spec)}
+                        >
+                          <Edit3 className="w-4 h-4" />
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
                           onClick={() => handleDownloadPDF(spec)}
                         >
                           <Download className="w-4 h-4 mr-1" />
@@ -176,13 +234,23 @@ const TechnicalSpecifications = () => {
           <DialogHeader>
             <DialogTitle className="flex items-center justify-between">
               {selectedSpec?.title || 'Техническое задание'}
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setIsViewDialogOpen(false)}
-              >
-                <X className="w-4 h-4" />
-              </Button>
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handleEdit(selectedSpec)}
+                >
+                  <Edit3 className="w-4 h-4 mr-1" />
+                  Редактировать
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setIsViewDialogOpen(false)}
+                >
+                  <X className="w-4 h-4" />
+                </Button>
+              </div>
             </DialogTitle>
             <DialogDescription>
               Подробная информация о техническом задании
@@ -294,6 +362,151 @@ const TechnicalSpecifications = () => {
                 )}
               </div>
             )}
+          </ScrollArea>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Dialog */}
+      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+        <DialogContent className="max-w-4xl max-h-[80vh]">
+          <DialogHeader>
+            <DialogTitle>Редактировать техническое задание</DialogTitle>
+            <DialogDescription>
+              Внесите необходимые изменения в техническое задание
+            </DialogDescription>
+          </DialogHeader>
+          <ScrollArea className="max-h-[60vh] pr-4">
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="title">Название</Label>
+                  <Input
+                    id="title"
+                    value={editFormData.title || ''}
+                    onChange={(e) => setEditFormData({...editFormData, title: e.target.value})}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="client_name">Клиент</Label>
+                  <Input
+                    id="client_name"
+                    value={editFormData.client_name || ''}
+                    onChange={(e) => setEditFormData({...editFormData, client_name: e.target.value})}
+                  />
+                </div>
+              </div>
+
+              <div>
+                <Label htmlFor="object_address">Адрес объекта</Label>
+                <Input
+                  id="object_address"
+                  value={editFormData.object_address || ''}
+                  onChange={(e) => setEditFormData({...editFormData, object_address: e.target.value})}
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="object_description">Исходное описание клиента</Label>
+                <Textarea
+                  id="object_description"
+                  rows={3}
+                  value={editFormData.object_description || ''}
+                  onChange={(e) => setEditFormData({...editFormData, object_description: e.target.value})}
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="work_scope">Объем работ</Label>
+                <Textarea
+                  id="work_scope"
+                  rows={5}
+                  value={editFormData.work_scope || ''}
+                  onChange={(e) => setEditFormData({...editFormData, work_scope: e.target.value})}
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="materials_spec">Спецификация материалов</Label>
+                <Textarea
+                  id="materials_spec"
+                  rows={4}
+                  value={editFormData.materials_spec || ''}
+                  onChange={(e) => setEditFormData({...editFormData, materials_spec: e.target.value})}
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="normative_references">Нормативные ссылки (по одной на строку)</Label>
+                <Textarea
+                  id="normative_references"
+                  rows={3}
+                  value={editFormData.normative_references || ''}
+                  onChange={(e) => setEditFormData({...editFormData, normative_references: e.target.value})}
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="quality_requirements">Требования к качеству</Label>
+                <Textarea
+                  id="quality_requirements"
+                  rows={3}
+                  value={editFormData.quality_requirements || ''}
+                  onChange={(e) => setEditFormData({...editFormData, quality_requirements: e.target.value})}
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="timeline">Временные рамки</Label>
+                <Textarea
+                  id="timeline"
+                  rows={2}
+                  value={editFormData.timeline || ''}
+                  onChange={(e) => setEditFormData({...editFormData, timeline: e.target.value})}
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="safety_requirements">Требования безопасности</Label>
+                <Textarea
+                  id="safety_requirements"
+                  rows={3}
+                  value={editFormData.safety_requirements || ''}
+                  onChange={(e) => setEditFormData({...editFormData, safety_requirements: e.target.value})}
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="acceptance_criteria">Критерии приемки</Label>
+                <Textarea
+                  id="acceptance_criteria"
+                  rows={3}
+                  value={editFormData.acceptance_criteria || ''}
+                  onChange={(e) => setEditFormData({...editFormData, acceptance_criteria: e.target.value})}
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="additional_requirements">Дополнительные требования</Label>
+                <Textarea
+                  id="additional_requirements"
+                  rows={3}
+                  value={editFormData.additional_requirements || ''}
+                  onChange={(e) => setEditFormData({...editFormData, additional_requirements: e.target.value})}
+                />
+              </div>
+
+              <div className="flex justify-end gap-2 pt-4">
+                <Button
+                  variant="outline"
+                  onClick={() => setIsEditDialogOpen(false)}
+                >
+                  Отмена
+                </Button>
+                <Button onClick={handleSaveEdit}>
+                  Сохранить изменения
+                </Button>
+              </div>
+            </div>
           </ScrollArea>
         </DialogContent>
       </Dialog>
