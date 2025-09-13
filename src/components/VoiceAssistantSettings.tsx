@@ -341,8 +341,8 @@ export function VoiceAssistantSettings() {
               type="number"
               value={settings.ai_settings.timeout}
               onChange={(e) => updateAISettings('timeout', parseInt(e.target.value))}
-              min={10}
-              max={120}
+              min={1}
+              max={60}
             />
           </div>
 
