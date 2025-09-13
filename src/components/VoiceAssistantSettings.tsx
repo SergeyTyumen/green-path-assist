@@ -30,7 +30,6 @@ interface AISettings {
   anthropic_model: string;
   temperature: number;
   max_tokens: number;
-  timeout: number;
   enable_streaming: boolean;
   context_window: number;
 }
@@ -64,7 +63,6 @@ const defaultSettings: UserSettings = {
     anthropic_model: 'claude-3-haiku-20240307',
     temperature: 0.7,
     max_tokens: 2000,
-    timeout: 30,
     enable_streaming: true,
     context_window: 4000
   },
@@ -335,16 +333,6 @@ export function VoiceAssistantSettings() {
             />
           </div>
 
-          <div className="grid w-full items-center gap-1.5">
-            <Label htmlFor="timeout">Таймаут (секунды)</Label>
-            <Input
-              type="number"
-              value={settings.ai_settings.timeout}
-              onChange={(e) => updateAISettings('timeout', parseInt(e.target.value))}
-              min={1}
-              max={60}
-            />
-          </div>
 
           <div className="grid w-full items-center gap-1.5">
             <Label htmlFor="context-window">Размер контекста (токены)</Label>
