@@ -75,9 +75,24 @@ const VoiceChatAssistant = () => {
           .eq('user_id', user.id)
           .single();
           
-        if (error) throw error;
-        console.log('Loaded voice settings from profile:', data?.voice_settings);
-        setUserVoiceSettings(data?.voice_settings);
+        if (error) {
+          console.warn('Error loading voice settings from profiles:', error);
+          // Fallback to AI assistant settings
+          const { data: aiData, error: aiError } = await supabase
+            .from('ai_assistant_settings')
+            .select('settings')
+            .eq('user_id', user.id)
+            .eq('assistant_type', 'voice_assistant')
+            .maybeSingle();
+            
+          if (!aiError && aiData?.settings) {
+            console.log('Loaded voice settings from AI assistant settings:', aiData.settings);
+            setUserVoiceSettings(aiData.settings);
+          }
+        } else {
+          console.log('Loaded voice settings from profile:', data?.voice_settings);
+          setUserVoiceSettings(data?.voice_settings);
+        }
       } catch (error) {
         console.error('Error loading voice settings:', error);
       }
@@ -761,6 +776,37 @@ const VoiceChatAssistant = () => {
                   'Управление CRM через голос и текст'
                 )}
               </div>
+              
+              {/* Status indicators for advanced features */}
+              {userVoiceSettings && (
+                <div className="flex flex-wrap gap-1 mt-1">
+                  {userVoiceSettings?.advanced_features?.enable_function_calling !== false && (
+                    <Badge variant="secondary" className="text-xs px-1 py-0">
+                      🔧
+                    </Badge>
+                  )}
+                  {userVoiceSettings?.advanced_features?.enable_memory !== false && (
+                    <Badge variant="secondary" className="text-xs px-1 py-0">
+                      🧠
+                    </Badge>
+                  )}
+                  {userVoiceSettings?.advanced_features?.auto_save_conversations !== false && (
+                    <Badge variant="secondary" className="text-xs px-1 py-0">
+                      💾
+                    </Badge>
+                  )}
+                  {userVoiceSettings?.advanced_features?.privacy_mode && (
+                    <Badge variant="destructive" className="text-xs px-1 py-0">
+                      🔒
+                    </Badge>
+                  )}
+                  {userVoiceSettings?.ai_settings?.enable_streaming && (
+                    <Badge variant="outline" className="text-xs px-1 py-0">
+                      ⚡
+                    </Badge>
+                  )}
+                </div>
+              )}
             </div>
           </div>
           

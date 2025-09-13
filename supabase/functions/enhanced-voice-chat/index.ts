@@ -18,6 +18,12 @@ interface UserSettings {
   interaction_mode: 'text' | 'voice';
   voice_settings: any;
   ai_settings: any;
+  advanced_features?: {
+    enable_function_calling: boolean;
+    enable_memory: boolean;
+    auto_save_conversations: boolean;
+    privacy_mode: boolean;
+  };
 }
 
 async function callOpenAIWithTools(messages: AIMessage[], settings: UserSettings, userId: string, authToken?: string, enableStreaming?: boolean): Promise<string | ReadableStream> {
@@ -156,6 +162,10 @@ async function callOpenAIWithTools(messages: AIMessage[], settings: UserSettings
 
     let runningMessages: any[] = [...messages];
 
+    // Проверяем настройки функций пользователя
+    const enableFunctionCalling = settings?.advanced_features?.enable_function_calling !== false;
+    console.log(`Function calling enabled: ${enableFunctionCalling}`);
+
     // Сокращаем максимальное количество итераций для быстроты
     for (let depth = 0; depth < 5; depth++) { // safety cap to avoid loops
       const configuredModel = (settings?.ai_settings?.openai_model as string) || 'gpt-4o-mini';
@@ -163,10 +173,14 @@ async function callOpenAIWithTools(messages: AIMessage[], settings: UserSettings
       
       const payload: any = {
         model: configuredModel, // use the actual configured model
-        messages: runningMessages,
-        tools,
-        tool_choice: 'auto'
+        messages: runningMessages
       };
+
+      // Добавляем tools только если включены функции
+      if (enableFunctionCalling) {
+        payload.tools = tools;
+        payload.tool_choice = 'auto';
+      }
       
       // Добавляем поддержку streaming только если включена и нет tool calls в предыдущих сообщениях
       if (enableStreaming && depth === 0) {
@@ -1009,6 +1023,15 @@ serve(async (req) => {
 
     console.log('enhanced-voice-chat: OpenAI response received');
     
+    // Автосохранение диалогов (если включено и не режим приватности)
+    if (userSettings?.advanced_features?.auto_save_conversations !== false && !userSettings?.advanced_features?.privacy_mode) {
+      try {
+        await saveConversationHistory(user.id, message, typeof aiResponse === 'string' ? aiResponse : 'streaming_response');
+      } catch (error) {
+        console.warn('Failed to save conversation history:', error);
+      }
+    }
+    
     // Если ответ - это поток, возвращаем потоковый ответ
     if (aiResponse instanceof ReadableStream) {
       console.log('enhanced-voice-chat: Returning streaming response');
@@ -1027,7 +1050,12 @@ serve(async (req) => {
     return new Response(JSON.stringify({
       response: aiResponse,
       model_used: 'enhanced-voice-chat',
-      interaction_mode: userSettings.interaction_mode
+      interaction_mode: userSettings.interaction_mode,
+      settings_applied: {
+        function_calling: userSettings?.advanced_features?.enable_function_calling !== false,
+        auto_save: userSettings?.advanced_features?.auto_save_conversations !== false,
+        privacy_mode: userSettings?.advanced_features?.privacy_mode || false
+      }
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
@@ -1074,5 +1102,32 @@ async function getUserSettings(userId: string): Promise<UserSettings> {
   } catch (error) {
     console.warn('Error fetching user settings:', error);
     return defaultSettings;
+  }
+}
+
+// Функция для сохранения истории разговоров
+async function saveConversationHistory(userId: string, userMessage: string, aiResponse: string) {
+  try {
+    const supabaseAdmin = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+    );
+
+    const { error } = await supabaseAdmin
+      .from('voice_command_history')
+      .insert({
+        user_id: userId,
+        command: userMessage,
+        response: aiResponse,
+        created_at: new Date().toISOString()
+      });
+
+    if (error) {
+      console.error('Error saving conversation history:', error);
+    } else {
+      console.log('Conversation history saved successfully');
+    }
+  } catch (error) {
+    console.error('Error in saveConversationHistory:', error);
   }
 }
