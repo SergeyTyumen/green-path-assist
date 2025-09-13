@@ -162,11 +162,10 @@ async function generateOpenAITTS(text: string, voice: string, apiKey?: string): 
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
-      model: 'tts-1', // Используем быструю модель вместо tts-1-hd
+      model: 'tts-1-hd',
       input: text,
       voice: voice,
       response_format: 'mp3',
-      speed: 1.25, // Ускоряем речь на 25%
     }),
   });
 

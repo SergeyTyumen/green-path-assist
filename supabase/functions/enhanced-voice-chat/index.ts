@@ -157,15 +157,23 @@ async function callOpenAIWithTools(messages: AIMessage[], settings: UserSettings
     let runningMessages: any[] = [...messages];
 
     // Сокращаем максимальное количество итераций для быстроты
-    for (let depth = 0; depth < 2; depth++) { 
+    for (let depth = 0; depth < 5; depth++) { // safety cap to avoid loops
+      const configuredModel = (settings?.ai_settings?.openai_model as string) || 'gpt-4o-mini';
+      const isNewModel = configuredModel.startsWith('gpt-5') || configuredModel.startsWith('gpt-4.1') || configuredModel.startsWith('o3') || configuredModel.startsWith('o4');
+      
       const payload: any = {
-        model: 'gpt-4o-mini', // Используем только быструю модель
+        model: isNewModel ? 'gpt-4o-mini' : configuredModel, // use legacy-compatible model for tool calls
         messages: runningMessages,
         tools,
-        tool_choice: 'auto',
-        max_tokens: 200, // Сокращаем ответы для быстроты
-        temperature: 0.1 // Низкая температура для стабильности
+        tool_choice: 'auto'
       };
+      
+      if (isNewModel) {
+        payload.max_completion_tokens = settings?.ai_settings?.max_tokens || 1000;
+      } else {
+        payload.temperature = settings?.ai_settings?.temperature ?? 0.7;
+        payload.max_tokens = settings?.ai_settings?.max_tokens || 1000;
+      }
 
       const response = await fetch('https://api.openai.com/v1/chat/completions', {
         method: 'POST',
