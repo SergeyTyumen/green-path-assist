@@ -316,8 +316,9 @@ const VoiceChatAssistant = () => {
               }
             } else if (parsed.type === 'done') {
               console.log('Streaming completed');
-              // Если было streaming в голосовом режиме, добавляем финальное сообщение в чат
-              if (isStreamingMode && isVoiceMode && fullResponse) {
+              // В потоковом голосовом режиме НЕ добавляем текст в чат - только голос
+              // Добавляем текст в чат только если НЕ включена потоковая передача или НЕ голосовой режим
+              if (!(isStreamingMode && isVoiceMode) && fullResponse) {
                 setMessages(prev => [...prev, {
                   id: Date.now().toString(),
                   type: 'assistant',
