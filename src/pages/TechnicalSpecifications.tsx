@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { format } from 'date-fns';
 import { ru } from 'date-fns/locale';
-import { Download, Eye, FileText, Trash2, Plus, X, Edit3, Sparkles } from 'lucide-react';
+import { Download, Eye, FileText, Trash2, Plus, X, Edit3, Sparkles, Mic, MicOff } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -29,6 +29,8 @@ const TechnicalSpecifications = () => {
   const [editInstructions, setEditInstructions] = useState('');
   const [fieldsToEdit, setFieldsToEdit] = useState<string[]>([]);
   const [isSmartEditing, setIsSmartEditing] = useState(false);
+  const [isRecording, setIsRecording] = useState(false);
+  const [mediaRecorder, setMediaRecorder] = useState<MediaRecorder | null>(null);
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -139,6 +141,83 @@ const TechnicalSpecifications = () => {
       toast.error('Ошибка при редактировании технического задания');
     } finally {
       setIsSmartEditing(false);
+    }
+  };
+
+  const startRecording = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ 
+        audio: {
+          sampleRate: 16000,
+          channelCount: 1,
+          echoCancellation: true,
+          noiseSuppression: true
+        }
+      });
+      
+      const recorder = new MediaRecorder(stream, {
+        mimeType: 'audio/webm'
+      });
+      
+      const chunks: BlobPart[] = [];
+      
+      recorder.ondataavailable = (event) => {
+        if (event.data.size > 0) {
+          chunks.push(event.data);
+        }
+      };
+
+      recorder.onstop = async () => {
+        const audioBlob = new Blob(chunks, { type: 'audio/webm' });
+        await processAudio(audioBlob);
+        stream.getTracks().forEach(track => track.stop());
+      };
+
+      recorder.start();
+      setMediaRecorder(recorder);
+      setIsRecording(true);
+    } catch (error) {
+      console.error('Ошибка доступа к микрофону:', error);
+      toast.error('Ошибка доступа к микрофону');
+    }
+  };
+
+  const stopRecording = () => {
+    if (mediaRecorder && mediaRecorder.state === 'recording') {
+      mediaRecorder.stop();
+      setIsRecording(false);
+      setMediaRecorder(null);
+    }
+  };
+
+  const processAudio = async (audioBlob: Blob) => {
+    try {
+      // Конвертируем аудио в base64
+      const reader = new FileReader();
+      reader.onloadend = async () => {
+        const base64Audio = (reader.result as string).split(',')[1];
+        
+        // Отправляем на speech-to-text
+        const { data, error } = await supabase.functions.invoke('speech-to-text', {
+          body: { audio: base64Audio }
+        });
+
+        if (error) throw error;
+
+        // Добавляем распознанный текст к инструкциям
+        const newText = data.text || '';
+        setEditInstructions(prev => {
+          const separator = prev.trim() ? ' ' : '';
+          return prev + separator + newText;
+        });
+        
+        toast.success('Голосовое сообщение обработано');
+      };
+      
+      reader.readAsDataURL(audioBlob);
+    } catch (error) {
+      console.error('Ошибка обработки аудио:', error);
+      toast.error('Ошибка обработки голосового сообщения');
     }
   };
 
@@ -451,13 +530,35 @@ const TechnicalSpecifications = () => {
               <div className="space-y-4">
                 <div>
                   <Label htmlFor="edit_instructions">Инструкции по редактированию</Label>
-                  <Textarea
-                    id="edit_instructions"
-                    rows={3}
-                    placeholder="Например: Увеличь объем песка в 2 раза, добавь требования по гидроизоляции фундамента, измени сроки на 15 рабочих дней..."
-                    value={editInstructions}
-                    onChange={(e) => setEditInstructions(e.target.value)}
-                  />
+                  <div className="relative">
+                    <Textarea
+                      id="edit_instructions"
+                      rows={3}
+                      placeholder="Например: Увеличь объем песка в 2 раза, добавь требования по гидроизоляции фундамента, измени сроки на 15 рабочих дней..."
+                      value={editInstructions}
+                      onChange={(e) => setEditInstructions(e.target.value)}
+                      className="pr-12"
+                    />
+                    <Button
+                      type="button"
+                      variant={isRecording ? "destructive" : "outline"}
+                      size="sm"
+                      className="absolute right-2 top-2"
+                      onClick={isRecording ? stopRecording : startRecording}
+                      disabled={isSmartEditing}
+                    >
+                      {isRecording ? (
+                        <MicOff className="w-4 h-4" />
+                      ) : (
+                        <Mic className="w-4 h-4" />
+                      )}
+                    </Button>
+                  </div>
+                  {isRecording && (
+                    <p className="text-sm text-muted-foreground mt-1">
+                      🔴 Запись... Нажмите кнопку микрофона еще раз для остановки
+                    </p>
+                  )}
                 </div>
 
                 <div>
