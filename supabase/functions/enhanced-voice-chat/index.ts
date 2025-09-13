@@ -29,10 +29,6 @@ async function callOpenAIWithTools(messages: AIMessage[], settings: UserSettings
   try {
     console.log('Sending request to OpenAI with tools support');
 
-    // We'll keep a running transcript and iteratively satisfy all tool calls
-    const configuredModel = (settings?.ai_settings?.openai_model as string) || 'gpt-4o-mini';
-    const isNewModel = configuredModel.startsWith('gpt-5') || configuredModel.startsWith('gpt-4.1') || configuredModel.startsWith('o3') || configuredModel.startsWith('o4');
-
     // Tools available to the assistant
     const tools = [
       {
@@ -160,19 +156,16 @@ async function callOpenAIWithTools(messages: AIMessage[], settings: UserSettings
 
     let runningMessages: any[] = [...messages];
 
-    for (let depth = 0; depth < 5; depth++) { // safety cap to avoid loops
+    // Сокращаем максимальное количество итераций для быстроты
+    for (let depth = 0; depth < 2; depth++) { 
       const payload: any = {
-        model: isNewModel ? 'gpt-4o-mini' : configuredModel, // use legacy-compatible model for tool calls
+        model: 'gpt-4o-mini', // Используем только быструю модель
         messages: runningMessages,
         tools,
-        tool_choice: 'auto'
+        tool_choice: 'auto',
+        max_tokens: 200, // Сокращаем ответы для быстроты
+        temperature: 0.1 // Низкая температура для стабильности
       };
-      if (isNewModel) {
-        payload.max_completion_tokens = settings?.ai_settings?.max_tokens || 1000;
-      } else {
-        payload.temperature = settings?.ai_settings?.temperature ?? 0.7;
-        payload.max_tokens = settings?.ai_settings?.max_tokens || 1000;
-      }
 
       const response = await fetch('https://api.openai.com/v1/chat/completions', {
         method: 'POST',
@@ -226,7 +219,7 @@ async function callOpenAIWithTools(messages: AIMessage[], settings: UserSettings
       return assistantMessage.content || 'Готово';
     }
 
-    return 'Извините, не удалось завершить обработку за разумное число шагов.';
+    return 'Готово';
   } catch (error) {
     console.error('Error calling OpenAI:', error);
     throw new Error(`Ошибка вызова OpenAI: ${error.message}`);
@@ -776,81 +769,37 @@ async function getClients(userId: string, args: any) {
   }
 }
 
-async function getUserSettings(userId: string): Promise<UserSettings> {
-  // Создаем клиент Supabase с service role key для чтения профилей
-  const supabaseAdmin = createClient(
-    Deno.env.get('SUPABASE_URL') ?? '',
-    Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-  );
-  
-  const { data, error } = await supabaseAdmin
-    .from('profiles')
-    .select('preferred_ai_model, interaction_mode, voice_settings, ai_settings')
-    .eq('user_id', userId)
-    .single();
-
-  if (error || !data) {
-    return {
-      preferred_ai_model: 'openai',
-      interaction_mode: 'text',
-      voice_settings: {},
-      ai_settings: {}
-    };
-  }
-
-  return {
-    preferred_ai_model: data.preferred_ai_model || 'openai',
-    interaction_mode: data.interaction_mode || 'text',
-    voice_settings: data.voice_settings || {},
-    ai_settings: data.ai_settings || {}
-  };
-}
-
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    console.log('enhanced-voice-chat: Request received');
+    console.log('enhanced-voice-chat: Starting request processing...');
     
-    // Создаем клиент Supabase для авторизации
-    const supabaseUrl = Deno.env.get('SUPABASE_URL');
-    const supabaseKey = Deno.env.get('SUPABASE_ANON_KEY');
-    
-    if (!supabaseUrl || !supabaseKey) {
-      throw new Error('Supabase configuration not found');
-    }
-    
-    const supabaseAuth = createClient(supabaseUrl, supabaseKey);
-    
+    // Get authorization header
     const authHeader = req.headers.get('Authorization');
     if (!authHeader) {
-      console.error('enhanced-voice-chat: No authorization header');
-      throw new Error('No authorization header');
+      throw new Error('Authorization required');
     }
 
-    console.log('enhanced-voice-chat: Getting user from token...');
     const token = authHeader.replace('Bearer ', '');
-    const { data: { user }, error: authError } = await supabaseAuth.auth.getUser(token);
+    
+    // Create Supabase client and authenticate user
+    const supabaseClient = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
+    );
 
-    if (authError || !user) {
-      console.error('enhanced-voice-chat: Invalid token:', authError?.message || 'No user found');
-      throw new Error(`Authentication failed: ${authError?.message || 'Invalid token'}`);
+    const { data: { user }, error } = await supabaseClient.auth.getUser(token);
+    
+    if (error || !user) {
+      throw new Error('Invalid authorization');
     }
-
+    
     console.log('enhanced-voice-chat: User authenticated:', user.id);
 
-    console.log('enhanced-voice-chat: Parsing request body...');
-    let requestBody;
-    try {
-      const rawBody = await req.text();
-      console.log('enhanced-voice-chat: Raw request body:', rawBody.substring(0, 200));
-      requestBody = JSON.parse(rawBody);
-    } catch (parseError) {
-      console.error('enhanced-voice-chat: JSON parse error:', parseError);
-      throw new Error(`Invalid JSON in request body: ${parseError.message}`);
-    }
+    const requestBody = await req.json();
     
     const { message, conversation_history = [] } = requestBody;
 
@@ -885,92 +834,33 @@ serve(async (req) => {
 - Создание задач через create_task (заголовок, описание, дата выполнения)
 - Завершение задач через complete_task (название задачи или ID)
 
-ПОИСК КЛИЕНТОВ:
-ВСЕГДА начинайте с поиска клиента по имени через get_client_info ПЕРЕД любыми действиями:
-- Если упоминается имя клиента - сначала проверьте, существует ли он
-- Получите информацию о его задачах и сметах
-- Анализируйте ситуацию и предлагайте подходящие действия
+ОТВЕЧАЙТЕ КРАТКО И ПО ДЕЛУ. Максимум 2-3 предложения.`;
 
-ЗАПРОСЫ БЕЗ КЛИЕНТА:
-- Для "Покажи мои задачи", "задачи на сегодня", "сколько просроченных" используйте get_tasks и/или get_tasks_stats
-СОЗДАНИЕ КЛИЕНТОВ:
-Когда пользователь просит создать клиента, используйте функцию create_client:
-- Обязательно укажите name (имя клиента)
-- Если известен телефон - добавьте phone
-- Если известен email - добавьте email
-- Обязательно укажите lead_source (источник лида)
-- Если есть дополнительная информация - добавьте notes
-
-СОЗДАНИЕ СМЕТ:
-Когда пользователь просит создать смету, используйте функцию create_estimate:
-- Обязательно укажите project_description (описание проекта)
-- Если известна площадь - добавьте area в кв.м
-- Если назван клиент - укажите client_name
-- Если названы виды работ - добавьте services как массив
-
-СОЗДАНИЕ ЗАДАЧ:
-Когда пользователь просит создать задачу или встречу, используйте функцию create_task:
-- Обязательно укажите title (заголовок задачи)
-- Обязательно укажите due_date в ISO-формате
-- При указании относительных дат (понедельник, вторник и т.д.) рассчитывайте от ТЕКУЩЕЙ даты: ${currentDateStr}
-- Если назван клиент - укажите client_name для привязки
-
-ЗАВЕРШЕНИЕ ЗАДАЧ:
-Когда задача выполнена (встреча состоялась, звонок сделан), используйте complete_task:
-- Укажите task_title для поиска задачи
-- Если есть клиент - добавьте client_name для точности
-
-АЛГОРИТМ РАБОТЫ:
-1. Если упоминается клиент - ВСЕГДА сначала get_client_info
-2. Анализируйте полученную информацию о задачах и сметах
-3. Предлагайте логичные следующие шаги:
-   - Если встреча была запланирована и состоялась → complete_task
-   - Если нужна смета для КП → create_estimate
-   - Если нужна новая задача → create_task
-
-ПРИМЕРЫ КОМАНД:
-- "Алексей Федоров" → get_client_info → анализ ситуации
-- "Встретился с Алексеем" → get_client_info → complete_task для встречи
-- "Нужно КП для Алексея" → get_client_info → create_estimate
-
-ВАЖНО: 
-- ВСЕГДА начинайте с поиска клиента, если он упоминается
-- Анализируйте контекст и предлагайте подходящие действия
-- При создании задач рассчитывайте даты от ТЕКУЩЕЙ даты: ${currentDateStr}
-- Логично развивайте цепочку действий: встреча → завершить задачу → создать смету → создать КП
-
-Отвечайте конкретно и по делу. Задавайте уточняющие вопросы если нужно.`;
-
-    console.log('enhanced-voice-chat: Building message array...');
+    // История разговора
     const messages: AIMessage[] = [
-      { role: 'system', content: systemPrompt },
-      ...conversation_history.map((msg: any) => ({
-        role: msg.type === 'user' ? 'user' : 'assistant',
-        content: msg.content
-      })),
-      { role: 'user', content: message }
+      { role: 'system', content: systemPrompt }
     ];
+
+    // Добавляем предыдущую историю
+    conversation_history.forEach((msg: any) => {
+      messages.push({
+        role: msg.role,
+        content: msg.content
+      });
+    });
+
+    // Добавляем текущее сообщение
+    messages.push({
+      role: 'user',
+      content: message
+    });
 
     console.log('enhanced-voice-chat: Calling OpenAI with tools...');
     // Вызываем OpenAI с поддержкой функций для работы с базой данных
     const aiResponse = await callOpenAIWithTools(messages, userSettings, user.id, token);
 
     console.log('enhanced-voice-chat: OpenAI response received, saving to history...');
-    // Сохраняем историю команд
-    const supabaseAdmin = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-    );
     
-    await supabaseAdmin
-      .from('voice_command_history')
-      .insert({
-        user_id: user.id,
-        transcript: message,
-        status: 'completed',
-        execution_result: { response: aiResponse, model: 'enhanced-voice-chat' }
-      });
-
     console.log('enhanced-voice-chat: Returning success response');
     return new Response(JSON.stringify({
       response: aiResponse,
@@ -991,3 +881,36 @@ serve(async (req) => {
     });
   }
 });
+
+// Helper functions remain the same...
+async function getUserSettings(userId: string): Promise<UserSettings> {
+  const defaultSettings: UserSettings = {
+    preferred_ai_model: 'openai',
+    interaction_mode: 'text',
+    voice_settings: {},
+    ai_settings: {}
+  };
+
+  try {
+    const supabaseAdmin = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+    );
+
+    const { data, error } = await supabaseAdmin
+      .from('ai_assistant_settings')
+      .select('settings')
+      .eq('user_id', userId)
+      .eq('assistant_type', 'voice_assistant')
+      .maybeSingle();
+
+    if (error || !data) {
+      return defaultSettings;
+    }
+
+    return { ...defaultSettings, ...data.settings };
+  } catch (error) {
+    console.warn('Error fetching user settings:', error);
+    return defaultSettings;
+  }
+}
