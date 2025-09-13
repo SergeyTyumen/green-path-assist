@@ -267,6 +267,7 @@ const VoiceChatAssistant = () => {
     const decoder = new TextDecoder();
     let fullResponse = '';
     let currentMessageId = '';
+    const isStreamingMode = userVoiceSettings?.streaming_enabled;
 
     try {
       while (true) {
@@ -286,26 +287,44 @@ const VoiceChatAssistant = () => {
             if (parsed.type === 'content') {
               fullResponse += parsed.content;
               
-              // Обновляем сообщение в реальном времени
-              if (!currentMessageId) {
-                currentMessageId = Date.now().toString();
-                setMessages(prev => [...prev, {
-                  id: currentMessageId,
-                  type: 'assistant',
-                  content: parsed.content,
-                  timestamp: new Date()
-                }]);
+              // При включенной потоковой передаче сразу произносим фрагменты голосом
+              if (isStreamingMode && isVoiceMode) {
+                // Произносим только новую часть
+                const newContent = parsed.content;
+                if (newContent && newContent.trim()) {
+                  speakResponse(newContent);
+                }
               } else {
-                setMessages(prev => 
-                  prev.map(msg => 
-                    msg.id === currentMessageId 
-                      ? { ...msg, content: fullResponse }
-                      : msg
-                  )
-                );
+                // Обычное поведение - обновляем сообщение в чате
+                if (!currentMessageId) {
+                  currentMessageId = Date.now().toString();
+                  setMessages(prev => [...prev, {
+                    id: currentMessageId,
+                    type: 'assistant',
+                    content: parsed.content,
+                    timestamp: new Date()
+                  }]);
+                } else {
+                  setMessages(prev => 
+                    prev.map(msg => 
+                      msg.id === currentMessageId 
+                        ? { ...msg, content: fullResponse }
+                        : msg
+                    )
+                  );
+                }
               }
             } else if (parsed.type === 'done') {
               console.log('Streaming completed');
+              // Если было streaming в голосовом режиме, добавляем финальное сообщение в чат
+              if (isStreamingMode && isVoiceMode && fullResponse) {
+                setMessages(prev => [...prev, {
+                  id: Date.now().toString(),
+                  type: 'assistant',
+                  content: fullResponse,
+                  timestamp: new Date()
+                }]);
+              }
             }
           } catch (e) {
             console.warn('Failed to parse streaming chunk:', e);
