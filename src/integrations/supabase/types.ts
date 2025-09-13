@@ -1529,10 +1529,13 @@ export type Database = {
       voice_command_history: {
         Row: {
           actions: Json
+          command: string | null
+          conversation_context: Json | null
           created_at: string
           execution_result: Json | null
           id: string
           parsed_entities: Json | null
+          response: string | null
           status: string
           transcript: string
           updated_at: string
@@ -1541,10 +1544,13 @@ export type Database = {
         }
         Insert: {
           actions?: Json
+          command?: string | null
+          conversation_context?: Json | null
           created_at?: string
           execution_result?: Json | null
           id?: string
           parsed_entities?: Json | null
+          response?: string | null
           status?: string
           transcript: string
           updated_at?: string
@@ -1553,10 +1559,13 @@ export type Database = {
         }
         Update: {
           actions?: Json
+          command?: string | null
+          conversation_context?: Json | null
           created_at?: string
           execution_result?: Json | null
           id?: string
           parsed_entities?: Json | null
+          response?: string | null
           status?: string
           transcript?: string
           updated_at?: string
