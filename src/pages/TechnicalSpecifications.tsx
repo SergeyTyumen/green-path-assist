@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { format } from 'date-fns';
 import { ru } from 'date-fns/locale';
-import { Download, Eye, FileText, Trash2, Plus, X, Edit3, Sparkles, Mic, MicOff } from 'lucide-react';
+import { Download, Eye, FileText, Trash2, Plus, Edit3, Sparkles, Mic, MicOff } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -488,19 +488,19 @@ const TechnicalSpecifications = () => {
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
         <DialogContent className="max-w-4xl max-h-[80vh]">
           <DialogHeader>
-            <DialogTitle className="flex items-center justify-between">
+            <DialogTitle>
               Редактировать техническое задание
-              <div className="flex gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setShowSmartEdit(!showSmartEdit)}
-                >
-                  <Sparkles className="w-4 h-4 mr-1" />
-                  {showSmartEdit ? 'Ручное редактирование' : 'Умное редактирование'}
-                </Button>
-              </div>
             </DialogTitle>
+            <div className="flex gap-2 mt-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowSmartEdit(!showSmartEdit)}
+              >
+                <Sparkles className="w-4 h-4 mr-1" />
+                {showSmartEdit ? 'Ручное редактирование' : 'Умное редактирование'}
+              </Button>
+            </div>
             <DialogDescription>
               {showSmartEdit 
                 ? 'Опишите, что нужно изменить, и AI внесет точные правки только в указанные поля'

@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { X, Plus, Bot, Loader2 } from 'lucide-react';
+import { Plus, Bot, Loader2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 
@@ -157,14 +157,9 @@ export function AddClientDialog({ isOpen, onClose, onSave, client }: AddClientDi
     <Dialog open={isOpen} onOpenChange={handleClose}>
       <DialogContent className="max-w-2xl max-h-[95vh] h-[95vh] sm:h-auto sm:max-h-[90vh] w-[95vw] sm:w-auto overflow-hidden">
         <DialogHeader>
-          <div className="flex items-center justify-between">
-            <DialogTitle>
-              {client ? 'Редактировать клиента' : 'Добавить нового клиента'}
-            </DialogTitle>
-            <Button variant="ghost" size="sm" onClick={handleClose}>
-              <X className="h-4 w-4" />
-            </Button>
-          </div>
+          <DialogTitle>
+            {client ? 'Редактировать клиента' : 'Добавить нового клиента'}
+          </DialogTitle>
         </DialogHeader>
 
         <ScrollArea className="flex-1 pr-2 sm:pr-4">

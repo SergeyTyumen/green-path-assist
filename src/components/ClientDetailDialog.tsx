@@ -17,7 +17,6 @@ import {
   FileText, 
   User,
   Edit,
-  X,
   Settings,
   MessageSquare
 } from 'lucide-react';
@@ -88,23 +87,16 @@ export function ClientDetailDialog({ client, isOpen, onClose, onEdit, onClientUp
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-4xl max-h-[95vh] h-[95vh] sm:h-auto sm:max-h-[90vh] w-[95vw] sm:w-auto overflow-hidden">
         <DialogHeader>
-          <div className="flex items-center justify-between">
-            <DialogTitle className="flex items-center gap-2">
-              <User className="h-5 w-5" />
-              {client.name}
-            </DialogTitle>
-            <div className="flex items-center gap-2">
-              {onEdit && (
-                <Button variant="outline" size="sm" onClick={() => onEdit(client)}>
-                  <Edit className="h-4 w-4 mr-1" />
-                  Редактировать
-                </Button>
-              )}
-              <Button variant="ghost" size="sm" onClick={onClose}>
-                <X className="h-4 w-4" />
-              </Button>
-            </div>
-          </div>
+          <DialogTitle className="flex items-center gap-2">
+            <User className="h-5 w-5" />
+            {client.name}
+          </DialogTitle>
+          {onEdit && (
+            <Button variant="outline" size="sm" onClick={() => onEdit(client)}>
+              <Edit className="h-4 w-4 mr-1" />
+              Редактировать
+            </Button>
+          )}
         </DialogHeader>
 
         <Tabs defaultValue="overview" className="flex-1 flex flex-col overflow-hidden">
