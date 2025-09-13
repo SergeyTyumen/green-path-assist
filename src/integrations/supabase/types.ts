@@ -1031,6 +1031,8 @@ export type Database = {
         Row: {
           advanced_features: Json | null
           ai_settings: Json | null
+          approved_at: string | null
+          approved_by: string | null
           avatar_url: string | null
           company_name: string | null
           created_at: string
@@ -1039,9 +1041,13 @@ export type Database = {
           full_name: string | null
           id: string
           interaction_mode: string | null
+          invitation_token: string | null
+          invited_at: string | null
+          invited_by: string | null
           phone: string | null
           position: string | null
           preferred_ai_model: string | null
+          status: string | null
           telegram_username: string | null
           updated_at: string
           user_id: string
@@ -1052,6 +1058,8 @@ export type Database = {
         Insert: {
           advanced_features?: Json | null
           ai_settings?: Json | null
+          approved_at?: string | null
+          approved_by?: string | null
           avatar_url?: string | null
           company_name?: string | null
           created_at?: string
@@ -1060,9 +1068,13 @@ export type Database = {
           full_name?: string | null
           id?: string
           interaction_mode?: string | null
+          invitation_token?: string | null
+          invited_at?: string | null
+          invited_by?: string | null
           phone?: string | null
           position?: string | null
           preferred_ai_model?: string | null
+          status?: string | null
           telegram_username?: string | null
           updated_at?: string
           user_id: string
@@ -1073,6 +1085,8 @@ export type Database = {
         Update: {
           advanced_features?: Json | null
           ai_settings?: Json | null
+          approved_at?: string | null
+          approved_by?: string | null
           avatar_url?: string | null
           company_name?: string | null
           created_at?: string
@@ -1081,9 +1095,13 @@ export type Database = {
           full_name?: string | null
           id?: string
           interaction_mode?: string | null
+          invitation_token?: string | null
+          invited_at?: string | null
+          invited_by?: string | null
           phone?: string | null
           position?: string | null
           preferred_ai_model?: string | null
+          status?: string | null
           telegram_username?: string | null
           updated_at?: string
           user_id?: string
@@ -1571,6 +1589,45 @@ export type Database = {
           token?: string
           updated_at?: string
           user_id?: string
+        }
+        Relationships: []
+      }
+      user_registration_requests: {
+        Row: {
+          admin_notes: string | null
+          created_at: string
+          email: string
+          full_name: string
+          id: string
+          message: string | null
+          processed_at: string | null
+          processed_by: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          admin_notes?: string | null
+          created_at?: string
+          email: string
+          full_name: string
+          id?: string
+          message?: string | null
+          processed_at?: string | null
+          processed_by?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          admin_notes?: string | null
+          created_at?: string
+          email?: string
+          full_name?: string
+          id?: string
+          message?: string | null
+          processed_at?: string | null
+          processed_by?: string | null
+          status?: string
+          updated_at?: string
         }
         Relationships: []
       }

@@ -10,6 +10,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { Users, Shield, Search, UserCheck, Crown, Bell } from 'lucide-react';
 import { Navigate, Link } from 'react-router-dom';
 import { NotificationSettings } from '@/components/NotificationSettings';
+import { UserRegistrationManager } from '@/components/UserRegistrationManager';
 
 interface UserProfile {
   id: string;
@@ -327,6 +328,9 @@ const UserManagement = () => {
           <NotificationSettings />
         </CardContent>
       </Card>
+
+      {/* Управление заявками на регистрацию */}
+      <UserRegistrationManager />
 
       {/* Список пользователей */}
       <Card>

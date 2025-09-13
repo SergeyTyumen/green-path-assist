@@ -33,6 +33,7 @@ import AITechnicalSpecialist from "./pages/AITechnicalSpecialistNew";
 import TechnicalSpecifications from "./pages/TechnicalSpecifications";
 import UserManagement from "./pages/UserManagement";
 import UserProfile from "./pages/UserProfile";
+import { RegistrationRequest } from "./pages/RegistrationRequest";
 
 const App = () => (
   <TooltipProvider>
@@ -42,6 +43,7 @@ const App = () => (
       <BrowserRouter>
         <Routes>
           <Route path="/auth" element={<Auth />} />
+          <Route path="/registration-request" element={<RegistrationRequest />} />
           <Route path="/" element={<Layout />}>
             <Route index element={<Dashboard />} />
             <Route path="dashboard" element={<Dashboard />} />

@@ -109,9 +109,8 @@ export function Auth() {
         </CardHeader>
         <CardContent>
           <Tabs defaultValue="signin" className="w-full">
-            <TabsList className="grid w-full grid-cols-2">
-              <TabsTrigger value="signin">Вход</TabsTrigger>
-              <TabsTrigger value="signup">Регистрация</TabsTrigger>
+            <TabsList className="grid w-full grid-cols-1">
+              <TabsTrigger value="signin">Вход в систему</TabsTrigger>
             </TabsList>
             
             <TabsContent value="signin">
@@ -141,46 +140,18 @@ export function Auth() {
                 </Button>
               </form>
             </TabsContent>
-            
-            <TabsContent value="signup">
-              <form onSubmit={handleSignUp} className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="fullName">Полное имя</Label>
-                  <Input
-                    id="fullName"
-                    type="text"
-                    value={fullName}
-                    onChange={(e) => setFullName(e.target.value)}
-                    required
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="email">Email</Label>
-                  <Input
-                    id="email"
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    required
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="password">Пароль</Label>
-                  <Input
-                    id="password"
-                    type="password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    required
-                    minLength={6}
-                  />
-                </div>
-                <Button type="submit" className="w-full" disabled={loading}>
-                  {loading ? "Регистрация..." : "Зарегистрироваться"}
-                </Button>
-              </form>
-            </TabsContent>
           </Tabs>
+
+          <div className="mt-6 text-center">
+            <p className="text-sm text-muted-foreground mb-3">
+              Нет доступа к системе?
+            </p>
+            <Button variant="outline" asChild className="w-full">
+              <a href="/registration-request">
+                Подать заявку на регистрацию
+              </a>
+            </Button>
+          </div>
         </CardContent>
       </Card>
     </div>
