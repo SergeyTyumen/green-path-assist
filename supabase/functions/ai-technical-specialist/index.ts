@@ -182,9 +182,38 @@ ${defaultSettings.normativeSources.map(source => `- ${source}`).join('\n')}
     parsedResponse.specification.id = crypto.randomUUID();
     parsedResponse.specification.created_at = new Date().toISOString();
 
-    // Сохраняем ТЗ в базу данных (опционально)
+    // Сохраняем ТЗ в таблицу technical_specifications
     try {
-      const { error: insertError } = await supabase
+      const specData = parsedResponse.specification;
+      
+      const { data: savedSpec, error: insertError } = await supabase
+        .from('technical_specifications')
+        .insert({
+          user_id: user.id,
+          title: `ТЗ для ${client_name || 'объекта'} от ${new Date().toLocaleDateString()}`,
+          object_description: specData.object_description,
+          client_name: specData.client_name,
+          object_address: specData.object_address,
+          work_scope: specData.work_scope,
+          materials_spec: specData.materials_spec,
+          normative_references: specData.normative_references,
+          quality_requirements: specData.recommendations,
+          timeline: specData.estimated_duration,
+          status: 'draft'
+        })
+        .select()
+        .single();
+
+      if (insertError) {
+        console.error('Error saving to technical_specifications:', insertError);
+      } else {
+        console.log('Technical specification saved successfully:', savedSpec);
+        // Обновляем ID в результате
+        parsedResponse.specification.id = savedSpec.id;
+      }
+
+      // Также сохраняем в историю команд для отслеживания
+      await supabase
         .from('voice_command_history')
         .insert({
           user_id: user.id,
@@ -198,9 +227,6 @@ ${defaultSettings.normativeSources.map(source => `- ${source}`).join('\n')}
           }]
         });
 
-      if (insertError) {
-        console.error('Error saving to database:', insertError);
-      }
     } catch (dbError) {
       console.error('Database error:', dbError);
       // Не прерываем выполнение при ошибке БД
