@@ -369,23 +369,13 @@ const TechnicalSpecifications = () => {
           <DialogHeader>
             <DialogTitle className="flex items-center justify-between">
               {selectedSpec?.title || 'Техническое задание'}
-              <div className="flex gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => handleEdit(selectedSpec)}
-                >
-                  <Edit3 className="w-4 h-4 mr-1" />
-                  Редактировать
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setIsViewDialogOpen(false)}
-                >
-                  <X className="w-4 h-4" />
-                </Button>
-              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setIsViewDialogOpen(false)}
+              >
+                <X className="w-4 h-4" />
+              </Button>
             </DialogTitle>
             <DialogDescription>
               Подробная информация о техническом задании
