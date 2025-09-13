@@ -378,7 +378,7 @@ async function executeFunction(functionName: string, args: any, userId: string, 
       return await getClients(userId, args);
 
     case 'create_technical_specification':
-      return await createTechnicalSpecification(userId, args, userToken);
+      return await createTechnicalSpecification(userId, args, token);
       
     default:
       return { error: `Unknown function: ${functionName}` };
