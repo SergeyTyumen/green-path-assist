@@ -59,12 +59,22 @@ const UserManagement = () => {
     try {
       setLoading(true);
       
-      // Получаем пользователей из auth.users через админский запрос
-      const { data: authUsers, error: authError } = await supabase.auth.admin.listUsers();
-      if (authError) throw authError;
+      // Получаем профили пользователей и их роли
+      const { data: profiles, error: profilesError } = await supabase
+        .from('profiles')
+        .select(`
+          id,
+          user_id,
+          email,
+          full_name,
+          created_at,
+          status
+        `);
+
+      if (profilesError) throw profilesError;
 
       // Получаем роли пользователей
-      const userIds = authUsers.users.map(u => u.id);
+      const userIds = profiles.map(p => p.user_id);
       const { data: userRoles, error: rolesError } = await supabase
         .from('user_roles')
         .select('user_id, role')
@@ -75,12 +85,11 @@ const UserManagement = () => {
       // Объединяем данные
       const rolesMap = new Map(userRoles.map(r => [r.user_id, r.role]));
       
-      const usersWithRoles: UserProfile[] = authUsers.users.map(user => ({
-        id: user.id,
-        email: user.email || '',
-        created_at: user.created_at,
-        last_sign_in_at: user.last_sign_in_at,
-        role: rolesMap.get(user.id) || 'employee'
+      const usersWithRoles: UserProfile[] = profiles.map(profile => ({
+        id: profile.user_id,
+        email: profile.email || profile.full_name || 'Не указано',
+        created_at: profile.created_at,
+        role: rolesMap.get(profile.user_id) || 'employee'
       }));
 
       setUsers(usersWithRoles);
