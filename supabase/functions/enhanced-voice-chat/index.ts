@@ -1158,10 +1158,10 @@ async function saveConversationHistory(userId: string, userMessage: string, aiRe
   }
 }
 
-// Создание технического задания через AI-Технолога
+// Создание или обновление технического задания через AI-Технолога
 async function createTechnicalSpecification(userId: string, args: any, userToken?: string) {
   try {
-    console.log('Creating technical specification via AI-Technical-Specialist:', args);
+    console.log('Creating/updating technical specification via AI-Technical-Specialist:', args);
     
     // Создаем клиент Supabase с service role key для вызова функций
     const supabaseAdmin = createClient(
@@ -1169,11 +1169,30 @@ async function createTechnicalSpecification(userId: string, args: any, userToken
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
     
+    // Проверяем, есть ли уже существующее ТЗ для этого клиента и объекта
+    let existingSpec = null;
+    if (args.client_name) {
+      const { data: existingSpecs } = await supabaseAdmin
+        .from('technical_specifications')
+        .select('*')
+        .eq('user_id', userId)
+        .eq('client_name', args.client_name)
+        .order('created_at', { ascending: false })
+        .limit(1);
+      
+      if (existingSpecs && existingSpecs.length > 0) {
+        existingSpec = existingSpecs[0];
+        console.log('Found existing specification:', existingSpec.id);
+      }
+    }
+    
     const { data, error } = await supabaseAdmin.functions.invoke('ai-technical-specialist', {
       body: {
         object_description: args.object_description,
         client_name: args.client_name,
-        object_address: args.object_address
+        object_address: args.object_address,
+        existing_spec_id: existingSpec?.id, // Передаем ID существующего ТЗ
+        update_mode: !!existingSpec // Флаг что это обновление
       },
       headers: {
         Authorization: `Bearer ${userToken}`
@@ -1189,12 +1208,14 @@ async function createTechnicalSpecification(userId: string, args: any, userToken
       };
     }
 
-    console.log('Technical specification created successfully:', data);
+    console.log('Technical specification processed successfully:', data);
     
+    const action = existingSpec ? 'обновлено' : 'создано';
     return {
       success: true,
       specification: data.specification,
-      message: `✅ Техническое задание создано для объекта: ${args.object_description.substring(0, 50)}...`
+      message: `✅ Техническое задание ${action} для клиента ${args.client_name}`,
+      updated: !!existingSpec
     };
   } catch (error) {
     console.error('Error in createTechnicalSpecification:', error);

@@ -28,7 +28,7 @@ serve(async (req) => {
       throw new Error('Unauthorized');
     }
 
-    const { object_description, client_name, object_address } = await req.json();
+    const { object_description, client_name, object_address, existing_spec_id, update_mode } = await req.json();
 
     if (!object_description) {
       throw new Error('Описание объекта обязательно');
@@ -182,30 +182,61 @@ ${defaultSettings.normativeSources.map(source => `- ${source}`).join('\n')}
     parsedResponse.specification.id = crypto.randomUUID();
     parsedResponse.specification.created_at = new Date().toISOString();
 
-    // Сохраняем ТЗ в таблицу technical_specifications
+    // Сохраняем или обновляем ТЗ в таблицу technical_specifications
     try {
       const specData = parsedResponse.specification;
+      let savedSpec, saveError;
       
-      const { data: savedSpec, error: insertError } = await supabase
-        .from('technical_specifications')
-        .insert({
-          user_id: user.id,
-          title: `ТЗ для ${client_name || 'объекта'} от ${new Date().toLocaleDateString()}`,
-          object_description: specData.object_description,
-          client_name: specData.client_name,
-          object_address: specData.object_address,
-          work_scope: specData.work_scope,
-          materials_spec: specData.materials_spec,
-          normative_references: specData.normative_references,
-          quality_requirements: specData.recommendations,
-          timeline: specData.estimated_duration,
-          status: 'draft'
-        })
-        .select()
-        .single();
+      if (update_mode && existing_spec_id) {
+        // Обновляем существующее ТЗ
+        console.log('Updating existing specification:', existing_spec_id);
+        const { data, error } = await supabase
+          .from('technical_specifications')
+          .update({
+            object_description: specData.object_description,
+            client_name: specData.client_name,
+            object_address: specData.object_address,
+            work_scope: specData.work_scope,
+            materials_spec: specData.materials_spec,
+            normative_references: specData.normative_references,
+            quality_requirements: specData.recommendations,
+            timeline: specData.estimated_duration,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', existing_spec_id)
+          .eq('user_id', user.id)
+          .select()
+          .single();
+        
+        savedSpec = data;
+        saveError = error;
+      } else {
+        // Создаем новое ТЗ
+        console.log('Creating new specification');
+        const { data, error } = await supabase
+          .from('technical_specifications')
+          .insert({
+            user_id: user.id,
+            title: `ТЗ для ${client_name || 'объекта'} от ${new Date().toLocaleDateString()}`,
+            object_description: specData.object_description,
+            client_name: specData.client_name,
+            object_address: specData.object_address,
+            work_scope: specData.work_scope,
+            materials_spec: specData.materials_spec,
+            normative_references: specData.normative_references,
+            quality_requirements: specData.recommendations,
+            timeline: specData.estimated_duration,
+            status: 'draft'
+          })
+          .select()
+          .single();
+        
+        savedSpec = data;
+        saveError = error;
+      }
 
-      if (insertError) {
-        console.error('Error saving to technical_specifications:', insertError);
+      if (saveError) {
+        console.error('Error saving to technical_specifications:', saveError);
       } else {
         console.log('Technical specification saved successfully:', savedSpec);
         // Обновляем ID в результате
