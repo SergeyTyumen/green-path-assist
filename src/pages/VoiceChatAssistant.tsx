@@ -486,6 +486,51 @@ const VoiceChatAssistant = () => {
             title: 'Голос распознан',
             description: `Текст: "${transcript}"`
           });
+
+          // Auto-send in voice mode
+          setTimeout(() => {
+            if (transcript.trim()) {
+              // Directly send the transcript without relying on inputValue state
+              const userMessage = transcript.trim();
+              setInputValue('');
+              
+              addMessage('user', userMessage, true);
+
+              // Add thinking indicator
+              const thinkingMessage: Message = {
+                id: 'thinking',
+                type: 'assistant',
+                content: '',
+                timestamp: new Date(),
+                thinking: true
+              };
+              setMessages(prev => [...prev, thinkingMessage]);
+
+              // Get AI response
+              generateResponse(userMessage).then(async (response) => {
+                setMessages(prev => {
+                  const hasStreamingResponse = prev.some(m => m.id !== 'thinking' && m.type === 'assistant' && m.timestamp.getTime() > thinkingMessage.timestamp.getTime());
+                  if (hasStreamingResponse) {
+                    return prev.filter(m => m.id !== 'thinking');
+                  } else {
+                    return prev.filter(m => m.id !== 'thinking').concat([{
+                      id: Date.now().toString(),
+                      type: 'assistant',
+                      content: response,
+                      timestamp: new Date()
+                    }]);
+                  }
+                });
+                
+                if (isVoiceMode) {
+                  await speakResponse(response);
+                }
+              }).catch(() => {
+                setMessages(prev => prev.filter(m => m.id !== 'thinking'));
+                addMessage('assistant', 'Извините, произошла ошибка. Попробуйте еще раз.');
+              });
+            }
+          }, 500);
         };
 
         recognition.onerror = (event: any) => {
@@ -581,6 +626,51 @@ const VoiceChatAssistant = () => {
                 title: 'Голос распознан (сервер)',
                 description: `Текст: "${transcript}"`
               });
+
+              // Auto-send in voice mode
+              setTimeout(() => {
+                if (transcript.trim()) {
+                  // Directly send the transcript without relying on inputValue state
+                  const userMessage = transcript.trim();
+                  setInputValue('');
+                  
+                  addMessage('user', userMessage, true);
+
+                  // Add thinking indicator
+                  const thinkingMessage: Message = {
+                    id: 'thinking',
+                    type: 'assistant',
+                    content: '',
+                    timestamp: new Date(),
+                    thinking: true
+                  };
+                  setMessages(prev => [...prev, thinkingMessage]);
+
+                  // Get AI response
+                  generateResponse(userMessage).then(async (response) => {
+                    setMessages(prev => {
+                      const hasStreamingResponse = prev.some(m => m.id !== 'thinking' && m.type === 'assistant' && m.timestamp.getTime() > thinkingMessage.timestamp.getTime());
+                      if (hasStreamingResponse) {
+                        return prev.filter(m => m.id !== 'thinking');
+                      } else {
+                        return prev.filter(m => m.id !== 'thinking').concat([{
+                          id: Date.now().toString(),
+                          type: 'assistant',
+                          content: response,
+                          timestamp: new Date()
+                        }]);
+                      }
+                    });
+                    
+                    if (isVoiceMode) {
+                      await speakResponse(response);
+                    }
+                  }).catch(() => {
+                    setMessages(prev => prev.filter(m => m.id !== 'thinking'));
+                    addMessage('assistant', 'Извините, произошла ошибка. Попробуйте еще раз.');
+                  });
+                }
+              }, 500);
             }
           };
           reader.readAsDataURL(audioBlob);
