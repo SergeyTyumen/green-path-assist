@@ -367,15 +367,8 @@ const TechnicalSpecifications = () => {
       <Dialog open={isViewDialogOpen} onOpenChange={setIsViewDialogOpen}>
         <DialogContent className="max-w-4xl max-h-[80vh]">
           <DialogHeader>
-            <DialogTitle className="flex items-center justify-between">
+            <DialogTitle>
               {selectedSpec?.title || 'Техническое задание'}
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setIsViewDialogOpen(false)}
-              >
-                <X className="w-4 h-4" />
-              </Button>
             </DialogTitle>
             <DialogDescription>
               Подробная информация о техническом задании
