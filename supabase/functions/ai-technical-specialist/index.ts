@@ -36,6 +36,18 @@ serve(async (req) => {
 
     console.log('Generating technical specification for user:', user.id);
 
+    // Получаем номенклатуру материалов и услуг пользователя
+    const [materialsResult, servicesResult] = await Promise.all([
+      supabase.from('materials').select('name, category, unit, characteristics, purpose').eq('user_id', user.id),
+      supabase.from('services').select('name, category, unit, description, duration_hours').eq('user_id', user.id)
+    ]);
+
+    const userMaterials = materialsResult.data || [];
+    const userServices = servicesResult.data || [];
+
+    console.log('User materials count:', userMaterials.length);
+    console.log('User services count:', userServices.length);
+
     // Получаем настройки из localStorage (в реальном приложении - из базы данных)
     const defaultSettings = {
       region: "russia",
@@ -51,16 +63,37 @@ serve(async (req) => {
       includeLocalCodes: true
     };
 
-    // Расширенный системный промпт с нормативной базой
+    // Формируем списки номенклатуры для AI
+    const materialsNomenclature = userMaterials.length > 0 
+      ? userMaterials.map(m => `- ${m.name} (${m.category}, ${m.unit}${m.characteristics ? ', ' + m.characteristics : ''}${m.purpose ? ', применение: ' + m.purpose : ''})`).join('\n')
+      : "Номенклатура материалов не загружена";
+
+    const servicesNomenclature = userServices.length > 0
+      ? userServices.map(s => `- ${s.name} (${s.category}, ${s.unit}${s.description ? ', ' + s.description : ''}, время: ${s.duration_hours}ч)`).join('\n')
+      : "Номенклатура услуг не загружена";
+
+    // Расширенный системный промпт с нормативной базой и номенклатурой
     const systemPrompt = `Ты AI-Технолог, специалист по формированию технических заданий для строительных работ.
 
-ВАША ЗАДАЧА: На основе описания объекта сформировать подробное техническое задание согласно российским строительным нормам.
+ВАША ЗАДАЧА: На основе описания объекта сформировать подробное техническое задание согласно российским строительным нормам, ОБЯЗАТЕЛЬНО используя точные наименования из номенклатуры пользователя.
 
 НОРМАТИВНАЯ БАЗА (использовать при формировании ТЗ):
 ${defaultSettings.normativeSources.map(source => `- ${source}`).join('\n')}
 
 РЕГИОН РАБОТЫ: ${defaultSettings.region === 'russia' ? 'Россия (общефедеральные нормы)' : 'Московский регион'}
 ВИДЫ РАБОТ: ${defaultSettings.workTypes.join(', ')}
+
+НОМЕНКЛАТУРА МАТЕРИАЛОВ ПОЛЬЗОВАТЕЛЯ (ОБЯЗАТЕЛЬНО используй ТОЛЬКО эти точные наименования):
+${materialsNomenclature}
+
+НОМЕНКЛАТУРА УСЛУГ ПОЛЬЗОВАТЕЛЯ (ОБЯЗАТЕЛЬНО используй ТОЛЬКО эти точные наименования):
+${servicesNomenclature}
+
+КРИТИЧЕСКИ ВАЖНО:
+- Используй ТОЛЬКО точные наименования материалов и услуг из номенклатуры пользователя
+- НЕ придумывай собственные названия, используй только те, что указаны выше
+- Если нужного материала/услуги нет в номенклатуре, укажи "Требуется добавить в номенклатуру: [название]"
+- При указании работ обязательно ссылайся на конкретные услуги из номенклатуры
 
 БАЗА ЗНАНИЙ (строительные нормы):
 
