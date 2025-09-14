@@ -69,67 +69,37 @@ export function UserRegistrationManager() {
     setActionLoading(true);
     
     try {
-      // Если одобряем заявку, создаем пользователя через AdminAPI
-      if (action === 'approve' && selectedRequest) {
-        // Генерируем временный пароль
-        const tempPassword = Math.random().toString(36).slice(-8) + 'A1!';
-        
-        const { data: authData, error: authError } = await supabase.auth.admin.createUser({
-          email: selectedRequest.email,
-          password: tempPassword,
-          email_confirm: true,
-          user_metadata: {
-            full_name: selectedRequest.full_name
-          }
-        });
+      // Вызываем Edge Function для обработки заявки
+      const { data, error } = await supabase.functions.invoke('process-registration-request', {
+        body: {
+          requestId,
+          action,
+          adminNotes: adminNotes || undefined
+        }
+      });
 
-        if (authError) throw authError;
-
-        // Создаем профиль пользователя
-        const { error: profileError } = await supabase
-          .from('profiles')
-          .insert({
-            user_id: authData.user.id,
-            full_name: selectedRequest.full_name,
-            email: selectedRequest.email,
-            status: 'active',
-            approved_by: user.id,
-            approved_at: new Date().toISOString()
-          });
-
-        if (profileError) throw profileError;
-
-        // Назначаем роль employee по умолчанию
-        const { error: roleError } = await supabase
-          .from('user_roles')
-          .insert({
-            user_id: authData.user.id,
-            role: 'employee'
-          });
-
-        if (roleError) throw roleError;
-
-        // TODO: Отправить email с временным паролем пользователю
-        console.log('Temporary password for', selectedRequest.email, ':', tempPassword);
+      if (error) {
+        console.error('Error calling process-registration-request:', error);
+        throw new Error(error.message || 'Failed to process request');
       }
 
-      // Обновляем статус заявки
-      const { error } = await supabase
-        .from('user_registration_requests')
-        .update({
-          status: action === 'approve' ? 'approved' : 'rejected',
-          admin_notes: adminNotes,
-          processed_by: user.id,
-          processed_at: new Date().toISOString()
-        })
-        .eq('id', requestId);
+      if (!data.success) {
+        throw new Error(data.error || 'Unknown error occurred');
+      }
 
-      if (error) throw error;
-
-      toast({
-        title: "Успешно",
-        description: `Заявка ${action === 'approve' ? 'одобрена' : 'отклонена'}`,
-      });
+      // Показываем результат
+      if (action === 'approve' && data.tempPassword) {
+        toast({
+          title: "Заявка одобрена",
+          description: `Пользователь создан. Временный пароль: ${data.tempPassword}`,
+          duration: 10000, // Показываем дольше для копирования пароля
+        });
+      } else {
+        toast({
+          title: "Успешно",
+          description: `Заявка ${action === 'approve' ? 'одобрена' : 'отклонена'}`,
+        });
+      }
 
       setDialogOpen(false);
       loadRequests();
