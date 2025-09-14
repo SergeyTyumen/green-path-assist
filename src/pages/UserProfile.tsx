@@ -3,13 +3,15 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Edit, Mail, Phone, MessageCircle, User, Building } from 'lucide-react';
+import { Edit, Mail, Phone, MessageCircle, User, Building, Key } from 'lucide-react';
 import { UserProfileDialog } from '@/components/UserProfileDialog';
 import { useProfiles } from '@/hooks/useProfiles';
+import { useNavigate } from 'react-router-dom';
 
 export default function UserProfile() {
   const { profiles, currentProfile, loading } = useProfiles();
   const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const navigate = useNavigate();
 
   if (loading) {
     return (
@@ -23,10 +25,16 @@ export default function UserProfile() {
     <div className="p-6 space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-3xl font-bold">Профили пользователей</h1>
-        <Button onClick={() => setEditDialogOpen(true)}>
-          <Edit className="h-4 w-4 mr-2" />
-          Редактировать мой профиль
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={() => navigate('/reset-password')}>
+            <Key className="h-4 w-4 mr-2" />
+            Сменить пароль
+          </Button>
+          <Button onClick={() => setEditDialogOpen(true)}>
+            <Edit className="h-4 w-4 mr-2" />
+            Редактировать мой профиль
+          </Button>
+        </div>
       </div>
 
       {/* Мой профиль */}
