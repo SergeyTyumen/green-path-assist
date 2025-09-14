@@ -4,7 +4,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 
@@ -62,52 +61,44 @@ export function Auth() {
         <CardHeader className="text-center">
           <CardTitle>Ландшафтная CRM</CardTitle>
           <CardDescription>
-            Войдите или создайте аккаунт для продолжения
+            Войдите в систему для продолжения
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <Tabs defaultValue="signin" className="w-full">
-            <TabsList className="grid w-full grid-cols-1">
-              <TabsTrigger value="signin">Вход в систему</TabsTrigger>
-            </TabsList>
+          <form onSubmit={handleSignIn} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="email">Email</Label>
+              <Input
+                id="email"
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="password">Пароль</Label>
+              <Input
+                id="password"
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+              />
+            </div>
+            <Button type="submit" className="w-full" disabled={loading}>
+              {loading ? "Вход..." : "Войти"}
+            </Button>
             
-            <TabsContent value="signin">
-              <form onSubmit={handleSignIn} className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="email">Email</Label>
-                  <Input
-                    id="email"
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    required
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="password">Пароль</Label>
-                  <Input
-                    id="password"
-                    type="password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    required
-                  />
-                </div>
-                <Button type="submit" className="w-full" disabled={loading}>
-                  {loading ? "Вход..." : "Войти"}
-                </Button>
-                
-                <div className="text-center">
-                  <a 
-                    href="/forgot-password" 
-                    className="text-sm text-primary hover:underline"
-                  >
-                    Забыли пароль?
-                  </a>
-                </div>
-              </form>
-            </TabsContent>
-          </Tabs>
+            <div className="text-center">
+              <a 
+                href="/forgot-password" 
+                className="text-sm text-primary hover:underline"
+              >
+                Забыли пароль?
+              </a>
+            </div>
+          </form>
 
           <div className="mt-6 text-center">
             <p className="text-sm text-muted-foreground mb-3">
