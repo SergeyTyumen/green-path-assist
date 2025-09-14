@@ -67,6 +67,7 @@ export function TaskDialog({ task, trigger, onClose }: TaskDialogProps) {
       ...formData,
       due_date: formData.due_date?.toISOString().split('T')[0],
       client_id: (formData.client_id === "none" || formData.client_id === "") ? null : formData.client_id,
+      assignee: (formData.assignee === "none" || formData.assignee === "") ? "" : formData.assignee,
     };
 
     if (task) {
@@ -158,7 +159,7 @@ export function TaskDialog({ task, trigger, onClose }: TaskDialogProps) {
                   <SelectValue placeholder="Кому назначена задача" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Без исполнителя</SelectItem>
+                  <SelectItem value="none">Без исполнителя</SelectItem>
                   {profiles.map((profile) => (
                     <SelectItem key={profile.user_id} value={profile.full_name || profile.email || 'Без имени'}>
                       {profile.full_name || profile.email || 'Без имени'}
