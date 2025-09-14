@@ -1798,6 +1798,22 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      can_user_create_tasks: {
+        Args: { _user_id: string }
+        Returns: boolean
+      }
+      can_user_delete_tasks: {
+        Args: { _user_id: string }
+        Returns: boolean
+      }
+      can_user_edit_tasks: {
+        Args: { _user_id: string }
+        Returns: boolean
+      }
+      can_user_view_tasks: {
+        Args: { _user_id: string }
+        Returns: boolean
+      }
       has_module_permission: {
         Args: {
           _module_name: string
