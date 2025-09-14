@@ -145,6 +145,37 @@ async function updateTaskStatus(taskId: string, status: string, userId: string) 
   return data;
 }
 
+// Обновление ответственного за задачу
+async function updateTaskAssignee(taskId: string, assignee: string, userId: string) {
+  console.log('Updating task assignee:', { taskId, assignee });
+  const { data, error } = await supabase
+    .from('tasks')
+    .update({ 
+      assignee,
+      updated_at: new Date().toISOString()
+    })
+    .eq('id', taskId)
+    .eq('user_id', userId)
+    .select()
+    .single();
+  
+  if (error) throw error;
+  return data;
+}
+
+// Поиск задач по названию
+async function findTasksByTitle(title: string, userId: string) {
+  console.log('Searching for tasks by title:', title);
+  const { data, error } = await supabase
+    .from('tasks')
+    .select('*')
+    .eq('user_id', userId)
+    .ilike('title', `%${title}%`);
+  
+  if (error) throw error;
+  return data;
+}
+
 // Поиск задач клиента
 async function findClientTasks(clientId: string, userId: string) {
   console.log('Finding tasks for client:', clientId);
@@ -640,6 +671,35 @@ serve(async (req) => {
       {
         type: "function",
         function: {
+          name: "update_task_assignee",
+          description: "Назначить ответственного за задачу",
+          parameters: {
+            type: "object",
+            properties: {
+              task_id: { type: "string", description: "ID задачи" },
+              assignee: { type: "string", description: "Имя ответственного за задачу" }
+            },
+            required: ["task_id", "assignee"]
+          }
+        }
+      },
+      {
+        type: "function",
+        function: {
+          name: "find_tasks_by_title",
+          description: "Найти задачи по названию или части названия",
+          parameters: {
+            type: "object",
+            properties: {
+              title: { type: "string", description: "Название задачи или его часть для поиска" }
+            },
+            required: ["title"]
+          }
+        }
+      },
+      {
+        type: "function",
+        function: {
           name: "find_client_tasks",
           description: "Найти все задачи конкретного клиента",
           parameters: {
@@ -1093,11 +1153,15 @@ const systemPrompt = `Ты — голосовой ассистент руков�
 - Если клиент найден, обязательно указывай client_id в create_task
 - При закрытии/завершении задач используй update_task_status с соответствующим статусом
 - Для поиска задач клиента используй find_client_tasks
+- Для назначения ответственного ИСПОЛЬЗУЙ update_task_assignee, НЕ создавай новую задачу
+- Для поиска задач по названию используй find_tasks_by_title
 
 КОНТЕКСТ УПРАВЛЕНИЯ ЗАДАЧАМИ:
 - "закрой задачу" / "завершена встреча с клиентом X" → find_client + find_client_tasks + update_task_status на "completed"
 - "задача выполнена" → update_task_status на "completed"
 - "начал работу над задачей" → update_task_status на "in-progress"
+- "назначь ответственным [имя] за задачу [название]" → find_tasks_by_title + update_task_assignee
+- "кто ответственный за задачу [название]" → find_tasks_by_title (покажи информацию о задаче включая assignee)
 
 АНАЛИТИКА:
 - "что с клиентом X" → find_client + find_client_tasks
@@ -1184,6 +1248,21 @@ const systemPrompt = `Ты — голосовой ассистент руков�
             case 'update_task_status':
               result = await updateTaskStatus(functionArgs.task_id, functionArgs.status, userId);
               functionResults.push(`Статус задачи "${result.title}" обновлен на "${functionArgs.status}"`);
+              break;
+              
+            case 'update_task_assignee':
+              result = await updateTaskAssignee(functionArgs.task_id, functionArgs.assignee, userId);
+              functionResults.push(`Ответственным за задачу "${result.title}" назначен: ${functionArgs.assignee}`);
+              break;
+              
+            case 'find_tasks_by_title':
+              result = await findTasksByTitle(functionArgs.title, userId);
+              if (result.length > 0) {
+                const tasksInfo = result.map(task => `"${task.title}" (ID: ${task.id}, Ответственный: ${task.assignee || 'не назначен'})`).join(', ');
+                functionResults.push(`Найдено ${result.length} задач(и): ${tasksInfo}`);
+              } else {
+                functionResults.push(`Задачи с названием "${functionArgs.title}" не найдены`);
+              }
               break;
               
               
