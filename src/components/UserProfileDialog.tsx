@@ -5,6 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useProfiles, Profile } from '@/hooks/useProfiles';
 import { useToast } from '@/hooks/use-toast';
+import { AvatarUpload } from '@/components/AvatarUpload';
 
 interface UserProfileDialogProps {
   open: boolean;
@@ -21,7 +22,8 @@ export function UserProfileDialog({ open, onOpenChange }: UserProfileDialogProps
     position: '',
     department: '',
     telegram_username: '',
-    whatsapp_phone: ''
+    whatsapp_phone: '',
+    avatar_url: ''
   });
 
   useEffect(() => {
@@ -33,7 +35,8 @@ export function UserProfileDialog({ open, onOpenChange }: UserProfileDialogProps
         position: currentProfile.position || '',
         department: currentProfile.department || '',
         telegram_username: currentProfile.telegram_username || '',
-        whatsapp_phone: currentProfile.whatsapp_phone || ''
+        whatsapp_phone: currentProfile.whatsapp_phone || '',
+        avatar_url: currentProfile.avatar_url || ''
       });
     }
   }, [currentProfile]);
@@ -70,7 +73,15 @@ export function UserProfileDialog({ open, onOpenChange }: UserProfileDialogProps
           <DialogTitle>Мой профиль</DialogTitle>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-6">
+          <div className="flex justify-center">
+            <AvatarUpload
+              currentAvatarUrl={formData.avatar_url}
+              onAvatarChange={(url) => setFormData({ ...formData, avatar_url: url })}
+              fullName={formData.full_name}
+            />
+          </div>
+
           <div className="grid grid-cols-2 gap-4">
             <div>
               <Label htmlFor="full_name">Полное имя</Label>

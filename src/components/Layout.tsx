@@ -5,9 +5,12 @@ import { AppSidebar } from "@/components/AppSidebar";
 import { Button } from "@/components/ui/button";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { useAuth } from "@/hooks/useAuth";
+import { useProfiles } from "@/hooks/useProfiles";
+import { AvatarUpload } from "@/components/AvatarUpload";
 
 export function Layout() {
   const { user, signOut } = useAuth();
+  const { currentProfile } = useProfiles();
 
   return (
     <ProtectedRoute>
@@ -27,8 +30,14 @@ export function Layout() {
               </div>
               
               <div className="flex items-center gap-1 sm:gap-2 min-w-0">
+                <AvatarUpload
+                  currentAvatarUrl={currentProfile?.avatar_url}
+                  onAvatarChange={() => {}}
+                  fullName={currentProfile?.full_name}
+                  size="sm"
+                />
                 <div className="text-xs sm:text-sm font-medium text-foreground truncate max-w-[120px] sm:max-w-none">
-                  {user?.email}
+                  {currentProfile?.full_name || user?.email}
                 </div>
                 <Button
                   variant="ghost"
