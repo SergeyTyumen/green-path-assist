@@ -127,7 +127,7 @@ const VoiceAssistant = () => {
 
   const createTaskForUser = async (message: string, userName: string) => {
     try {
-      // Находим пользователя по имени
+      // Находим пользователя по имени (ищем среди профилей)
       const user = profiles.find(profile => 
         profile.full_name?.toLowerCase().includes(userName.toLowerCase()) ||
         profile.full_name?.toLowerCase().includes('сергей') ||
@@ -146,10 +146,13 @@ const VoiceAssistant = () => {
         taskTitle = 'Задача от голосового помощника';
       }
 
+      // Используем имя из профиля, если пользователь найден
+      const assigneeName = user?.full_name || userName;
+
       const taskData = {
         title: taskTitle,
         description: `Задача создана голосовым помощником.\nОригинальная команда: "${message}"`,
-        assignee: userName,
+        assignee: assigneeName, // Используем полное имя из профиля
         status: 'pending' as const,
         priority: 'medium' as const,
         category: 'other' as const,
@@ -160,11 +163,11 @@ const VoiceAssistant = () => {
       const newTask = await createTask(taskData);
       
       if (newTask) {
-        addMessage('assistant', `✅ Задача успешно создана!\n\n📋 Название: "${taskTitle}"\n👤 Исполнитель: ${userName}\n📅 Срок: сегодня\n🔔 Уведомление отправлено`);
+        addMessage('assistant', `✅ Задача успешно создана!\n\n📋 Название: "${taskTitle}"\n👤 Исполнитель: ${assigneeName}\n📅 Срок: сегодня\n🔔 Уведомление отправлено`);
         
         toast({
           title: "Задача создана",
-          description: `Задача "${taskTitle}" назначена пользователю ${userName}`,
+          description: `Задача "${taskTitle}" назначена пользователю ${assigneeName}`,
         });
       } else {
         addMessage('assistant', 'Извините, произошла ошибка при создании задачи. Попробуйте еще раз.');

@@ -150,12 +150,22 @@ export function TaskDialog({ task, trigger, onClose }: TaskDialogProps) {
             </div>
             <div className="space-y-2">
               <Label htmlFor="assignee">Исполнитель</Label>
-              <Input
-                id="assignee"
+              <Select
                 value={formData.assignee}
-                onChange={(e) => setFormData({ ...formData, assignee: e.target.value })}
-                placeholder="Кому назначена задача"
-              />
+                onValueChange={(value) => setFormData({ ...formData, assignee: value })}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Кому назначена задача" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">Без исполнителя</SelectItem>
+                  {profiles.map((profile) => (
+                    <SelectItem key={profile.user_id} value={profile.full_name || profile.email || 'Без имени'}>
+                      {profile.full_name || profile.email || 'Без имени'}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           </div>
 
