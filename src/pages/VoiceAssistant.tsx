@@ -7,6 +7,8 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Mic, MicOff, Send, Volume2, VolumeX, Settings } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 import { useConversation } from "@11labs/react";
+import { useTasks } from "@/hooks/useTasks";
+import { useProfiles } from "@/hooks/useProfiles";
 
 interface Message {
   id: string;
@@ -18,6 +20,8 @@ interface Message {
 
 const VoiceAssistant = () => {
   const { toast } = useToast();
+  const { createTask } = useTasks();
+  const { profiles } = useProfiles();
   const [messages, setMessages] = useState<Message[]>([
     {
       id: '1',
@@ -121,6 +125,56 @@ const VoiceAssistant = () => {
     }, 500);
   };
 
+  const createTaskForUser = async (message: string, userName: string) => {
+    try {
+      // Находим пользователя по имени
+      const user = profiles.find(profile => 
+        profile.full_name?.toLowerCase().includes(userName.toLowerCase()) ||
+        profile.full_name?.toLowerCase().includes('сергей') ||
+        profile.full_name?.toLowerCase().includes('гаврилюк')
+      );
+
+      // Извлекаем суть задачи из сообщения
+      let taskTitle = message;
+      if (message.toLowerCase().includes('поставь задачу')) {
+        taskTitle = message.replace(/поставь задачу/gi, '').replace(/для.*$/gi, '').trim();
+      } else if (message.toLowerCase().includes('создай задачу')) {
+        taskTitle = message.replace(/создай задачу/gi, '').replace(/для.*$/gi, '').trim();
+      }
+      
+      if (!taskTitle || taskTitle.length < 3) {
+        taskTitle = 'Задача от голосового помощника';
+      }
+
+      const taskData = {
+        title: taskTitle,
+        description: `Задача создана голосовым помощником.\nОригинальная команда: "${message}"`,
+        assignee: userName,
+        status: 'pending' as const,
+        priority: 'medium' as const,
+        category: 'other' as const,
+        due_date: new Date().toISOString().split('T')[0], // сегодня
+        is_public: false,
+      };
+
+      const newTask = await createTask(taskData);
+      
+      if (newTask) {
+        addMessage('assistant', `✅ Задача успешно создана!\n\n📋 Название: "${taskTitle}"\n👤 Исполнитель: ${userName}\n📅 Срок: сегодня\n🔔 Уведомление отправлено`);
+        
+        toast({
+          title: "Задача создана",
+          description: `Задача "${taskTitle}" назначена пользователю ${userName}`,
+        });
+      } else {
+        addMessage('assistant', 'Извините, произошла ошибка при создании задачи. Попробуйте еще раз.');
+      }
+    } catch (error) {
+      console.error('Error creating task:', error);
+      addMessage('assistant', 'Произошла ошибка при создании задачи. Проверьте права доступа и попробуйте снова.');
+    }
+  };
+
   const handleCommand = (message: string) => {
     const lowerMessage = message.toLowerCase();
     
@@ -150,6 +204,18 @@ const VoiceAssistant = () => {
     
     if (lowerMessage.includes('кп') || lowerMessage.includes('коммерческое предложение')) {
       addMessage('assistant', 'Формирую коммерческое предложение на газон и автополив для участка 6 соток...\n\nОсновные позиции:\n• Планировка и подготовка: 95,000 руб\n• Рулонный газон: 180,000 руб\n• Система автополива: 165,000 руб\n• Материалы и работы: 75,000 руб\n\nИтого: 515,000 руб\n\nПередаю задачу ИИ-помощнику для детальной проработки.');
+      return;
+    }
+    
+    // Обработка команд создания задач
+    if (lowerMessage.includes('поставь задачу') || lowerMessage.includes('создай задачу')) {
+      // Ищем имя Сергей Гаврилюк или варианты
+      if (lowerMessage.includes('сергей') || lowerMessage.includes('гаврилюк')) {
+        createTaskForUser(message, 'Сергей Гаврилюк');
+        return;
+      }
+      
+      addMessage('assistant', 'Понял команду создания задачи. Уточните, кому назначить задачу и какое содержание?');
       return;
     }
     
