@@ -23,6 +23,8 @@ export function RegistrationRequest() {
     setLoading(true);
 
     try {
+      console.log('Submitting registration request:', { email, fullName, message });
+      
       const { data, error } = await supabase
         .from('user_registration_requests')
         .insert({
@@ -33,7 +35,10 @@ export function RegistrationRequest() {
         .select()
         .single();
 
+      console.log('Insert result:', { data, error });
+
       if (error) {
+        console.error('Database insert error:', error);
         if (error.code === '23505') {
           toast({
             title: "Заявка уже существует",
@@ -44,9 +49,12 @@ export function RegistrationRequest() {
           throw error;
         }
       } else {
-        // Отправляем уведомление администраторам
+        console.log('Registration request created successfully:', data);
+        
+        // Отправляем уведомление администраторам (необязательно)
         try {
-          await supabase.functions.invoke('notify-admin', {
+          console.log('Sending notification to admins...');
+          const { data: notifyResult, error: notifyError } = await supabase.functions.invoke('notify-admin', {
             body: {
               type: 'new_registration_request',
               data: {
@@ -56,8 +64,15 @@ export function RegistrationRequest() {
               }
             }
           });
+          
+          console.log('Notification result:', { notifyResult, notifyError });
+          
+          if (notifyError) {
+            console.error('Failed to notify admins:', notifyError);
+            // Не блокируем процесс, если уведомление не отправилось
+          }
         } catch (notifyError) {
-          console.error('Failed to notify admins:', notifyError);
+          console.error('Failed to send notification:', notifyError);
           // Не блокируем процесс, если уведомление не отправилось
         }
 
@@ -71,7 +86,7 @@ export function RegistrationRequest() {
       console.error('Error submitting registration request:', error);
       toast({
         title: "Ошибка",
-        description: "Не удалось отправить заявку. Попробуйте еще раз.",
+        description: `Не удалось отправить заявку: ${error.message}`,
         variant: "destructive",
       });
     } finally {

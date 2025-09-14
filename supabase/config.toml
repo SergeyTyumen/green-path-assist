@@ -47,3 +47,6 @@ verify_jwt = true
 
 [functions.send-confirmation-email]
 verify_jwt = false
+
+[functions.notify-admin]
+verify_jwt = false
