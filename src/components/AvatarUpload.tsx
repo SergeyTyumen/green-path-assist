@@ -6,7 +6,7 @@ import { Camera, Upload, Crop as CropIcon, X } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
-import ReactCrop, { Crop, PixelCrop } from 'react-image-crop';
+import ReactCrop, { Crop as CropType, PixelCrop } from 'react-image-crop';
 import 'react-image-crop/dist/ReactCrop.css';
 
 interface AvatarUploadProps {
@@ -27,7 +27,7 @@ export function AvatarUpload({
   const [uploading, setUploading] = useState(false);
   const [showCropDialog, setShowCropDialog] = useState(false);
   const [imageToCrop, setImageToCrop] = useState<string>('');
-  const [crop, setCrop] = useState<Crop>({
+  const [crop, setCrop] = useState<CropType>({
     unit: '%',
     width: 90,
     height: 90,
@@ -179,7 +179,7 @@ export function AvatarUpload({
 
   const onImageLoad = useCallback((e: React.SyntheticEvent<HTMLImageElement>) => {
     const { width, height } = e.currentTarget;
-    const crop: Crop = {
+    const crop: CropType = {
       unit: '%',
       width: 90,
       height: 90,
