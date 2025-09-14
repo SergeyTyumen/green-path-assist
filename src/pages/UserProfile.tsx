@@ -5,6 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Edit, Mail, Phone, MessageCircle, User, Building, Key } from 'lucide-react';
 import { UserProfileDialog } from '@/components/UserProfileDialog';
+import { ClickablePhone } from '@/components/ClickablePhone';
 import { useProfiles } from '@/hooks/useProfiles';
 import { useNavigate } from 'react-router-dom';
 
@@ -68,28 +69,42 @@ export default function UserProfile() {
 
                 <div className="flex flex-wrap gap-4 text-sm">
                   {currentProfile.email && (
-                    <div className="flex items-center gap-1">
+                    <a 
+                      href={`mailto:${currentProfile.email}`}
+                      className="flex items-center gap-1 hover:text-primary transition-colors cursor-pointer"
+                    >
                       <Mail className="h-4 w-4" />
                       {currentProfile.email}
-                    </div>
+                    </a>
                   )}
                   {currentProfile.phone && (
-                    <div className="flex items-center gap-1">
-                      <Phone className="h-4 w-4" />
-                      {currentProfile.phone}
-                    </div>
+                    <ClickablePhone 
+                      phone={currentProfile.phone} 
+                      variant="text" 
+                      className="text-sm"
+                    />
                   )}
                   {currentProfile.telegram_username && (
-                    <div className="flex items-center gap-1">
+                    <a 
+                      href={`https://t.me/${currentProfile.telegram_username.replace('@', '')}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-1 hover:text-primary transition-colors cursor-pointer"
+                    >
                       <MessageCircle className="h-4 w-4" />
                       Telegram: {currentProfile.telegram_username}
-                    </div>
+                    </a>
                   )}
                   {currentProfile.whatsapp_phone && (
-                    <div className="flex items-center gap-1">
+                    <a 
+                      href={`https://wa.me/${currentProfile.whatsapp_phone.replace(/\D/g, '')}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-1 hover:text-primary transition-colors cursor-pointer"
+                    >
                       <MessageCircle className="h-4 w-4" />
                       WhatsApp: {currentProfile.whatsapp_phone}
-                    </div>
+                    </a>
                   )}
                 </div>
               </div>
@@ -141,16 +156,43 @@ export default function UserProfile() {
                       
                       <div className="mt-2 space-y-1 text-xs text-muted-foreground">
                         {profile.email && (
-                          <div className="flex items-center gap-1">
+                          <a 
+                            href={`mailto:${profile.email}`}
+                            className="flex items-center gap-1 hover:text-primary transition-colors cursor-pointer"
+                          >
                             <Mail className="h-3 w-3" />
                             <span className="truncate">{profile.email}</span>
-                          </div>
+                          </a>
                         )}
                         {profile.phone && (
-                          <div className="flex items-center gap-1">
-                            <Phone className="h-3 w-3" />
-                            <span>{profile.phone}</span>
-                          </div>
+                          <ClickablePhone 
+                            phone={profile.phone} 
+                            variant="text" 
+                            className="text-xs text-muted-foreground"
+                            showIcon={true}
+                          />
+                        )}
+                        {profile.telegram_username && (
+                          <a 
+                            href={`https://t.me/${profile.telegram_username.replace('@', '')}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex items-center gap-1 hover:text-primary transition-colors cursor-pointer"
+                          >
+                            <MessageCircle className="h-3 w-3" />
+                            <span className="truncate">Telegram: {profile.telegram_username}</span>
+                          </a>
+                        )}
+                        {profile.whatsapp_phone && (
+                          <a 
+                            href={`https://wa.me/${profile.whatsapp_phone.replace(/\D/g, '')}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex items-center gap-1 hover:text-primary transition-colors cursor-pointer"
+                          >
+                            <MessageCircle className="h-3 w-3" />
+                            <span className="truncate">WhatsApp: {profile.whatsapp_phone}</span>
+                          </a>
                         )}
                       </div>
                     </div>
