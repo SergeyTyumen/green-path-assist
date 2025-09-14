@@ -30,25 +30,30 @@ async function generateTempPassword(): Promise<string> {
 
 async function verifyAdminUser(authToken: string): Promise<string | null> {
   try {
+    // Извлекаем JWT токен из заголовка Authorization
+    const token = authToken.replace('Bearer ', '');
+    
     // Создаем клиент с токеном пользователя
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_ANON_KEY') ?? '',
       {
         global: {
-          headers: { Authorization: authToken },
+          headers: { Authorization: `Bearer ${token}` },
         },
       }
     );
 
-    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    const { data: { user }, error: userError } = await supabase.auth.getUser(token);
     if (userError || !user) {
       console.error('User verification failed:', userError);
       return null;
     }
 
-    // Проверяем роль админа
-    const { data: roleData, error: roleError } = await supabaseClient
+    console.log(`Verifying admin role for user: ${user.id}`);
+
+    // Проверяем роль админа через admin клиент (без RLS ограничений)
+    const { data: roleData, error: roleError } = await supabaseAdmin
       .from('user_roles')
       .select('role')
       .eq('user_id', user.id)
@@ -60,6 +65,7 @@ async function verifyAdminUser(authToken: string): Promise<string | null> {
       return null;
     }
 
+    console.log(`Admin role verified for user: ${user.id}`);
     return user.id;
   } catch (error) {
     console.error('Admin verification error:', error);
