@@ -11,6 +11,7 @@ import { Users, Shield, Search, UserCheck, Crown, Bell } from 'lucide-react';
 import { Navigate, Link } from 'react-router-dom';
 import { NotificationSettings } from '@/components/NotificationSettings';
 import { UserRegistrationManager } from '@/components/UserRegistrationManager';
+import { PermissionsManager } from '@/components/PermissionsManager';
 
 interface UserProfile {
   id: string;
@@ -27,6 +28,8 @@ const UserManagement = () => {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [isAdmin, setIsAdmin] = useState(false);
+  const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
+  const [selectedUserName, setSelectedUserName] = useState<string | null>(null);
 
   useEffect(() => {
     checkAdminRole();
@@ -320,26 +323,34 @@ const UserManagement = () => {
         </Card>
       </div>
 
-      {/* Настройки уведомлений */}
-      <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Bell className="h-5 w-5 text-primary" />
-              <CardTitle>Настройки уведомлений</CardTitle>
-            </div>
-          </div>
-          <CardDescription>
-            Настройка push-уведомлений для мобильного приложения
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <NotificationSettings />
-        </CardContent>
-      </Card>
+      {/* Настройки системы */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="space-y-6">
+          <Card>
+            <CardHeader>
+              <div className="flex items-center gap-2">
+                <Bell className="h-5 w-5 text-primary" />
+                <CardTitle>Настройки уведомлений</CardTitle>
+              </div>
+              <CardDescription>
+                Настройка push-уведомлений для мобильного приложения
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <NotificationSettings />
+            </CardContent>
+          </Card>
 
-      {/* Управление заявками на регистрацию */}
-      <UserRegistrationManager />
+          <UserRegistrationManager />
+        </div>
+
+        <div>
+          <PermissionsManager 
+            userId={selectedUserId || undefined}
+            userName={selectedUserName || undefined}
+          />
+        </div>
+      </div>
 
       {/* Список пользователей */}
       <Card>
@@ -375,6 +386,16 @@ const UserManagement = () => {
                 </div>
                 
                 <div className="flex items-center gap-2">
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={() => {
+                      setSelectedUserId(user.id);
+                      setSelectedUserName(user.email);
+                    }}
+                  >
+                    Права доступа
+                  </Button>
                   <Select
                     value={user.role}
                     onValueChange={(value: 'employee' | 'manager' | 'admin') => updateUserRole(user.id, value)}

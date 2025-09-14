@@ -1424,6 +1424,30 @@ export type Database = {
         }
         Relationships: []
       }
+      task_assignees: {
+        Row: {
+          assigned_at: string
+          assigned_by: string
+          id: string
+          task_id: string
+          user_id: string
+        }
+        Insert: {
+          assigned_at?: string
+          assigned_by: string
+          id?: string
+          task_id: string
+          user_id: string
+        }
+        Update: {
+          assigned_at?: string
+          assigned_by?: string
+          id?: string
+          task_id?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       tasks: {
         Row: {
           ai_agent: string | null
@@ -1434,6 +1458,7 @@ export type Database = {
           description: string | null
           due_date: string | null
           id: string
+          is_public: boolean | null
           priority: string
           status: string
           title: string
@@ -1449,6 +1474,7 @@ export type Database = {
           description?: string | null
           due_date?: string | null
           id?: string
+          is_public?: boolean | null
           priority?: string
           status?: string
           title: string
@@ -1464,6 +1490,7 @@ export type Database = {
           description?: string | null
           due_date?: string | null
           id?: string
+          is_public?: boolean | null
           priority?: string
           status?: string
           title?: string
@@ -1560,6 +1587,45 @@ export type Database = {
           is_default?: boolean | null
           name?: string
           type?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      user_permissions: {
+        Row: {
+          can_create: boolean | null
+          can_delete: boolean | null
+          can_edit: boolean | null
+          can_view: boolean | null
+          created_at: string
+          created_by: string
+          id: string
+          module_name: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          can_create?: boolean | null
+          can_delete?: boolean | null
+          can_edit?: boolean | null
+          can_view?: boolean | null
+          created_at?: string
+          created_by: string
+          id?: string
+          module_name: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          can_create?: boolean | null
+          can_delete?: boolean | null
+          can_edit?: boolean | null
+          can_view?: boolean | null
+          created_at?: string
+          created_by?: string
+          id?: string
+          module_name?: string
           updated_at?: string
           user_id?: string
         }
@@ -1732,6 +1798,14 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      has_module_permission: {
+        Args: {
+          _module_name: string
+          _permission_type: string
+          _user_id: string
+        }
+        Returns: boolean
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]

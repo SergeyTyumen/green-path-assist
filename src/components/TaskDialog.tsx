@@ -7,12 +7,15 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Badge } from "@/components/ui/badge";
 import { format } from "date-fns";
 import { CalendarIcon, Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Task, useTasks } from "@/hooks/useTasks";
 import { useClients } from "@/hooks/useClients";
 import { useNotifications } from "@/hooks/useNotifications";
+import { useTaskAssignees } from "@/hooks/useTaskAssignees";
+import { useProfiles } from "@/hooks/useProfiles";
 
 interface TaskDialogProps {
   task?: Task;
@@ -32,6 +35,8 @@ export function TaskDialog({ task, trigger, onClose }: TaskDialogProps) {
     priority: "medium" as Task["priority"],
     category: "other" as Task["category"],
     due_date: undefined as Date | undefined,
+    is_public: false,
+    assignees: [] as string[],
   });
 
   const [formData, setFormData] = useState(() => 
@@ -44,12 +49,16 @@ export function TaskDialog({ task, trigger, onClose }: TaskDialogProps) {
       priority: task.priority,
       category: task.category,
       due_date: task.due_date ? new Date(task.due_date) : undefined,
+      is_public: (task as any)?.is_public || false,
+      assignees: [] as string[],
     } : resetForm()
   );
 
   const { createTask, updateTask } = useTasks();
   const { clients } = useClients();
   const { scheduleTaskNotification, notifyNewTask, cancelTaskNotifications } = useNotifications();
+  const { assignUser } = useTaskAssignees(task?.id);
+  const { profiles } = useProfiles();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -70,6 +79,17 @@ export function TaskDialog({ task, trigger, onClose }: TaskDialogProps) {
     } else {
       const newTask = await createTask(taskData);
       if (newTask) {
+        // Назначаем ответственных, если задача создана
+        if (formData.assignees.length > 0) {
+          for (const userId of formData.assignees) {
+            try {
+              await assignUser(userId);
+            } catch (error) {
+              console.error('Error assigning user:', error);
+            }
+          }
+        }
+        
         // Уведомляем о новой задаче и планируем напоминания
         await notifyNewTask(newTask);
         if (taskData.due_date) {
@@ -107,7 +127,7 @@ export function TaskDialog({ task, trigger, onClose }: TaskDialogProps) {
           </Button>
         )}
       </DialogTrigger>
-      <DialogContent className="sm:max-w-[600px]">
+      <DialogContent className="sm:max-w-[700px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>
             {task ? "Редактировать задачу" : "Создать новую задачу"}
@@ -250,6 +270,85 @@ export function TaskDialog({ task, trigger, onClose }: TaskDialogProps) {
               </Select>
             </div>
           </div>
+
+          {/* Тип задачи */}
+          <div className="space-y-2">
+            <Label>Тип задачи</Label>
+            <div className="flex items-center space-x-2">
+              <input
+                type="checkbox"
+                id="is_public"
+                checked={formData.is_public}
+                onChange={(e) => setFormData({ ...formData, is_public: e.target.checked })}
+                className="rounded"
+              />
+              <Label htmlFor="is_public" className="text-sm font-normal">
+                Общая задача (видна всем сотрудникам)
+              </Label>
+            </div>
+          </div>
+
+          {/* Назначить ответственных */}
+          {!task && (
+            <div className="space-y-2">
+              <Label>Назначить ответственных</Label>
+              <Select
+                value=""
+                onValueChange={(value) => {
+                  if (value && !formData.assignees.includes(value)) {
+                    setFormData({ 
+                      ...formData, 
+                      assignees: [...formData.assignees, value] 
+                    });
+                  }
+                }}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Выберите сотрудника" />
+                </SelectTrigger>
+                <SelectContent>
+                  {profiles
+                    .filter(profile => !formData.assignees.includes(profile.user_id))
+                    .map((profile) => (
+                      <SelectItem key={profile.user_id} value={profile.user_id}>
+                        {profile.full_name || profile.email}
+                      </SelectItem>
+                    ))}
+                </SelectContent>
+              </Select>
+              
+              {/* Список назначенных */}
+              {formData.assignees.length > 0 && (
+                <div className="space-y-2">
+                  <Label className="text-sm text-muted-foreground">Назначенные:</Label>
+                  <div className="flex flex-wrap gap-2">
+                    {formData.assignees.map((userId) => {
+                      const profile = profiles.find(p => p.user_id === userId);
+                      return (
+                        <Badge 
+                          key={userId} 
+                          variant="secondary"
+                          className="flex items-center gap-1"
+                        >
+                          {profile?.full_name || profile?.email}
+                          <button
+                            type="button"
+                            onClick={() => setFormData({
+                              ...formData,
+                              assignees: formData.assignees.filter(id => id !== userId)
+                            })}
+                            className="ml-1 text-xs hover:text-destructive"
+                          >
+                            ×
+                          </button>
+                        </Badge>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
 
           <div className="flex justify-end gap-2 pt-4">
             <Button type="button" variant="outline" onClick={handleClose}>

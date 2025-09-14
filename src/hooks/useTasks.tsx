@@ -16,6 +16,7 @@ export interface Task {
   created_at: string;
   updated_at: string;
   category: 'call' | 'estimate' | 'proposal' | 'follow-up' | 'other';
+  is_public?: boolean;
 }
 
 export function useTasks() {
@@ -78,7 +79,8 @@ export function useTasks() {
         .from('tasks')
         .insert({
           ...taskData,
-          user_id: user.id
+          user_id: user.id,
+          is_public: taskData.is_public || false
         })
         .select()
         .single();
