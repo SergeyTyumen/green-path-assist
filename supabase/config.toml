@@ -50,3 +50,6 @@ verify_jwt = false
 
 [functions.notify-admin]
 verify_jwt = false
+
+[functions.whatsapp-webhook]
+verify_jwt = false

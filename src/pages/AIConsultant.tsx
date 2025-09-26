@@ -34,7 +34,9 @@ import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useKnowledgeBase } from '@/hooks/useKnowledgeBase';
+import { useIntegrationStatus } from '@/hooks/useIntegrationStatus';
 import { getAIConfigForAssistant } from '@/utils/getAPIKeys';
+import WhatsAppIntegrationDialog from '@/components/WhatsAppIntegrationDialog';
 
 interface ChatMessage {
   id: string;
@@ -78,17 +80,26 @@ const AIConsultant = () => {
   const { user } = useAuth();
   const { toast } = useToast();
   const { items: knowledgeBaseItems, loading: kbLoading, createItem, updateItem, deleteItem } = useKnowledgeBase();
+  const { integrations: integrationStatus } = useIntegrationStatus();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [inputMessage, setInputMessage] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const [autoMode, setAutoMode] = useState(false);
-  // Удаляем локальное хранение базы знаний, используем базу данных
   
   const [integrations, setIntegrations] = useState<IntegrationConfig>({
-    whatsapp: { enabled: false },
-    telegram: { enabled: false },
-    website: { enabled: false }
+    whatsapp: { enabled: integrationStatus.whatsapp },
+    telegram: { enabled: integrationStatus.telegram },
+    website: { enabled: integrationStatus.website }
   });
+
+  // Обновляем статус интеграций при изменении
+  useEffect(() => {
+    setIntegrations({
+      whatsapp: { enabled: integrationStatus.whatsapp },
+      telegram: { enabled: integrationStatus.telegram },
+      website: { enabled: integrationStatus.website }
+    });
+  }, [integrationStatus]);
 
   const [pendingMessages, setPendingMessages] = useState<ChatMessage[]>([]);
   const [editingKnowledge, setEditingKnowledge] = useState<KnowledgeItem | null>(null);
@@ -459,9 +470,12 @@ const AIConsultant = () => {
                       <MessageCircle className="h-4 w-4 text-green-600" />
                       <span className="text-sm">WhatsApp</span>
                     </div>
-                    <Badge variant={integrations.whatsapp.enabled ? "default" : "secondary"}>
-                      {integrations.whatsapp.enabled ? "Подключен" : "Не подключен"}
-                    </Badge>
+                    <div className="flex items-center gap-2">
+                      <Badge variant={integrations.whatsapp.enabled ? "default" : "secondary"}>
+                        {integrations.whatsapp.enabled ? "Подключен" : "Не подключен"}
+                      </Badge>
+                      <WhatsAppIntegrationDialog />
+                    </div>
                   </div>
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">

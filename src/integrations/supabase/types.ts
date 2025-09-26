@@ -449,6 +449,7 @@ export type Database = {
           phone: string | null
           updated_at: string
           user_id: string
+          whatsapp_number: string | null
         }
         Insert: {
           created_at?: string
@@ -458,6 +459,7 @@ export type Database = {
           phone?: string | null
           updated_at?: string
           user_id: string
+          whatsapp_number?: string | null
         }
         Update: {
           created_at?: string
@@ -467,6 +469,7 @@ export type Database = {
           phone?: string | null
           updated_at?: string
           user_id?: string
+          whatsapp_number?: string | null
         }
         Relationships: []
       }
@@ -749,6 +752,36 @@ export type Database = {
           updated_at?: string
           user_id?: string
           valid_until?: string | null
+        }
+        Relationships: []
+      }
+      integration_settings: {
+        Row: {
+          created_at: string
+          id: string
+          integration_type: string
+          is_active: boolean
+          settings: Json
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          integration_type: string
+          is_active?: boolean
+          settings?: Json
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          integration_type?: string
+          is_active?: boolean
+          settings?: Json
+          updated_at?: string
+          user_id?: string
         }
         Relationships: []
       }
