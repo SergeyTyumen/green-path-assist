@@ -466,17 +466,50 @@ async function createEstimateViaAI(userId: string, args: any, userToken?: string
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
     
+    // Ищем существующее техническое задание для этого клиента
+    let technicalSpecification = null;
+    if (args.client_name) {
+      const { data: existingSpecs } = await supabaseAdmin
+        .from('technical_specifications')
+        .select('*')
+        .eq('user_id', userId)
+        .eq('client_name', args.client_name)
+        .order('created_at', { ascending: false })
+        .limit(1);
+      
+      if (existingSpecs && existingSpecs.length > 0) {
+        technicalSpecification = existingSpecs[0];
+        console.log('Found existing technical specification for estimate:', technicalSpecification.id);
+      }
+    }
+    
+    // Формируем запрос с учетом технического задания
+    const requestBody: any = {
+      conversation_mode: true,
+      action: args.project_description,
+      data: {
+        object_description: args.project_description,
+        area: args.area,
+        planned_services: args.services,
+        mentioned_clients: args.client_name ? [{ name: args.client_name }] : []
+      }
+    };
+    
+    // Если есть техническое задание, передаем его подробности
+    if (technicalSpecification) {
+      requestBody.technical_specification = {
+        id: technicalSpecification.id,
+        work_scope: technicalSpecification.work_scope,
+        materials_spec: technicalSpecification.materials_spec,
+        object_description: technicalSpecification.object_description,
+        client_name: technicalSpecification.client_name,
+        object_address: technicalSpecification.object_address
+      };
+      requestBody.action = `Создать смету на основе технического задания: ${technicalSpecification.work_scope}`;
+    }
+    
     const { data, error } = await supabaseAdmin.functions.invoke('ai-estimator', {
-      body: {
-        conversation_mode: true,
-        action: args.project_description,
-        data: {
-          object_description: args.project_description,
-          area: args.area,
-          planned_services: args.services,
-          mentioned_clients: args.client_name ? [{ name: args.client_name }] : []
-        }
-      },
+      body: requestBody,
       headers: {
         Authorization: `Bearer ${userToken || Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`
       }
