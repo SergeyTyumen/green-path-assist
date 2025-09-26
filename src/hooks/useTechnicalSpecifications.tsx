@@ -108,15 +108,28 @@ export const useTechnicalSpecifications = () => {
     fetchSpecifications();
   }, [user]);
 
-  // Автоматическое обновление списка каждые 5 секунд для синхронизации с голосовым помощником
+  // Realtime подписка на изменения в таблице technical_specifications
   useEffect(() => {
     if (!user) return;
     
-    const interval = setInterval(() => {
-      fetchSpecifications();
-    }, 5000);
+    const channel = supabase
+      .channel('technical-specifications-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'technical_specifications'
+        },
+        () => {
+          fetchSpecifications();
+        }
+      )
+      .subscribe();
 
-    return () => clearInterval(interval);
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, [user]);
 
   return {
