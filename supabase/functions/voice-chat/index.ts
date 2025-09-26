@@ -146,55 +146,36 @@ async function updateTaskStatus(taskId: string, status: string, userId: string) 
 }
 
 // Поиск пользователя по имени
-async function findUserByName(name: string, userId: string) {
-  console.log('Searching for user by name:', name);
-  
-  // Ищем в профилях по полному имени
-  const { data: profiles, error } = await supabase
-    .from('profiles')
-    .select('user_id, full_name')
-    .ilike('full_name', `%${name}%`);
-  
-  if (error) {
-    console.error('Error searching profiles:', error);
+async function findUserByName(name: string) {
+  try {
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('user_id, full_name')
+      .ilike('full_name', `%${name}%`)
+      .limit(1)
+      .single();
+    
+    if (error) {
+      console.log('User not found:', error);
+      return null;
+    }
+    
+    return data;
+  } catch (err) {
+    console.log('Error finding user:', err);
     return null;
   }
-  
-  // Возвращаем первый найденный профиль
-  return profiles && profiles.length > 0 ? profiles[0] : null;
 }
 
 // Обновление ответственного за задачу
 async function updateTaskAssignee(taskId: string, assigneeName: string, userId: string) {
   console.log('Updating task assignee:', { taskId, assigneeName });
   
-  // Сначала найдем пользователя по имени
-  const user = await findUserByName(assigneeName, userId);
-  if (!user) {
-    console.log('User not found, using name as string:', assigneeName);
-    // Если пользователь не найден, используем имя как строку
-    const { data, error } = await supabase
-      .from('tasks')
-      .update({ 
-        assignee: assigneeName,
-        updated_at: new Date().toISOString()
-      })
-      .eq('id', taskId)
-      .eq('user_id', userId)
-      .select()
-      .single();
-    
-    if (error) throw error;
-    return data;
-  }
-  
-  console.log('Found user:', user);
-  
-  // Обновляем задачу с найденным пользователем
+  // Обновляем задачу с именем ответственного
   const { data, error } = await supabase
     .from('tasks')
     .update({ 
-      assignee: user.full_name,
+      assignee: assigneeName,
       updated_at: new Date().toISOString()
     })
     .eq('id', taskId)
@@ -204,18 +185,21 @@ async function updateTaskAssignee(taskId: string, assigneeName: string, userId: 
   
   if (error) throw error;
   
-  // Также добавляем запись в таблицу task_assignees если найден зарегистрированный пользователь
-  try {
-    await supabase
-      .from('task_assignees')
-      .insert({
-        task_id: taskId,
-        user_id: user.user_id,
-        assigned_by: userId
-      });
-  } catch (assigneeError) {
-    console.error('Error adding to task_assignees:', assigneeError);
-    // Не прерываем выполнение, так как основная задача уже обновлена
+  // Пытаемся найти пользователя по имени для добавления в task_assignees
+  const user = await findUserByName(assigneeName);
+  if (user) {
+    try {
+      await supabase
+        .from('task_assignees')
+        .insert({
+          task_id: taskId,
+          user_id: user.user_id,
+          assigned_by: userId
+        });
+      console.log('Added to task_assignees:', user.full_name);
+    } catch (assigneeError) {
+      console.error('Error adding to task_assignees:', assigneeError);
+    }
   }
   
   return data;
