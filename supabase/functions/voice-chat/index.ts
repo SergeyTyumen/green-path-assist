@@ -1102,6 +1102,20 @@ serve(async (req) => {
             required: ["object_description"]
           }
         }
+      },
+      {
+        type: "function",
+        function: {
+          name: "find_technical_specification_and_create_estimate",
+          description: "Найти техническое задание по имени клиента и создать смету на основе ТЗ",
+          parameters: {
+            type: "object",
+            properties: {
+              client_name: { type: "string", description: "Имя клиента для поиска технического задания" }
+            },
+            required: ["client_name"]
+          }
+        }
       }
     ];
 
@@ -1167,6 +1181,11 @@ const systemPrompt = `Ты — голосовой ассистент руков�
 6. Если сказано "позвонить", "отправить", "сделай до пятницы" — учти дедлайн и способ связи
 7. Возвращай детальный лог выполненных действий
 
+НОВЫЕ ВОЗМОЖНОСТИ:
+- Поиск технических заданий: "найди ТЗ для Решетников" → find_technical_specification_and_create_estimate
+- Автоматическое создание сметы из ТЗ: "поручи сметчику сделать смету по ТЗ для [клиент]"
+- Интеграция между техническими заданиями и сметами через AI-агентов
+
 ПАРСИНГ СУЩНОСТЕЙ:
 - Имена: Сергей, Иванов, клиент с Малькова
 - Телефоны: 89393709999, +7-930-123-45-67  
@@ -1186,6 +1205,8 @@ const systemPrompt = `Ты — голосовой ассистент руков�
 - "создать смету для клиента X" → create_estimate
 - "составить смету по техническому заданию для клиента Y" → create_estimate_from_technical_task
 - "сделать смету на основе ТЗ" → create_estimate_from_technical_task
+- "найди ТЗ для [клиент] и поручи сметчику" → find_technical_specification_and_create_estimate
+- "найди техническое задание для [клиент] и создай смету" → find_technical_specification_and_create_estimate
 - Если упоминается техническое задание или ТЗ - ВСЕГДА используй create_estimate_from_technical_task
 - Если нет упоминания ТЗ, но есть клиент - сначала проверь, есть ли для него ТЗ
 
@@ -1617,6 +1638,49 @@ const systemPrompt = `Ты — голосовой ассистент руков�
                 functionResults.push(`✅ AI-Технический специалист: техническая оценка завершена`);
               } catch (error) {
                 functionResults.push(`❌ Ошибка при работе с AI-Техническим специалистом: ${error instanceof Error ? error.message : 'Неизвестная ошибка'}`);
+              }
+              break;
+              
+            case 'find_technical_specification_and_create_estimate':
+              console.log('Поиск ТЗ и создание сметы:', functionArgs);
+              try {
+                // Ищем техническое задание по имени клиента
+                const { data: technicalSpecs, error: findError } = await supabase
+                  .from('technical_specifications')
+                  .select('*')
+                  .eq('user_id', userId)
+                  .ilike('client_name', `%${functionArgs.client_name}%`)
+                  .order('created_at', { ascending: false });
+                
+                if (findError) throw findError;
+                
+                if (!technicalSpecs || technicalSpecs.length === 0) {
+                  functionResults.push(`❌ Техническое задание для клиента "${functionArgs.client_name}" не найдено`);
+                  break;
+                }
+                
+                const latestSpec = technicalSpecs[0];
+                functionResults.push(`✅ Найдено ТЗ: "${latestSpec.title}" для клиента "${latestSpec.client_name}"`);
+                
+                // Создаем смету на основе найденного ТЗ
+                const { data: estimateResult, error: estimateError } = await supabase.functions.invoke('ai-estimator', {
+                  body: {
+                    action: 'create_estimate_from_spec',
+                    technical_specification: latestSpec
+                  }
+                });
+                
+                if (estimateError) throw estimateError;
+                
+                if (estimateResult?.success) {
+                  functionResults.push(`✅ Смета успешно создана на основе ТЗ "${latestSpec.title}". ID сметы: ${estimateResult.estimate_id}`);
+                  functionResults.push(estimateResult.message || '');
+                } else {
+                  functionResults.push(`❌ Ошибка создания сметы: ${estimateResult?.error || 'Неизвестная ошибка'}`);
+                }
+                
+              } catch (error) {
+                functionResults.push(`❌ Ошибка при поиске ТЗ и создании сметы: ${error instanceof Error ? error.message : 'Неизвестная ошибка'}`);
               }
               break;
               
