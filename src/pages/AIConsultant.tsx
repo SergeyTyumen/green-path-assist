@@ -33,6 +33,7 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
+import { useKnowledgeBase } from '@/hooks/useKnowledgeBase';
 import { getAIConfigForAssistant } from '@/utils/getAPIKeys';
 
 interface ChatMessage {
@@ -73,30 +74,12 @@ interface IntegrationConfig {
 const AIConsultant = () => {
   const { user } = useAuth();
   const { toast } = useToast();
+  const { items: knowledgeBaseItems, loading: kbLoading, createItem, updateItem, deleteItem } = useKnowledgeBase();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [inputMessage, setInputMessage] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const [autoMode, setAutoMode] = useState(false);
-  const [knowledgeBase, setKnowledgeBase] = useState<KnowledgeItem[]>([
-    {
-      id: '1',
-      category: 'Услуги',
-      question: 'Какие услуги вы предоставляете?',
-      answer: 'Мы предоставляем полный спектр строительно-отделочных работ: укладка плитки (от 1100₽/м²), покраска стен (от 400₽/м²), штукатурка (от 350₽/м²), монтаж гипсокартона, электромонтажные работы, сантехнические работы.'
-    },
-    {
-      id: '2',
-      category: 'Цены',
-      question: 'Сколько стоят ваши услуги?',
-      answer: 'Наши цены: Укладка плитки от 1100₽/м², покраска стен от 400₽/м², штукатурка от 350₽/м², монтаж гипсокартона от 500₽/м². Точная стоимость рассчитывается после замера.'
-    },
-    {
-      id: '3',
-      category: 'Гарантии',
-      question: 'Какие гарантии вы даете?',
-      answer: 'Мы предоставляем гарантию на все виды работ: отделочные работы - 2 года, электромонтажные работы - 3 года, сантехнические работы - 2 года. Гарантия распространяется на материалы и качество выполнения.'
-    }
-  ]);
+  // Удаляем локальное хранение базы знаний, используем базу данных
   
   const [integrations, setIntegrations] = useState<IntegrationConfig>({
     whatsapp: { enabled: false },
@@ -130,7 +113,7 @@ const AIConsultant = () => {
           question: userMessage,
           context: {
             source: 'website',
-            knowledge_base: knowledgeBase
+            knowledge_base: knowledgeBaseItems
           },
           aiConfig // Передаем настройки AI
         }
@@ -148,8 +131,8 @@ const AIConsultant = () => {
     } catch (error) {
       console.error('Error calling AI consultant:', error);
       
-      // Fallback: поиск в локальной базе знаний
-      const relevantKnowledge = knowledgeBase.find(item => 
+      // Fallback: поиск в базе знаний из базы данных
+      const relevantKnowledge = knowledgeBaseItems.find(item => 
         userMessage.toLowerCase().includes(item.question.toLowerCase().split(' ')[0]) ||
         item.answer.toLowerCase().includes(userMessage.toLowerCase().split(' ')[0])
       );
@@ -231,34 +214,22 @@ const AIConsultant = () => {
     );
   };
 
-  const addKnowledgeItem = (item: Omit<KnowledgeItem, 'id'>) => {
-    const newItem: KnowledgeItem = {
-      ...item,
-      id: Date.now().toString()
+  const addKnowledgeItem = async (item: Omit<KnowledgeItem, 'id'>) => {
+    const newItem = {
+      category: item.category,
+      question: item.question,
+      answer: item.answer,
+      is_active: true
     };
-    setKnowledgeBase(prev => [...prev, newItem]);
-    toast({
-      title: "Элемент добавлен",
-      description: "Новый элемент базы знаний успешно добавлен",
-    });
+    await createItem(newItem);
   };
 
-  const updateKnowledgeItem = (id: string, updates: Partial<KnowledgeItem>) => {
-    setKnowledgeBase(prev => 
-      prev.map(item => item.id === id ? { ...item, ...updates } : item)
-    );
-    toast({
-      title: "Элемент обновлен",
-      description: "Элемент базы знаний успешно обновлен",
-    });
+  const updateKnowledgeItem = async (id: string, updates: Partial<KnowledgeItem>) => {
+    await updateItem(id, updates);
   };
 
-  const deleteKnowledgeItem = (id: string) => {
-    setKnowledgeBase(prev => prev.filter(item => item.id !== id));
-    toast({
-      title: "Элемент удален",
-      description: "Элемент базы знаний удален",
-    });
+  const deleteKnowledgeItem = async (id: string) => {
+    await deleteItem(id);
   };
 
   return (
@@ -616,7 +587,15 @@ const AIConsultant = () => {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {knowledgeBase.map((item) => (
+            {kbLoading ? (
+              <div className="text-center py-8">Загрузка...</div>
+            ) : knowledgeBaseItems.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground">
+                <Database className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                <p>База знаний пуста</p>
+                <p className="text-sm">Добавьте первый элемент</p>
+              </div>
+            ) : knowledgeBaseItems.map((item) => (
               <Card key={item.id}>
                 <CardHeader>
                   <CardTitle className="flex items-center justify-between">
