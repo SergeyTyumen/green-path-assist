@@ -379,6 +379,9 @@ async function executeFunction(functionName: string, args: any, userId: string, 
 
     case 'create_technical_specification':
       return await createTechnicalSpecification(userId, args, userToken);
+
+    case 'get_technical_specifications':
+      return await getTechnicalSpecifications(userId, args);
       
     default:
       return { error: `Unknown function: ${functionName}` };
@@ -1051,6 +1054,7 @@ serve(async (req) => {
 - Список задач через get_tasks (scope: all/today/overdue/by_status, status, limit)
 - Статистика задач через get_tasks_stats (всего, сегодня, просроченные, по статусам)
 - Создание клиентов через create_client (имя, телефон, email, источник лида)
+- Поиск технических заданий через get_technical_specifications (client_name, title, limit)
 - Создание смет через AI-Сметчика (указывайте: описание проекта, площадь, клиента, виды работ)
 - Создание технических заданий через create_technical_specification (описание объекта, клиент, адрес)
 - Создание задач через create_task (заголовок, описание, дата выполнения)
@@ -1160,8 +1164,70 @@ async function getUserSettings(userId: string): Promise<UserSettings> {
 
     return { ...defaultSettings, ...data.settings };
   } catch (error) {
-    console.warn('Error fetching user settings:', error);
+    console.error('Error fetching user settings:', error);
     return defaultSettings;
+  }
+}
+
+// Получение технических заданий
+async function getTechnicalSpecifications(userId: string, args: any) {
+  try {
+    const supabaseAdmin = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+    );
+
+    let query = supabaseAdmin
+      .from('technical_specifications')
+      .select('id, title, client_name, object_address, status, created_at')
+      .eq('user_id', userId);
+
+    // Фильтрация по имени клиента
+    if (args.client_name) {
+      query = query.ilike('client_name', `%${args.client_name}%`);
+    }
+
+    // Фильтрация по названию ТЗ
+    if (args.title) {
+      query = query.ilike('title', `%${args.title}%`);
+    }
+
+    const { data, error } = await query
+      .order('created_at', { ascending: false })
+      .limit(args.limit || 10);
+
+    if (error) throw error;
+
+    const specifications = data || [];
+
+    if (specifications.length === 0) {
+      const searchTerm = args.client_name || args.title || '';
+      return {
+        success: true,
+        specifications: [],
+        message: searchTerm ? 
+          `❌ Технические задания для "${searchTerm}" не найдены` :
+          'У вас пока нет технических заданий'
+      };
+    }
+
+    const list = specifications
+      .map((spec) => `• ${spec.title} (${spec.client_name}) - ${spec.status}`)
+      .join('\n');
+
+    const message = `Найдено ${specifications.length} технических заданий:\n${list}\n\nХотите создать смету на основе какого-то ТЗ?`;
+
+    return {
+      success: true,
+      specifications,
+      message
+    };
+  } catch (error) {
+    console.error('Error getting technical specifications:', error);
+    return { 
+      success: false, 
+      error: (error as Error).message 
+    };
   }
 }
 
