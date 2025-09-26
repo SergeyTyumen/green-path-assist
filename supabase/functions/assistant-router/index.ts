@@ -41,7 +41,7 @@ async function routeToEstimator(taskDescription: string, additionalData: any, us
     if (error) throw error;
     return data;
   } catch (error) {
-    throw new Error(`Ошибка сметчика: ${error.message}`);
+    throw new Error(`Ошибка сметчика: ${error instanceof Error ? error.message : 'Неизвестная ошибка'}`);
   }
 }
 
@@ -58,7 +58,7 @@ async function routeToAnalyst(taskDescription: string, additionalData: any, user
     if (error) throw error;
     return data;
   } catch (error) {
-    throw new Error(`Ошибка аналитика: ${error.message}`);
+    throw new Error(`Ошибка аналитика: ${error instanceof Error ? error.message : 'Неизвестная ошибка'}`);
   }
 }
 
@@ -75,7 +75,7 @@ async function routeToCompetitorAnalysis(taskDescription: string, additionalData
     if (error) throw error;
     return data;
   } catch (error) {
-    throw new Error(`Ошибка конкурентного анализа: ${error.message}`);
+    throw new Error(`Ошибка конкурентного анализа: ${error instanceof Error ? error.message : 'Неизвестная ошибка'}`);
   }
 }
 
@@ -186,7 +186,7 @@ serve(async (req) => {
     
     return new Response(JSON.stringify({
       success: false,
-      error: error.message,
+      error: error instanceof Error ? error.message : 'Неизвестная ошибка',
       assistant: 'router',
       timestamp: new Date().toISOString()
     }), {

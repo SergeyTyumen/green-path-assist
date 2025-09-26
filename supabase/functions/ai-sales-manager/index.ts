@@ -234,7 +234,7 @@ ${clientTasks?.map(t => `- ${t.title} (${t.status}, до ${t.due_date || 'без
     return new Response(
       JSON.stringify({ 
         success: false, 
-        error: error.message,
+        error: error instanceof Error ? error.message : 'Неизвестная ошибка',
         timestamp: new Date().toISOString()
       }),
       {

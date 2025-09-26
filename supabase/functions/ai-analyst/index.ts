@@ -103,8 +103,8 @@ async function getCRMDataForAnalysis(userId: string): Promise<any> {
     const totalClients = clients?.length || 0;
     
     // Анализируем источники лидов
-    const leadSources = {};
-    const conversionStages = {};
+    const leadSources: Record<string, number> = {};
+    const conversionStages: Record<string, number> = {};
     let totalBudget = 0;
     let clientsWithBudget = 0;
     
@@ -266,7 +266,7 @@ async function createAnalysisReport(task: string, analysisType: string, crmData:
 
 // Форматирование ответа аналитика
 function formatAnalysisResponse(analysis: string, recommendations: string, analysisType: string, crmData: any): string {
-  const typeNames = {
+  const typeNames: Record<string, string> = {
     sources: 'источников лидов',
     conversion: 'воронки продаж',
     profitability: 'рентабельности',
@@ -312,7 +312,7 @@ serve(async (req) => {
         throw new Error('Invalid authorization token');
       }
 
-      const result = await handleConversationalRequest(task, data || {}, user.id);
+      const result = await handleConversationalRequest(task, requestData || {}, user.id);
       
       return new Response(JSON.stringify(result), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
@@ -421,7 +421,7 @@ serve(async (req) => {
   } catch (error) {
     console.error('Error in ai-analyst function:', error);
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ error: error instanceof Error ? error.message : 'Неизвестная ошибка' }),
       {
         status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },

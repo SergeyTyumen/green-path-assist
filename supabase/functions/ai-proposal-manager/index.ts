@@ -268,7 +268,7 @@ function generateDefaultProposalContent(proposalData: any, clientData: any, esti
 Благодарим за обращение в нашу компанию по вопросам ландшафтного дизайна и благоустройства.
 
 ## Предлагаемые услуги:
-${clientData?.services?.map(service => `• ${service}`).join('\n') || '• Ландшафтные работы по индивидуальному проекту'}
+${clientData?.services?.map((service: any) => `• ${service}`).join('\n') || '• Ландшафтные работы по индивидуальному проекту'}
 
 ## Стоимость работ:
 ${proposalData.amount ? `**${proposalData.amount.toLocaleString()} ₽**` : 'Рассчитывается индивидуально'}
@@ -412,7 +412,7 @@ serve(async (req) => {
     console.error('Error in ai-proposal-manager function:', error);
     return new Response(
       JSON.stringify({ 
-        error: error.message,
+        error: error instanceof Error ? error.message : 'Неизвестная ошибка',
         success: false 
       }),
       {

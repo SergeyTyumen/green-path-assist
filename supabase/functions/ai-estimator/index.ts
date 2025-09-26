@@ -196,7 +196,7 @@ async function calculateMaterialConsumption(services: ServiceInput[], userId: st
           unit: material.unit,
           calculation: '',
           quantity: 0,
-          error: `Ошибка расчёта: ${error.message}`
+          error: `Ошибка расчёта: ${error instanceof Error ? error.message : 'Неизвестная ошибка'}`
         });
       }
     }
@@ -538,7 +538,7 @@ async function createEstimateFromTechnicalTask(data: any, userId: string): Promi
     console.error('Error creating estimate from technical task:', error);
     return {
       success: false,
-      error: `Ошибка при создании сметы из ТЗ: ${error.message}`
+      error: `Ошибка при создании сметы из ТЗ: ${error instanceof Error ? error.message : 'Неизвестная ошибка'}`
     };
   }
 }
@@ -579,7 +579,7 @@ async function createEstimateFromConversation(task: string, data: any, clientInf
     console.error('Error creating estimate from conversation:', error);
     return {
       success: false,
-      error: `Ошибка при создании сметы: ${error.message}`
+      error: `Ошибка при создании сметы: ${error instanceof Error ? error.message : 'Неизвестная ошибка'}`
     };
   }
 }
@@ -910,7 +910,7 @@ serve(async (req) => {
       JSON.stringify({ 
         success: false,
         error: 'An error occurred during processing',
-        details: error.message 
+        details: error instanceof Error ? error.message : 'Неизвестная ошибка' 
       }),
       {
         status: 500,

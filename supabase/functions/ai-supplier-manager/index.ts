@@ -105,7 +105,7 @@ async function requestPrices(supplierRequests: any[], userId: string): Promise<a
       results.push({
         supplier_id: request.supplier_id,
         success: false,
-        error: error.message
+        error: error instanceof Error ? error.message : 'Неизвестная ошибка'
       });
     }
   }
@@ -279,17 +279,17 @@ async function generateOffersComparison(materialAnalysis: any) {
     supplier_count: new Set(
       Object.values(materialAnalysis).flat().map((offer: any) => offer.supplier_id)
     ).size,
-    price_ranges: {},
-    best_prices: {},
-    delivery_analysis: {}
+    price_ranges: {} as Record<string, any>,
+    best_prices: {} as Record<string, any>,
+    delivery_analysis: {} as Record<string, any>
   };
 
   Object.entries(materialAnalysis).forEach(([material, offers]: [string, any]) => {
-    const prices = offers.map(o => o.price);
+    const prices = offers.map((o: any) => o.price);
     comparison.price_ranges[material] = {
       min: Math.min(...prices),
       max: Math.max(...prices),
-      avg: prices.reduce((a, b) => a + b, 0) / prices.length,
+      avg: prices.reduce((a: number, b: number) => a + b, 0) / prices.length,
       spread_percent: ((Math.max(...prices) - Math.min(...prices)) / Math.min(...prices) * 100).toFixed(1)
     };
 
@@ -301,7 +301,7 @@ async function generateOffersComparison(materialAnalysis: any) {
 
 // Генерация рекомендаций по закупкам
 function generatePurchaseRecommendations(materialAnalysis: any) {
-  const recommendations = [];
+  const recommendations: any[] = [];
 
   Object.entries(materialAnalysis).forEach(([material, offers]: [string, any]) => {
     if (offers.length > 1) {
@@ -438,7 +438,7 @@ serve(async (req) => {
     console.error('Error in ai-supplier-manager function:', error);
     return new Response(
       JSON.stringify({ 
-        error: error.message,
+        error: error instanceof Error ? error.message : 'Неизвестная ошибка',
         success: false 
       }),
       {

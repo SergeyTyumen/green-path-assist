@@ -85,10 +85,10 @@ async function generateConsultationResponse(question: string, questionType: stri
 Отвечай профессионально и подробно на вопросы клиентов.
 
 ДОСТУПНЫЕ УСЛУГИ:
-${knowledgeBase.services.map(s => `${s.name} - ${s.price}₽ за ${s.unit} (${s.category})`).join('\n')}
+${knowledgeBase.services.map((s: any) => `${s.name} - ${s.price}₽ за ${s.unit} (${s.category})`).join('\n')}
 
 ДОСТУПНЫЕ МАТЕРИАЛЫ:
-${knowledgeBase.materials.map(m => `${m.name} - ${m.price}₽ за ${m.unit} (${m.category})`).join('\n')}
+${knowledgeBase.materials.map((m: any) => `${m.name} - ${m.price}₽ за ${m.unit} (${m.category})`).join('\n')}
 
 СТАТИСТИКА:
 - Всего услуг в каталоге: ${knowledgeBase.total_services}
@@ -243,7 +243,7 @@ serve(async (req) => {
     console.error('Error in ai-consultant function:', error);
     return new Response(
       JSON.stringify({ 
-        error: error.message,
+        error: error instanceof Error ? error.message : 'Неизвестная ошибка',
         success: false 
       }),
       {
