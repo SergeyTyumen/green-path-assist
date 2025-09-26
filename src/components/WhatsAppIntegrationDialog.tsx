@@ -27,7 +27,11 @@ interface IntegrationSettings {
   is_active: boolean;
 }
 
-const WhatsAppIntegrationDialog: React.FC = () => {
+interface WhatsAppIntegrationDialogProps {
+  onSettingsChange?: () => void;
+}
+
+const WhatsAppIntegrationDialog: React.FC<WhatsAppIntegrationDialogProps> = ({ onSettingsChange }) => {
   const { user } = useAuth();
   const { toast } = useToast();
   const [isOpen, setIsOpen] = useState(false);
@@ -112,6 +116,8 @@ const WhatsAppIntegrationDialog: React.FC = () => {
         description: "Интеграция с WhatsApp настроена успешно",
       });
 
+      // Вызываем callback для обновления статуса
+      onSettingsChange?.();
       setIsOpen(false);
     } catch (error) {
       console.error('Error saving WhatsApp settings:', error);

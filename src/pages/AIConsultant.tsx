@@ -80,7 +80,7 @@ const AIConsultant = () => {
   const { user } = useAuth();
   const { toast } = useToast();
   const { items: knowledgeBaseItems, loading: kbLoading, createItem, updateItem, deleteItem } = useKnowledgeBase();
-  const { integrations: integrationStatus } = useIntegrationStatus();
+  const { integrations: integrationStatus, refetch: refetchIntegrations } = useIntegrationStatus();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [inputMessage, setInputMessage] = useState('');
   const [isTyping, setIsTyping] = useState(false);
@@ -462,44 +462,6 @@ const AIConsultant = () => {
 
               <Card>
                 <CardHeader>
-                  <CardTitle className="text-lg">Интеграции</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <MessageCircle className="h-4 w-4 text-green-600" />
-                      <span className="text-sm">WhatsApp</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Badge variant={integrations.whatsapp.enabled ? "default" : "secondary"}>
-                        {integrations.whatsapp.enabled ? "Подключен" : "Не подключен"}
-                      </Badge>
-                      <WhatsAppIntegrationDialog />
-                    </div>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <MessageCircle2 className="h-4 w-4 text-blue-600" />
-                      <span className="text-sm">Telegram</span>
-                    </div>
-                    <Badge variant={integrations.telegram.enabled ? "default" : "secondary"}>
-                      {integrations.telegram.enabled ? "Подключен" : "Не подключен"}
-                    </Badge>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <Globe className="h-4 w-4" />
-                      <span className="text-sm">Виджет сайта</span>
-                    </div>
-                    <Badge variant={integrations.website.enabled ? "default" : "secondary"}>
-                      {integrations.website.enabled ? "Подключен" : "Не подключен"}
-                    </Badge>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader>
                   <CardTitle className="text-lg">Статистика</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
@@ -750,21 +712,12 @@ const AIConsultant = () => {
                         </p>
                       </div>
                     </div>
-                    <Button 
-                      variant={integrations.whatsapp.enabled ? "secondary" : "default"}
-                      onClick={() => {
-                        setIntegrations(prev => ({
-                          ...prev,
-                          whatsapp: { ...prev.whatsapp, enabled: !prev.whatsapp.enabled }
-                        }));
-                        toast({
-                          title: integrations.whatsapp.enabled ? "WhatsApp отключен" : "WhatsApp подключен",
-                          description: "Настройки интеграции обновлены",
-                        });
-                      }}
-                    >
-                      {integrations.whatsapp.enabled ? "Отключить" : "Подключить"}
-                    </Button>
+                    <div className="flex items-center gap-2">
+                      <Badge variant={integrations.whatsapp.enabled ? "default" : "secondary"}>
+                        {integrations.whatsapp.enabled ? "Подключен" : "Не подключен"}
+                      </Badge>
+                      <WhatsAppIntegrationDialog onSettingsChange={refetchIntegrations} />
+                    </div>
                   </div>
 
                   <div className="flex items-center justify-between p-4 border rounded-lg">
@@ -777,20 +730,8 @@ const AIConsultant = () => {
                         </p>
                       </div>
                     </div>
-                    <Button 
-                      variant={integrations.telegram.enabled ? "secondary" : "default"}
-                      onClick={() => {
-                        setIntegrations(prev => ({
-                          ...prev,
-                          telegram: { ...prev.telegram, enabled: !prev.telegram.enabled }
-                        }));
-                        toast({
-                          title: integrations.telegram.enabled ? "Telegram отключен" : "Telegram подключен",
-                          description: "Настройки интеграции обновлены",
-                        });
-                      }}
-                    >
-                      {integrations.telegram.enabled ? "Отключить" : "Подключить"}
+                    <Button variant="outline">
+                      Настроить Telegram
                     </Button>
                   </div>
 
@@ -804,36 +745,12 @@ const AIConsultant = () => {
                         </p>
                       </div>
                     </div>
-                    <Button 
-                      variant={integrations.website.enabled ? "secondary" : "default"}
-                      onClick={() => {
-                        setIntegrations(prev => ({
-                          ...prev,
-                          website: { ...prev.website, enabled: !prev.website.enabled }
-                        }));
-                        toast({
-                          title: integrations.website.enabled ? "Виджет отключен" : "Виджет подключен",
-                          description: "Настройки интеграции обновлены",
-                        });
-                      }}
-                    >
-                      {integrations.website.enabled ? "Отключить" : "Подключить"}
+                    <Button variant="outline">
+                      Настроить виджет
                     </Button>
                   </div>
                 </div>
 
-                {integrations.website.enabled && (
-                  <div className="p-4 bg-muted/50 rounded-lg">
-                    <Label className="text-sm font-medium">Код виджета для вставки на сайт:</Label>
-                    <div className="mt-2 p-3 bg-black text-green-400 rounded font-mono text-xs">
-                      {`<script src="https://your-domain.com/widget.js"></script>
-<div id="ai-consultant-widget"></div>`}
-                    </div>
-                    <Button variant="outline" size="sm" className="mt-2">
-                      Скопировать код
-                    </Button>
-                  </div>
-                )}
               </CardContent>
             </Card>
           </div>
