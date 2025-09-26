@@ -277,7 +277,7 @@ async function callOpenAIWithTools(messages: AIMessage[], settings: UserSettings
     return 'Готово';
   } catch (error) {
     console.error('Error calling OpenAI:', error);
-    throw new Error(`Ошибка вызова OpenAI: ${error.message}`);
+    throw new Error(`Ошибка вызова OpenAI: ${error instanceof Error ? error.message : 'Неизвестная ошибка'}`);
   }
 }
 
@@ -506,8 +506,9 @@ async function createEstimateViaAI(userId: string, args: any, userToken?: string
   } catch (error) {
     console.error('Error in createEstimateViaAI:', error);
     
-    // Если ошибка связана с отсутствием ТЗ, предлагаем создать его
-    if (data?.needs_technical_task || data?.action_needed === 'create_technical_task') {
+    // Проверяем, если ошибка связана с отсутствием ТЗ
+    const errorMsg = error instanceof Error ? error.message : '';
+    if (errorMsg.includes('техническое задание') || errorMsg.includes('technical specification')) {
       return {
         success: false,
         message: `⚠️ Для создания сметы нужно техническое задание.\n\nПредлагаю:\n1️⃣ Обратиться к AI Technical Specialist для создания подробного ТЗ\n2️⃣ Указать точные объемы работ и материалы\n3️⃣ После получения ТЗ - повторно создать смету\n\nХотите создать техническое задание через AI Technical Specialist?`
@@ -516,7 +517,7 @@ async function createEstimateViaAI(userId: string, args: any, userToken?: string
     
     return {
       success: false,
-      message: `❌ Ошибка при обращении к AI-Сметчику: ${error.message}`
+      message: `❌ Ошибка при обращении к AI-Сметчику: ${error instanceof Error ? error.message : 'Неизвестная ошибка'}`
     };
   }
 }
@@ -533,7 +534,7 @@ async function getClientInfo(userId: string, args: any) {
     const nameParts = args.client_name.trim().split(/\s+/);
     
     // Try different search strategies
-    let clients = [];
+    let clients: any[] = [];
     
     // Strategy 1: Exact match
     let { data: exactClients } = await supabaseAdmin
@@ -1089,8 +1090,8 @@ serve(async (req) => {
   } catch (error) {
     console.error('Error in enhanced-voice-chat:', error);
     return new Response(JSON.stringify({ 
-      error: error.message,
-      response: `Извините, произошла ошибка: ${error.message}`
+      error: error instanceof Error ? error.message : 'Неизвестная ошибка',
+      response: `Извините, произошла ошибка: ${error instanceof Error ? error.message : 'Неизвестная ошибка'}`
     }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },

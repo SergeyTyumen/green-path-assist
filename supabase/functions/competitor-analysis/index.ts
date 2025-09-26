@@ -94,7 +94,7 @@ async function getOurCompanyContext(userId: string): Promise<any> {
       .eq('user_id', userId)
       .not('budget', 'is', null);
 
-    const averageBudget = clients?.length > 0 
+    const averageBudget = clients && clients.length > 0
       ? Math.round(clients.reduce((sum, c) => sum + (c.budget || 0), 0) / clients.length)
       : 150000;
 
@@ -266,7 +266,7 @@ ${competitorData}
     console.error('Error creating competitor analysis:', error);
     return {
       success: false,
-      error: `Ошибка при создании конкурентного анализа: ${error.message}`
+      error: `Ошибка при создании конкурентного анализа: ${error instanceof Error ? error.message : 'Неизвестная ошибка'}`
     };
   }
 }
@@ -281,7 +281,7 @@ function formatCompetitorResponse(analysis: string, actionPlan: string, analysis
     general: 'общего анализа'
   };
 
-  let response = `🎯 Конкурентный анализ: ${typeNames[analysisType] || 'анализ'}\n\n`;
+  let response = `🎯 Конкурентный анализ: ${typeNames[analysisType as keyof typeof typeNames] || 'анализ'}\n\n`;
   
   if (data.competitor_proposal || data.competitor_data) {
     response += `📋 Проанализированы данные конкурента\n`;
@@ -447,7 +447,7 @@ ${competitorProposal}
   } catch (error) {
     console.error('Error in competitor-analysis function:', error);
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ error: error instanceof Error ? error.message : 'Неизвестная ошибка' }),
       {
         status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },

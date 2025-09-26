@@ -881,6 +881,38 @@ serve(async (req) => {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
 
+      case 'create_estimate_from_spec':
+        const spec = data.technical_specification;
+        if (!spec || !spec.work_scope) {
+          throw new Error('Техническое задание с объемом работ обязательно');
+        }
+
+        // Парсим объем работ из технического задания
+        const specServices = await parseServicesFromWorkScope(spec.work_scope);
+        if (!specServices || specServices.length === 0) {
+          throw new Error('Не удалось извлечь услуги из технического задания');
+        }
+
+        // Создаем смету на основе ТЗ
+        const specResult = await createFullEstimate(
+          spec.title || `Смета по ТЗ: ${spec.client_name || 'Клиент'}`,
+          spec.client_id || null,
+          await calculateMaterialConsumption(specServices, userId),
+          userId,
+          undefined
+        );
+
+        return new Response(JSON.stringify({
+          success: true,
+          estimate_id: specResult.estimate.id,
+          estimate: specResult.estimate,
+          calculations: specResult.calculations,
+          items_count: specResult.items_count,
+          message: `✅ Смета создана на основе технического задания "${spec.title}"`
+        }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+
       case 'get_user_data':
         // Получаем данные пользователя для работы со сметчиком
         const [materialsRes, servicesRes, clientsRes, settingsRes] = await Promise.all([

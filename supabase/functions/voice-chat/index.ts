@@ -496,7 +496,14 @@ async function delegateToAIAssistant(data: any, userId: string) {
 
 // Функция для парсинга сложных команд
 function parseComplexCommand(message: string) {
-  const entities = {
+  const entities: {
+    names: string[];
+    phones: string[];
+    addresses: string[];
+    services: string[];
+    deadlines: string[];
+    ai_agents: string[];
+  } = {
     names: [],
     phones: [],
     addresses: [],
@@ -1116,7 +1123,7 @@ serve(async (req) => {
       return data;
     } catch (error) {
       console.error('Error calling AI-Estimator:', error);
-      return { success: false, error: error.message };
+      return { success: false, error: error instanceof Error ? error.message : 'Неизвестная ошибка' };
     }
   }
 
@@ -1145,7 +1152,7 @@ serve(async (req) => {
       return { success: true, task: newTask };
     } catch (error) {
       console.error('Error delegating task:', error);
-      return { success: false, error: error.message };
+      return { success: false, error: error instanceof Error ? error.message : 'Неизвестная ошибка' };
     }
   }
 
@@ -1490,7 +1497,7 @@ const systemPrompt = `Ты — голосовой ассистент руков�
                 result = estimateResult;
                 functionResults.push(`✅ AI-Сметчик: ${JSON.stringify(estimateResult, null, 2)}`);
               } catch (error) {
-                functionResults.push(`❌ Ошибка при работе с AI-Сметчиком: ${error.message}`);
+                functionResults.push(`❌ Ошибка при работе с AI-Сметчиком: ${error instanceof Error ? error.message : 'Неизвестная ошибка'}`);
               }
               break;
               
@@ -1510,7 +1517,7 @@ const systemPrompt = `Ты — голосовой ассистент руков�
                 result = consultResult;
                 functionResults.push(`✅ AI-Консультант: ${consultResult.response || JSON.stringify(consultResult)}`);
               } catch (error) {
-                functionResults.push(`❌ Ошибка при работе с AI-Консультантом: ${error.message}`);
+                functionResults.push(`❌ Ошибка при работе с AI-Консультантом: ${error instanceof Error ? error.message : 'Неизвестная ошибка'}`);
               }
               break;
               
@@ -1529,7 +1536,7 @@ const systemPrompt = `Ты — голосовой ассистент руков�
                 result = supplierResult;
                 functionResults.push(`✅ AI-Поставщик найдел: ${supplierResult.total_found || 0} поставщиков`);
               } catch (error) {
-                functionResults.push(`❌ Ошибка при работе с AI-Поставщиком: ${error.message}`);
+                functionResults.push(`❌ Ошибка при работе с AI-Поставщиком: ${error instanceof Error ? error.message : 'Неизвестная ошибка'}`);
               }
               break;
               
@@ -1548,7 +1555,7 @@ const systemPrompt = `Ты — голосовой ассистент руков�
                 result = analystResult;
                 functionResults.push(`✅ AI-Аналитик: анализ ${functionArgs.analysis_type} завершен`);
               } catch (error) {
-                functionResults.push(`❌ Ошибка при работе с AI-Аналитиком: ${error.message}`);
+                functionResults.push(`❌ Ошибка при работе с AI-Аналитиком: ${error instanceof Error ? error.message : 'Неизвестная ошибка'}`);
               }
               break;
               
@@ -1568,7 +1575,7 @@ const systemPrompt = `Ты — голосовой ассистент руков�
                 result = contractorResult;
                 functionResults.push(`✅ AI-Менеджер подрядчиков: ${functionArgs.action} выполнен`);
               } catch (error) {
-                functionResults.push(`❌ Ошибка при работе с AI-Менеджером подрядчиков: ${error.message}`);
+                functionResults.push(`❌ Ошибка при работе с AI-Менеджером подрядчиков: ${error instanceof Error ? error.message : 'Неизвестная ошибка'}`);
               }
               break;
               
@@ -1589,7 +1596,7 @@ const systemPrompt = `Ты — голосовой ассистент руков�
                 result = proposalResult;
                 functionResults.push(`✅ AI-Менеджер предложений: предложение создано`);
               } catch (error) {
-                functionResults.push(`❌ Ошибка при работе с AI-Менеджером предложений: ${error.message}`);
+                functionResults.push(`❌ Ошибка при работе с AI-Менеджером предложений: ${error instanceof Error ? error.message : 'Неизвестная ошибка'}`);
               }
               break;
               
@@ -1609,7 +1616,7 @@ const systemPrompt = `Ты — голосовой ассистент руков�
                 result = technicalResult;
                 functionResults.push(`✅ AI-Технический специалист: техническая оценка завершена`);
               } catch (error) {
-                functionResults.push(`❌ Ошибка при работе с AI-Техническим специалистом: ${error.message}`);
+                functionResults.push(`❌ Ошибка при работе с AI-Техническим специалистом: ${error instanceof Error ? error.message : 'Неизвестная ошибка'}`);
               }
               break;
               
@@ -1618,7 +1625,7 @@ const systemPrompt = `Ты — голосовой ассистент руков�
           }
         } catch (error) {
           console.error(`Error executing function ${functionName}:`, error);
-          functionResults.push(`Ошибка при выполнении ${functionName}: ${error.message}`);
+          functionResults.push(`Ошибка при выполнении ${functionName}: ${error instanceof Error ? error.message : 'Неизвестная ошибка'}`);
         }
       }
       
@@ -1639,7 +1646,7 @@ const systemPrompt = `Ты — голосовой ассистент руков�
   } catch (error) {
     console.error('Error in voice-chat function:', error);
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ error: error instanceof Error ? error.message : 'Неизвестная ошибка' }),
       {
         status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },

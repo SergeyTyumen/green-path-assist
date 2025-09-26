@@ -58,6 +58,31 @@ const TechnicalSpecifications = () => {
     toast.info('Скачивание DOCX будет реализовано в следующей версии');
   };
 
+  const handleCreateEstimate = async (spec: any) => {
+    try {
+      toast.info('Создание сметы из технического задания...');
+      
+      const { data, error } = await supabase.functions.invoke('ai-estimator', {
+        body: {
+          technical_specification: spec,
+          action: 'create_estimate_from_spec'
+        }
+      });
+
+      if (error) throw error;
+
+      if (data?.estimate_id) {
+        toast.success('Смета успешно создана! Переход к просмотру...');
+        navigate(`/ai-estimator?estimate_id=${data.estimate_id}`);
+      } else {
+        toast.success('Смета создана!');
+      }
+    } catch (error) {
+      console.error('Ошибка создания сметы:', error);
+      toast.error('Ошибка при создании сметы из технического задания');
+    }
+  };
+
   const handleView = (spec: any) => {
     setSelectedSpec(spec);
     setIsViewDialogOpen(true);
@@ -327,6 +352,15 @@ const TechnicalSpecifications = () => {
                         >
                           <Download className="w-4 h-4 mr-1" />
                           DOCX
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleCreateEstimate(spec)}
+                          className="text-primary hover:text-primary"
+                        >
+                          <Sparkles className="w-4 h-4 mr-1" />
+                          Смета
                         </Button>
                         <AlertDialog>
                           <AlertDialogTrigger asChild>

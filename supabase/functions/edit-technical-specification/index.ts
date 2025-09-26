@@ -201,8 +201,8 @@ serve(async (req) => {
     console.error('Error in edit-technical-specification function:', error);
     return new Response(
       JSON.stringify({ 
-        error: error.message || 'Внутренняя ошибка сервера',
-        details: error.toString()
+        error: error instanceof Error ? error.message : 'Внутренняя ошибка сервера',
+        details: error instanceof Error ? error.toString() : 'Неизвестная ошибка'
       }), 
       {
         status: 500,

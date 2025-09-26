@@ -93,7 +93,7 @@ async function notifyAdminsOfNewRegistration(requestData: any) {
         return { admin: admin.email, success: true, messageId: emailResponse.data?.id };
       } catch (error) {
         console.error(`Failed to send email to ${admin.email}:`, error);
-        return { admin: admin.email, success: false, error: error.message };
+        return { admin: admin.email, success: false, error: error instanceof Error ? error.message : 'Неизвестная ошибка' };
       }
     });
 
@@ -116,7 +116,7 @@ async function notifyAdminsOfNewRegistration(requestData: any) {
     };
   } catch (error) {
     console.error('Error notifying admins:', error);
-    return { success: false, error: error.message };
+    return { success: false, error: error instanceof Error ? error.message : 'Неизвестная ошибка' };
   }
 }
 
