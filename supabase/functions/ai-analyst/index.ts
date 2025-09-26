@@ -259,7 +259,7 @@ async function createAnalysisReport(task: string, analysisType: string, crmData:
     console.error('Error creating analysis:', error);
     return {
       success: false,
-      error: `Ошибка при создании анализа: ${error.message}`
+      error: `Ошибка при создании анализа: ${error instanceof Error ? error.message : 'Неизвестная ошибка'}`
     };
   }
 }
@@ -295,7 +295,7 @@ serve(async (req) => {
   }
 
   try {
-    const { request, reportType = "general", crmData, task, data, conversation_mode } = await req.json();
+    const { request, reportType = "general", crmData, task, data: requestData, conversation_mode } = await req.json();
     
     // Если это диалоговый режим, обрабатываем как интерактивный запрос
     if (conversation_mode && task) {
