@@ -33,6 +33,7 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
+import { useConsultantKnowledgeBase } from '@/hooks/useConsultantKnowledgeBase';
 import { getAIConfigForAssistant } from '@/utils/getAPIKeys';
 
 interface ChatMessage {
@@ -73,6 +74,7 @@ interface IntegrationConfig {
 const AIConsultant = () => {
   const { user } = useAuth();
   const { toast } = useToast();
+  const { items: knowledgeBaseItems, loading: kbLoading, createItem, updateItem, deleteItem } = useConsultantKnowledgeBase();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [inputMessage, setInputMessage] = useState('');
   const [isTyping, setIsTyping] = useState(false);
@@ -107,6 +109,16 @@ const AIConsultant = () => {
   const [pendingMessages, setPendingMessages] = useState<ChatMessage[]>([]);
   const [editingKnowledge, setEditingKnowledge] = useState<KnowledgeItem | null>(null);
   const [isKnowledgeDialogOpen, setIsKnowledgeDialogOpen] = useState(false);
+  
+  // Состояние для управления базой знаний компании
+  const [editingKbItem, setEditingKbItem] = useState<any | null>(null);
+  const [kbDialog, setKbDialog] = useState(false);
+  const [newKbItem, setNewKbItem] = useState({
+    title: '',
+    content: '',
+    category: 'general',
+    is_active: true
+  });
 
   // Быстрые ответы (готовые ответы, а не вопросы)
   const quickReplies = [
@@ -261,6 +273,49 @@ const AIConsultant = () => {
     });
   };
 
+  // Функции для управления базой знаний компании
+  const handleCreateKbItem = async () => {
+    if (!newKbItem.title || !newKbItem.content) {
+      toast({
+        title: "Ошибка",
+        description: "Заполните все обязательные поля",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    await createItem(newKbItem);
+    setNewKbItem({ title: '', content: '', category: 'general', is_active: true });
+    setKbDialog(false);
+  };
+
+  const handleUpdateKbItem = async () => {
+    if (!editingKbItem) return;
+    
+    await updateItem(editingKbItem.id, editingKbItem);
+    setEditingKbItem(null);
+    setKbDialog(false);
+  };
+
+  const handleDeleteKbItem = async (id: string) => {
+    await deleteItem(id);
+  };
+
+  const openKbDialog = (item?: any) => {
+    if (item) {
+      setEditingKbItem({ ...item });
+    } else {
+      setNewKbItem({ title: '', content: '', category: 'general', is_active: true });
+    }
+    setKbDialog(true);
+  };
+
+  const closeKbDialog = () => {
+    setKbDialog(false);
+    setEditingKbItem(null);
+    setNewKbItem({ title: '', content: '', category: 'general', is_active: true });
+  };
+
   return (
     <div className="p-6 max-w-6xl mx-auto">
       <div className="mb-8">
@@ -297,9 +352,10 @@ const AIConsultant = () => {
       </div>
 
       <Tabs defaultValue="chat" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-3">
+        <TabsList className="grid w-full grid-cols-4">
           <TabsTrigger value="chat">Консультация</TabsTrigger>
           <TabsTrigger value="knowledge">База знаний</TabsTrigger>
+          <TabsTrigger value="company-knowledge">Компания</TabsTrigger>
           <TabsTrigger value="settings">Настройки</TabsTrigger>
         </TabsList>
 
@@ -658,6 +714,172 @@ const AIConsultant = () => {
               </Card>
             ))}
           </div>
+        </TabsContent>
+
+        <TabsContent value="company-knowledge" className="space-y-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-lg font-semibold">База знаний о компании</h3>
+              <p className="text-sm text-muted-foreground">
+                Управление информацией о компании для ИИ-консультанта
+              </p>
+            </div>
+            <Button onClick={() => openKbDialog()}>
+              <Plus className="h-4 w-4 mr-2" />
+              Добавить
+            </Button>
+          </div>
+
+          {kbLoading ? (
+            <div className="text-center py-8">
+              <p>Загрузка...</p>
+            </div>
+          ) : knowledgeBaseItems.length === 0 ? (
+            <Card>
+              <CardContent className="text-center py-12">
+                <Database className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                <h3 className="text-lg font-semibold mb-2">База знаний пуста</h3>
+                <p className="text-muted-foreground mb-4">
+                  Добавьте информацию о вашей компании, услугах и процессах
+                </p>
+                <Button onClick={() => openKbDialog()}>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Добавить первый элемент
+                </Button>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="space-y-4">
+              {knowledgeBaseItems.map((item) => (
+                <Card key={item.id} className="border-l-4 border-l-primary">
+                  <CardHeader className="pb-3">
+                    <div className="flex items-start justify-between">
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2">
+                          <h4 className="font-semibold">{item.title}</h4>
+                          <Badge variant={item.is_active ? "default" : "secondary"}>
+                            {item.is_active ? "Активно" : "Неактивно"}
+                          </Badge>
+                          <Badge variant="outline">{item.category}</Badge>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => openKbDialog(item)}
+                        >
+                          <Edit3 className="h-3 w-3" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleDeleteKbItem(item.id)}
+                        >
+                          <Trash2 className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="pt-0">
+                    <p className="text-sm text-muted-foreground line-clamp-3">
+                      {item.content}
+                    </p>
+                    <p className="text-xs text-muted-foreground mt-2">
+                      Создано: {new Date(item.created_at).toLocaleDateString()}
+                    </p>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
+
+          {/* Dialog для добавления/редактирования элементов базы знаний */}
+          <Dialog open={kbDialog} onOpenChange={setKbDialog}>
+            <DialogContent className="max-w-2xl">
+              <DialogHeader>
+                <DialogTitle>
+                  {editingKbItem ? 'Редактировать элемент' : 'Добавить в базу знаний'}
+                </DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="kb-title">Заголовок *</Label>
+                  <Input
+                    id="kb-title"
+                    placeholder="Например: О компании"
+                    value={editingKbItem ? editingKbItem.title : newKbItem.title}
+                    onChange={(e) => 
+                      editingKbItem 
+                        ? setEditingKbItem({...editingKbItem, title: e.target.value})
+                        : setNewKbItem({...newKbItem, title: e.target.value})
+                    }
+                  />
+                </div>
+                
+                <div className="space-y-2">
+                  <Label htmlFor="kb-category">Категория</Label>
+                  <Select
+                    value={editingKbItem ? editingKbItem.category : newKbItem.category}
+                    onValueChange={(value) => 
+                      editingKbItem 
+                        ? setEditingKbItem({...editingKbItem, category: value})
+                        : setNewKbItem({...newKbItem, category: value})
+                    }
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="general">Общая информация</SelectItem>
+                      <SelectItem value="company">О компании</SelectItem>
+                      <SelectItem value="services">Услуги</SelectItem>
+                      <SelectItem value="pricing">Цены</SelectItem>
+                      <SelectItem value="process">Процессы</SelectItem>
+                      <SelectItem value="contacts">Контакты</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="kb-content">Содержание *</Label>
+                  <Textarea
+                    id="kb-content"
+                    placeholder="Подробная информация..."
+                    rows={8}
+                    value={editingKbItem ? editingKbItem.content : newKbItem.content}
+                    onChange={(e) => 
+                      editingKbItem 
+                        ? setEditingKbItem({...editingKbItem, content: e.target.value})
+                        : setNewKbItem({...newKbItem, content: e.target.value})
+                    }
+                  />
+                </div>
+
+                <div className="flex items-center space-x-2">
+                  <Switch
+                    id="kb-active"
+                    checked={editingKbItem ? editingKbItem.is_active : newKbItem.is_active}
+                    onCheckedChange={(checked) => 
+                      editingKbItem 
+                        ? setEditingKbItem({...editingKbItem, is_active: checked})
+                        : setNewKbItem({...newKbItem, is_active: checked})
+                    }
+                  />
+                  <Label htmlFor="kb-active">Активно</Label>
+                </div>
+
+                <div className="flex justify-end gap-2">
+                  <Button variant="outline" onClick={closeKbDialog}>
+                    Отмена
+                  </Button>
+                  <Button onClick={editingKbItem ? handleUpdateKbItem : handleCreateKbItem}>
+                    {editingKbItem ? 'Сохранить' : 'Добавить'}
+                  </Button>
+                </div>
+              </div>
+            </DialogContent>
+          </Dialog>
         </TabsContent>
 
         <TabsContent value="settings" className="space-y-6">
