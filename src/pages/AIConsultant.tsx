@@ -712,12 +712,7 @@ const AIConsultant = () => {
                         </p>
                       </div>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <Badge variant={integrations.whatsapp.enabled ? "default" : "secondary"}>
-                        {integrations.whatsapp.enabled ? "Подключен" : "Не подключен"}
-                      </Badge>
-                      <WhatsAppIntegrationDialog onSettingsChange={refetchIntegrations} />
-                    </div>
+                    <WhatsAppIntegrationDialog onSettingsChange={refetchIntegrations} />
                   </div>
 
                   <div className="flex items-center justify-between p-4 border rounded-lg">
