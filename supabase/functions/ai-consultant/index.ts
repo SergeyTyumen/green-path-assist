@@ -40,21 +40,18 @@ async function handleConsultationRequest(question: string, context: any, userId:
 
 // Получение базы знаний для консультаций
 async function getKnowledgeBase(userId: string) {
-  const [servicesRes, materialsRes, estimatesRes, companyKnowledgeRes] = await Promise.all([
+  const [servicesRes, materialsRes, estimatesRes] = await Promise.all([
     supabase.from('services').select('*').eq('user_id', userId),
     supabase.from('materials').select('*').eq('user_id', userId),
-    supabase.from('estimates').select('*').eq('user_id', userId).limit(10),
-    supabase.from('consultant_knowledge_base').select('*').eq('user_id', userId).eq('is_active', true)
+    supabase.from('estimates').select('*').eq('user_id', userId).limit(10)
   ]);
 
   return {
     services: servicesRes.data || [],
     materials: materialsRes.data || [],
     recent_estimates: estimatesRes.data || [],
-    company_knowledge: companyKnowledgeRes.data || [],
     total_services: servicesRes.data?.length || 0,
-    total_materials: materialsRes.data?.length || 0,
-    total_company_knowledge: companyKnowledgeRes.data?.length || 0
+    total_materials: materialsRes.data?.length || 0
   };
 }
 
@@ -93,20 +90,12 @@ ${knowledgeBase.services.map((s: any) => `${s.name} - ${s.price}₽ за ${s.uni
 ДОСТУПНЫЕ МАТЕРИАЛЫ:
 ${knowledgeBase.materials.map((m: any) => `${m.name} - ${m.price}₽ за ${m.unit} (${m.category})`).join('\n')}
 
-ИНФОРМАЦИЯ О КОМПАНИИ:
-${knowledgeBase.company_knowledge ? knowledgeBase.company_knowledge.map((item: any) => `
-Категория: ${item.category}
-${item.title}: ${item.content}
-`).join('\n') : 'Информация о компании не добавлена'}
-
 СТАТИСТИКА:
 - Всего услуг в каталоге: ${knowledgeBase.total_services}
 - Всего материалов: ${knowledgeBase.total_materials}
-- Элементов базы знаний о компании: ${knowledgeBase.total_company_knowledge || 0}
 
 ИНСТРУКЦИИ:
 - Давай конкретные ответы на основе доступных услуг и материалов
-- Используй информацию о компании для более персонализированных ответов
 - Если вопрос о ценах - указывай конкретные цены из базы
 - Предлагай дополнительные услуги когда это уместно
 - Будь дружелюбным но профессиональным
