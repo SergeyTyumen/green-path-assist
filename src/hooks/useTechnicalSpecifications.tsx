@@ -108,6 +108,17 @@ export const useTechnicalSpecifications = () => {
     fetchSpecifications();
   }, [user]);
 
+  // Автоматическое обновление списка каждые 5 секунд для синхронизации с голосовым помощником
+  useEffect(() => {
+    if (!user) return;
+    
+    const interval = setInterval(() => {
+      fetchSpecifications();
+    }, 5000);
+
+    return () => clearInterval(interval);
+  }, [user]);
+
   return {
     specifications,
     loading,
