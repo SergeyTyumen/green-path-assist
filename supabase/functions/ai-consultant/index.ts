@@ -40,16 +40,18 @@ async function handleConsultationRequest(question: string, context: any, userId:
 
 // Получение базы знаний для консультаций
 async function getKnowledgeBase(userId: string) {
-  const [servicesRes, materialsRes, estimatesRes] = await Promise.all([
+  const [servicesRes, materialsRes, estimatesRes, knowledgeBaseRes] = await Promise.all([
     supabase.from('services').select('*').eq('user_id', userId),
     supabase.from('materials').select('*').eq('user_id', userId),
-    supabase.from('estimates').select('*').eq('user_id', userId).limit(10)
+    supabase.from('estimates').select('*').eq('user_id', userId).limit(10),
+    supabase.from('knowledge_base').select('*').eq('user_id', userId).eq('is_active', true).order('priority', { ascending: true })
   ]);
 
   return {
     services: servicesRes.data || [],
     materials: materialsRes.data || [],
     recent_estimates: estimatesRes.data || [],
+    knowledge_base: knowledgeBaseRes.data || [],
     total_services: servicesRes.data?.length || 0,
     total_materials: materialsRes.data?.length || 0
   };
@@ -81,8 +83,17 @@ async function generateConsultationResponse(question: string, questionType: stri
     throw new Error('OPENAI_API_KEY not found');
   }
 
-  const systemPrompt = `Ты - опытный консультант по ландшафтному дизайну и благоустройству. 
-Отвечай профессионально и подробно на вопросы клиентов.
+  const systemPrompt = `Ты - профессиональный консультант строительной компании. 
+Отвечай на вопросы клиентов по услугам, ценам, материалам и процессам.
+
+БАЗА ЗНАНИЙ:
+${knowledgeBase.knowledge_base.map((item: any) => `
+Категория: ${item.category}
+Тема: ${item.topic}
+Содержание: ${item.content}
+Ключевые слова: ${item.keywords?.join(', ') || 'Не указаны'}
+Приоритет: ${item.priority === 1 ? 'Высокий' : item.priority === 2 ? 'Средний' : 'Низкий'}
+`).join('\n')}
 
 ДОСТУПНЫЕ УСЛУГИ:
 ${knowledgeBase.services.map((s: any) => `${s.name} - ${s.price}₽ за ${s.unit} (${s.category})`).join('\n')}
@@ -90,16 +101,17 @@ ${knowledgeBase.services.map((s: any) => `${s.name} - ${s.price}₽ за ${s.uni
 ДОСТУПНЫЕ МАТЕРИАЛЫ:
 ${knowledgeBase.materials.map((m: any) => `${m.name} - ${m.price}₽ за ${m.unit} (${m.category})`).join('\n')}
 
-СТАТИСТИКА:
-- Всего услуг в каталоге: ${knowledgeBase.total_services}
-- Всего материалов: ${knowledgeBase.total_materials}
+ПОСЛЕДНИЕ СМЕТЫ:
+${knowledgeBase.recent_estimates.map((e: any) => `${e.title} - ${e.total_amount}₽ (${e.status})`).join('\n')}
 
 ИНСТРУКЦИИ:
-- Давай конкретные ответы на основе доступных услуг и материалов
+- Используй информацию из базы знаний для ответов
+- Ищи релевантную информацию по темам, содержанию и ключевым словам
+- Информация с высоким приоритетом важнее чем с низким
 - Если вопрос о ценах - указывай конкретные цены из базы
 - Предлагай дополнительные услуги когда это уместно
-- Будь дружелюбным но профессиональным
-- Если нет точных данных - честно говори об этом
+- Будь профессиональным и вежливым
+- Если нет точных данных - предложи связаться с менеджером
 
 Тип вопроса: ${questionType}
 ${context ? `Контекст: ${JSON.stringify(context)}` : ''}`;

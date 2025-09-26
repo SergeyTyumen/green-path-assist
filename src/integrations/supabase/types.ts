@@ -754,32 +754,38 @@ export type Database = {
       }
       knowledge_base: {
         Row: {
-          answer: string
           category: string
+          content: string
           created_at: string
           id: string
           is_active: boolean
-          question: string
+          keywords: string[] | null
+          priority: number | null
+          topic: string
           updated_at: string
           user_id: string
         }
         Insert: {
-          answer: string
           category: string
+          content?: string
           created_at?: string
           id?: string
           is_active?: boolean
-          question: string
+          keywords?: string[] | null
+          priority?: number | null
+          topic?: string
           updated_at?: string
           user_id: string
         }
         Update: {
-          answer?: string
           category?: string
+          content?: string
           created_at?: string
           id?: string
           is_active?: boolean
-          question?: string
+          keywords?: string[] | null
+          priority?: number | null
+          topic?: string
           updated_at?: string
           user_id?: string
         }

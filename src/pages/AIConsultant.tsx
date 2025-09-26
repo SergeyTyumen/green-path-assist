@@ -50,8 +50,11 @@ interface ChatMessage {
 interface KnowledgeItem {
   id: string;
   category: string;
-  question: string;
-  answer: string;
+  topic: string;
+  content: string;
+  keywords: string[];
+  priority: number;
+  is_active: boolean;
 }
 
 interface IntegrationConfig {
@@ -133,12 +136,13 @@ const AIConsultant = () => {
       
       // Fallback: поиск в базе знаний из базы данных
       const relevantKnowledge = knowledgeBaseItems.find(item => 
-        userMessage.toLowerCase().includes(item.question.toLowerCase().split(' ')[0]) ||
-        item.answer.toLowerCase().includes(userMessage.toLowerCase().split(' ')[0])
+        item.keywords?.some(keyword => userMessage.toLowerCase().includes(keyword.toLowerCase())) ||
+        item.content.toLowerCase().includes(userMessage.toLowerCase().split(' ')[0]) ||
+        item.topic.toLowerCase().includes(userMessage.toLowerCase().split(' ')[0])
       );
 
       if (relevantKnowledge) {
-        return relevantKnowledge.answer;
+        return relevantKnowledge.content;
       }
 
       return `Спасибо за ваш вопрос. В данный момент возникли технические трудности. Для получения персональной консультации рекомендую связаться с нашим менеджером по телефону.`;
@@ -214,14 +218,8 @@ const AIConsultant = () => {
     );
   };
 
-  const addKnowledgeItem = async (item: Omit<KnowledgeItem, 'id'>) => {
-    const newItem = {
-      category: item.category,
-      question: item.question,
-      answer: item.answer,
-      is_active: true
-    };
-    await createItem(newItem);
+  const addKnowledgeItem = async (item: Omit<KnowledgeItem, 'id' | 'user_id' | 'created_at' | 'updated_at'>) => {
+    await createItem(item);
   };
 
   const updateKnowledgeItem = async (id: string, updates: Partial<KnowledgeItem>) => {
@@ -543,19 +541,39 @@ const AIConsultant = () => {
                     </Select>
                   </div>
                   <div>
-                    <Label>Вопрос/Ключевое слово</Label>
+                    <Label>Тема/Название</Label>
                     <Input 
-                      defaultValue={editingKnowledge?.question || ''}
-                      placeholder="Какой вопрос задают клиенты?"
+                      defaultValue={editingKnowledge?.topic || ''}
+                      placeholder="Название темы или услуги"
                     />
                   </div>
                   <div>
-                    <Label>Ответ</Label>
+                    <Label>Содержание</Label>
                     <Textarea 
-                      defaultValue={editingKnowledge?.answer || ''}
-                      rows={4}
-                      placeholder="Подробный ответ для клиента..."
+                      defaultValue={editingKnowledge?.content || ''}
+                      placeholder="Подробная информация по теме: описание, цены, особенности..."
+                      className="min-h-[120px]"
                     />
+                  </div>
+                  <div>
+                    <Label>Ключевые слова</Label>
+                    <Input 
+                      defaultValue={editingKnowledge?.keywords?.join(', ') || ''}
+                      placeholder="ключевые слова через запятую"
+                    />
+                  </div>
+                  <div>
+                    <Label>Приоритет</Label>
+                    <Select defaultValue={editingKnowledge?.priority?.toString() || '1'}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Выберите приоритет" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="1">Высокий</SelectItem>
+                        <SelectItem value="2">Средний</SelectItem>
+                        <SelectItem value="3">Низкий</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
                   <div className="flex gap-2">
                     <Button onClick={() => {
@@ -565,8 +583,11 @@ const AIConsultant = () => {
                       } else {
                         addKnowledgeItem({
                           category: 'Услуги',
-                          question: 'Новый вопрос',
-                          answer: 'Новый ответ'
+                          topic: 'Новая тема',
+                          content: 'Новое содержание',
+                          keywords: [],
+                          priority: 1,
+                          is_active: true
                         });
                       }
                       setEditingKnowledge(null);
@@ -626,12 +647,30 @@ const AIConsultant = () => {
                 </CardHeader>
                 <CardContent className="space-y-3">
                   <div>
-                    <Label className="font-medium">Вопрос:</Label>
-                    <p className="text-sm text-muted-foreground mt-1">{item.question}</p>
+                    <Label className="font-medium">Тема:</Label>
+                    <p className="text-sm text-muted-foreground mt-1">{item.topic}</p>
                   </div>
                   <div>
-                    <Label className="font-medium">Ответ:</Label>
-                    <p className="text-sm text-muted-foreground mt-1">{item.answer}</p>
+                    <Label className="font-medium">Содержание:</Label>
+                    <p className="text-sm text-muted-foreground mt-1">{item.content}</p>
+                  </div>
+                  {item.keywords && item.keywords.length > 0 && (
+                    <div>
+                      <Label className="font-medium">Ключевые слова:</Label>
+                      <div className="flex flex-wrap gap-1 mt-1">
+                        {item.keywords.map((keyword, index) => (
+                          <Badge key={index} variant="secondary" className="text-xs">
+                            {keyword}
+                          </Badge>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  <div>
+                    <Label className="font-medium">Приоритет:</Label>
+                    <Badge variant={item.priority === 1 ? "default" : item.priority === 2 ? "secondary" : "outline"} className="ml-2">
+                      {item.priority === 1 ? "Высокий" : item.priority === 2 ? "Средний" : "Низкий"}
+                    </Badge>
                   </div>
                 </CardContent>
               </Card>
