@@ -173,6 +173,21 @@ async function callOpenAIWithTools(messages: AIMessage[], settings: UserSettings
             required: ["object_description"]
           }
         }
+      },
+      {
+        type: "function",
+        function: {
+          name: "get_technical_specifications",
+          description: "Найти технические задания по клиенту или названию",
+          parameters: {
+            type: "object",
+            properties: {
+              client_name: { type: "string", description: "Имя клиента для поиска ТЗ" },
+              title: { type: "string", description: "Название ТЗ для поиска" },
+              limit: { type: "number", description: "Максимальное количество результатов (по умолчанию 10)" }
+            }
+          }
+        }
       }
     ];
 
@@ -357,7 +372,7 @@ async function executeFunction(functionName: string, args: any, userId: string, 
       return await getClientInfo(userId, args);
 
     case 'create_client':
-      return await createCrmClient(userId, args);
+      return await createNewClient(userId, args);
 
     case 'create_estimate':
       return await createEstimateViaAI(userId, args, userToken);
@@ -1055,10 +1070,16 @@ serve(async (req) => {
 - Статистика задач через get_tasks_stats (всего, сегодня, просроченные, по статусам)
 - Создание клиентов через create_client (имя, телефон, email, источник лида)
 - Поиск технических заданий через get_technical_specifications (client_name, title, limit)
+- Создание клиентов через create_client (имя, телефон, email, адрес, услуги)
 - Создание смет через AI-Сметчика (указывайте: описание проекта, площадь, клиента, виды работ)
 - Создание технических заданий через create_technical_specification (описание объекта, клиент, адрес)
 - Создание задач через create_task (заголовок, описание, дата выполнения)
 - Завершение задач через complete_task (название задачи или ID)
+
+ВАЖНО - СВЯЗКА С КЛИЕНТАМИ:
+• При запросе создания ТЗ или сметы для клиента: СНАЧАЛА ищи клиента через get_client_info
+• Если клиент НЕ НАЙДЕН - предлагай создать через create_client
+• При поиске ТЗ используй get_technical_specifications по имени клиента или названию
 
 НЕ ПРОСТО ПЕРЕЧИСЛЯЙТЕ ДАННЫЕ - ПРЕДЛАГАЙТЕ ДЕЙСТВИЯ И ЗАДАВАЙТЕ УТОЧНЯЮЩИЕ ВОПРОСЫ!`;
 
@@ -1319,6 +1340,65 @@ async function createTechnicalSpecification(userId: string, args: any, userToken
     };
   } catch (error) {
     console.error('Error in createTechnicalSpecification:', error);
+    return { 
+      success: false, 
+      error: (error as Error).message 
+    };
+  }
+}
+
+// Создание нового клиента
+async function createNewClient(userId: string, args: any) {
+  try {
+    const supabaseAdmin = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+    );
+
+    // Проверим, не существует ли уже клиент с таким именем
+    const { data: existingClient } = await supabaseAdmin
+      .from('clients')
+      .select('id, name')
+      .eq('user_id', userId)
+      .ilike('name', `%${args.name}%`)
+      .single();
+
+    if (existingClient) {
+      return {
+        success: false,
+        message: `Клиент "${existingClient.name}" уже существует в системе`
+      };
+    }
+
+    // Создаем нового клиента
+    const clientData = {
+      user_id: userId,
+      name: args.name || 'Новый клиент',
+      phone: args.phone || '',
+      email: args.email || null,
+      address: args.address || null,
+      services: args.services || [],
+      status: 'new',
+      notes: args.notes || '',
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    };
+
+    const { data, error } = await supabaseAdmin
+      .from('clients')
+      .insert(clientData)
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    return {
+      success: true,
+      client: data,
+      message: `✅ Клиент "${data.name}" успешно создан. Теперь можно создать для него техническое задание или смету.`
+    };
+  } catch (error) {
+    console.error('Error creating client:', error);
     return { 
       success: false, 
       error: (error as Error).message 
