@@ -882,21 +882,84 @@ serve(async (req) => {
         });
 
       case 'create_estimate_from_spec':
-        const spec = data.technical_specification;
-        if (!spec || !spec.work_scope) {
-          throw new Error('Техническое задание с объемом работ обязательно');
+        const techSpecId = data.technical_specification_id;
+        
+        if (!techSpecId) {
+          return new Response(
+            JSON.stringify({ 
+              success: false, 
+              error: 'technical_specification_id is required' 
+            }),
+            { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
+          );
+        }
+
+        console.log('Creating estimate from tech spec ID:', techSpecId);
+        
+        // Получаем техническое задание из БД
+        const { data: techSpec, error: techSpecError } = await supabase
+          .from('technical_specifications')
+          .select('*')
+          .eq('id', techSpecId)
+          .single();
+
+        if (techSpecError || !techSpec) {
+          console.error('Tech spec not found:', techSpecError);
+          return new Response(
+            JSON.stringify({ 
+              success: false, 
+              error: 'Technical specification not found' 
+            }),
+            { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 404 }
+          );
+        }
+
+        console.log('Found tech spec:', techSpec.title);
+        
+        if (!techSpec.work_scope) {
+          return new Response(
+            JSON.stringify({ 
+              success: false, 
+              error: 'Техническое задание не содержит объема работ' 
+            }),
+            { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
+          );
         }
 
         // Парсим объем работ из технического задания
-        const specServices = await parseServicesFromWorkScope(spec.work_scope);
+        const specServices = await parseServicesFromWorkScope(techSpec.work_scope);
         if (!specServices || specServices.length === 0) {
-          throw new Error('Не удалось извлечь услуги из технического задания');
+          return new Response(
+            JSON.stringify({ 
+              success: false, 
+              error: 'Не удалось извлечь услуги из технического задания' 
+            }),
+            { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
+          );
+        }
+
+        console.log('Parsed services from tech spec:', specServices.length);
+
+        // Получаем информацию о клиенте если есть
+        let clientId = null;
+        if (techSpec.client_name) {
+          const { data: clientData } = await supabase
+            .from('clients')
+            .select('id')
+            .eq('user_id', userId)
+            .ilike('name', `%${techSpec.client_name}%`)
+            .limit(1)
+            .single();
+          
+          if (clientData) {
+            clientId = clientData.id;
+          }
         }
 
         // Создаем смету на основе ТЗ
         const specResult = await createFullEstimate(
-          spec.title || `Смета по ТЗ: ${spec.client_name || 'Клиент'}`,
-          spec.client_id || null,
+          techSpec.title || `Смета для ${techSpec.client_name || 'клиента'}`,
+          clientId,
           await calculateMaterialConsumption(specServices, userId),
           userId,
           undefined

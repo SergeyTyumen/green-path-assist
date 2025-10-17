@@ -188,6 +188,21 @@ async function callOpenAIWithTools(messages: AIMessage[], settings: UserSettings
             }
           }
         }
+      },
+      {
+        type: "function",
+        function: {
+          name: "create_estimate_from_technical_spec",
+          description: "Создать смету на основе технического задания",
+          parameters: {
+            type: "object",
+            properties: {
+              technical_spec_id: { type: "string", description: "ID технического задания" },
+              client_name: { type: "string", description: "Имя клиента (если не указан ID)" },
+              spec_title: { type: "string", description: "Название ТЗ (если не указан ID)" }
+            }
+          }
+        }
       }
     ];
 
@@ -376,6 +391,9 @@ async function executeFunction(functionName: string, args: any, userId: string, 
 
     case 'create_estimate':
       return await createEstimateViaAI(userId, args, userToken);
+
+    case 'create_estimate_from_technical_spec':
+      return await createEstimateFromTechSpec(userId, args, userToken);
 
     case 'create_task':
       return await createTask(userId, args);
@@ -1073,13 +1091,15 @@ serve(async (req) => {
 - Создание клиентов через create_client (имя, телефон, email, адрес, услуги)
 - Создание смет через AI-Сметчика (указывайте: описание проекта, площадь, клиента, виды работ)
 - Создание технических заданий через create_technical_specification (описание объекта, клиент, адрес)
+- Создание сметы из технического задания через create_estimate_from_technical_spec (ID ТЗ, имя клиента или название ТЗ)
 - Создание задач через create_task (заголовок, описание, дата выполнения)
 - Завершение задач через complete_task (название задачи или ID)
 
-ВАЖНО - СВЯЗКА С КЛИЕНТАМИ:
+ВАЖНО - СВЯЗКА С КЛИЕНТАМИ И ТЗ:
 • При запросе создания ТЗ или сметы для клиента: СНАЧАЛА ищи клиента через get_client_info
 • Если клиент НЕ НАЙДЕН - предлагай создать через create_client
 • При поиске ТЗ используй get_technical_specifications по имени клиента или названию
+• Для создания сметы из ТЗ используй create_estimate_from_technical_spec - AI-сметчик автоматически заполнит все поля
 
 НЕ ПРОСТО ПЕРЕЧИСЛЯЙТЕ ДАННЫЕ - ПРЕДЛАГАЙТЕ ДЕЙСТВИЯ И ЗАДАВАЙТЕ УТОЧНЯЮЩИЕ ВОПРОСЫ!`;
 
@@ -1402,6 +1422,111 @@ async function createNewClient(userId: string, args: any) {
     return { 
       success: false, 
       error: (error as Error).message 
+    };
+  }
+}
+
+// Создание сметы из технического задания
+async function createEstimateFromTechSpec(userId: string, args: any, userToken: string) {
+  try {
+    const supabaseAdmin = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+    );
+
+    let techSpec;
+
+    // Если указан ID, ищем по ID
+    if (args.technical_spec_id) {
+      const { data, error } = await supabaseAdmin
+        .from('technical_specifications')
+        .select('*')
+        .eq('id', args.technical_spec_id)
+        .eq('user_id', userId)
+        .single();
+      
+      if (error || !data) {
+        return {
+          success: false,
+          message: `Техническое задание с ID ${args.technical_spec_id} не найдено`
+        };
+      }
+      techSpec = data;
+    } 
+    // Иначе ищем по имени клиента или названию ТЗ
+    else {
+      let query = supabaseAdmin
+        .from('technical_specifications')
+        .select('*')
+        .eq('user_id', userId);
+
+      if (args.client_name) {
+        query = query.ilike('client_name', `%${args.client_name}%`);
+      }
+      if (args.spec_title) {
+        query = query.ilike('title', `%${args.spec_title}%`);
+      }
+
+      const { data, error } = await query.limit(1).single();
+      
+      if (error || !data) {
+        return {
+          success: false,
+          message: args.client_name 
+            ? `Техническое задание для клиента "${args.client_name}" не найдено`
+            : `Техническое задание "${args.spec_title}" не найдено`
+        };
+      }
+      techSpec = data;
+    }
+
+    // Вызываем AI-сметчик для создания сметы
+    console.log('Calling ai-estimator with tech spec:', techSpec.id);
+    
+    const estimatorResponse = await fetch(
+      `${Deno.env.get('SUPABASE_URL')}/functions/v1/ai-estimator`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${userToken}`
+        },
+        body: JSON.stringify({
+          action: 'create_estimate_from_spec',
+          technical_specification_id: techSpec.id
+        })
+      }
+    );
+
+    if (!estimatorResponse.ok) {
+      const errorText = await estimatorResponse.text();
+      console.error('AI-estimator error:', errorText);
+      throw new Error(`AI-сметчик вернул ошибку: ${estimatorResponse.status}`);
+    }
+
+    const result = await estimatorResponse.json();
+
+    if (result.success) {
+      return {
+        success: true,
+        estimate: result.estimate,
+        message: `✅ Смета "${result.estimate?.title || 'Новая смета'}" успешно создана на основе ТЗ "${techSpec.title}".\n` +
+                 `Клиент: ${techSpec.client_name}\n` +
+                 `Позиций в смете: ${result.estimate?.items?.length || 0}\n` +
+                 `Общая сумма: ${result.estimate?.total_amount || 0} руб.`
+      };
+    } else {
+      return {
+        success: false,
+        message: `Не удалось создать смету: ${result.error || 'Неизвестная ошибка'}`
+      };
+    }
+  } catch (error) {
+    console.error('Error creating estimate from tech spec:', error);
+    return { 
+      success: false, 
+      error: (error as Error).message,
+      message: `Ошибка при создании сметы из ТЗ: ${(error as Error).message}`
     };
   }
 }
