@@ -24,6 +24,7 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { useProposals } from '@/hooks/useProposals';
 import { useClients } from '@/hooks/useClients';
+import { useEstimates } from '@/hooks/useEstimates';
 import { useProposalSettings } from '@/hooks/useProposalSettings';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
@@ -35,20 +36,46 @@ const AIProposalManager = () => {
   const { toast } = useToast();
   const { proposals, loading, createProposal, updateProposal } = useProposals();
   const { clients } = useClients();
+  const { estimates, loading: estimatesLoading } = useEstimates();
   const { settings, loading: settingsLoading, saveSettings } = useProposalSettings();
 
   const [newProposal, setNewProposal] = useState({
     clientId: '',
+    estimateId: '',
     title: '',
-    description: '',
-    services: [],
     validDays: settings.default_validity_days
   });
 
   const [generating, setGenerating] = useState(false);
   const [savingSettings, setSavingSettings] = useState(false);
+  const [selectedTemplate, setSelectedTemplate] = useState<string>('');
+  const [templates, setTemplates] = useState<any[]>([]);
   
   const [localSettings, setLocalSettings] = useState(settings);
+
+  // Загрузка шаблонов
+  const loadTemplates = async () => {
+    if (!user) return;
+    
+    try {
+      const { data, error } = await supabase
+        .from('templates')
+        .select('*')
+        .eq('type', 'proposal')
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      setTemplates(data || []);
+      
+      // Выбираем дефолтный шаблон
+      const defaultTemplate = data?.find(t => t.is_default);
+      if (defaultTemplate) {
+        setSelectedTemplate(defaultTemplate.id);
+      }
+    } catch (error) {
+      console.error('Error loading templates:', error);
+    }
+  };
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -76,7 +103,7 @@ const AIProposalManager = () => {
   };
 
   const generateProposal = async () => {
-    if (!newProposal.clientId || !newProposal.title) {
+    if (!newProposal.clientId || !newProposal.estimateId || !newProposal.title) {
       toast({
         title: "Ошибка",
         description: "Заполните все обязательные поля",
@@ -88,61 +115,70 @@ const AIProposalManager = () => {
     setGenerating(true);
     
     try {
-      const aiConfig = await getAIConfigForAssistant(user!.id, 'proposal-manager');
-      if (!aiConfig?.apiKey) {
-        toast({
-          title: "API ключ не найден",
-          description: "Настройте API ключ в разделе 'Настройки' → 'API Ключи'",
-          variant: "destructive"
-        });
-        setGenerating(false);
-        return;
-      }
+      // Получаем данные клиента
+      const { data: client, error: clientError } = await supabase
+        .from('clients')
+        .select('*')
+        .eq('id', newProposal.clientId)
+        .single();
 
-      // Сначала создаем КП через AI Proposal Manager
-      const { data, error } = await supabase.functions.invoke('ai-proposal-manager', {
-        body: {
-          action: 'create_proposal',
-          data: {
-            client_id: newProposal.clientId,
-            title: newProposal.title,
-            description: newProposal.description,
-            amount: 0,
-            expires_at: new Date(Date.now() + newProposal.validDays * 24 * 60 * 60 * 1000).toISOString()
-          },
-          aiConfig // Передаем настройки AI
-        }
+      if (clientError) throw clientError;
+
+      // Получаем данные сметы
+      const { data: estimate, error: estimateError } = await supabase
+        .from('estimates')
+        .select('*, estimate_items(*)')
+        .eq('id', newProposal.estimateId)
+        .single();
+
+      if (estimateError) throw estimateError;
+
+      // Получаем шаблон
+      const { data: template, error: templateError } = await supabase
+        .from('templates')
+        .select('*')
+        .eq('id', selectedTemplate || templates.find(t => t.is_default)?.id)
+        .single();
+
+      if (templateError) throw templateError;
+
+      // Формируем список услуг из сметы
+      const services = estimate.estimate_items?.map((item: any) => 
+        `${item.description || 'Услуга'} - ${item.quantity} ${item.unit_price} ₽`
+      ).join('\n') || '';
+
+      // Заполняем переменные в шаблоне
+      let content = template.content;
+      content = content.replace(/\{\{client_name\}\}/g, client.name || '');
+      content = content.replace(/\{\{client_phone\}\}/g, client.phone || '');
+      content = content.replace(/\{\{client_email\}\}/g, client.email || '');
+      content = content.replace(/\{\{client_address\}\}/g, client.address || '');
+      content = content.replace(/\{\{amount\}\}/g, estimate.total_amount?.toLocaleString('ru-RU') || '0');
+      content = content.replace(/\{\{date\}\}/g, new Date().toLocaleDateString('ru-RU'));
+      content = content.replace(/\{\{services\}\}/g, services);
+      content = content.replace(/\{\{estimate_details\}\}/g, estimate.title || '');
+
+      // Создаем КП в базе
+      await createProposal({
+        client_id: newProposal.clientId,
+        title: newProposal.title,
+        status: 'draft' as const,
+        amount: estimate.total_amount || 0,
+        content: content,
+        expires_at: new Date(Date.now() + newProposal.validDays * 24 * 60 * 60 * 1000).toISOString()
       });
-
-      if (error) {
-        throw new Error(error.message);
-      }
-
-      if (data.success) {
-        // Затем создаем в локальной базе через хук
-        await createProposal({
-          client_id: newProposal.clientId,
-          title: newProposal.title,
-          status: 'draft' as const,
-          amount: 0,
-          expires_at: new Date(Date.now() + newProposal.validDays * 24 * 60 * 60 * 1000).toISOString()
-        });
-        
-        setNewProposal({
-          clientId: '',
-          title: '',
-          description: '',
-          services: [],
-          validDays: 14
-        });
-        
-        toast({
-          title: "КП создано",
-          description: "ИИ сгенерировал коммерческое предложение с персонализированным контентом"
-        });
-      } else {
-        throw new Error(data.error || 'Ошибка создания КП');
-      }
+      
+      setNewProposal({
+        clientId: '',
+        estimateId: '',
+        title: '',
+        validDays: settings.default_validity_days
+      });
+      
+      toast({
+        title: "КП создано",
+        description: "Коммерческое предложение успешно сформировано на основе шаблона"
+      });
     } catch (error) {
       console.error('Error generating proposal:', error);
       toast({
@@ -185,6 +221,11 @@ const AIProposalManager = () => {
       setNewProposal(prev => ({ ...prev, validDays: settings.default_validity_days }));
     }
   }, [settings, settingsLoading]);
+
+  // Загружаем шаблоны при монтировании
+  React.useEffect(() => {
+    loadTemplates();
+  }, [user]);
 
   const sendProposal = async (id: string) => {
     try {
@@ -242,30 +283,28 @@ const AIProposalManager = () => {
             <FileText className="h-6 w-6 text-white" />
           </div>
           <div>
-            <h1 className="text-3xl font-bold">ИИ-КП-Менеджер</h1>
+            <h1 className="text-3xl font-bold">КП-Менеджер</h1>
             <p className="text-muted-foreground">
-              Оформляет и отправляет коммерческие предложения заказчикам
+              Создание коммерческих предложений на основе шаблонов и смет
             </p>
           </div>
         </div>
 
         <div className="flex items-center gap-2">
           <Badge variant="secondary" className="bg-green-100 text-green-800">
-            <Brain className="h-3 w-3 mr-1" />
+            <FileText className="h-3 w-3 mr-1" />
             Активен
           </Badge>
           <Badge variant="outline">
-            <Zap className="h-3 w-3 mr-1" />
-            OpenAI GPT-4o
+            Шаблонная система
           </Badge>
         </div>
       </div>
 
       <Tabs defaultValue="create" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-4">
+        <TabsList className="grid w-full grid-cols-3">
           <TabsTrigger value="create">Создать КП</TabsTrigger>
           <TabsTrigger value="proposals">Мои КП</TabsTrigger>
-          <TabsTrigger value="analytics">Аналитика</TabsTrigger>
           <TabsTrigger value="settings">Настройки</TabsTrigger>
         </TabsList>
 
@@ -305,13 +344,60 @@ const AIProposalManager = () => {
                 </div>
 
                 <div className="space-y-2">
-                  <Label>Описание работ</Label>
-                  <Textarea 
-                    value={newProposal.description}
-                    onChange={(e) => setNewProposal(prev => ({ ...prev, description: e.target.value }))}
-                    placeholder="Опишите требуемые работы..."
-                    rows={4}
+                  <Label>Смета</Label>
+                  <Select 
+                    value={newProposal.estimateId} 
+                    onValueChange={(value) => setNewProposal(prev => ({ ...prev, estimateId: value }))}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Выберите смету" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {estimatesLoading ? (
+                        <SelectItem value="loading" disabled>Загрузка...</SelectItem>
+                      ) : newProposal.clientId ? (
+                        estimates
+                          .filter((e: any) => e.client_id === newProposal.clientId)
+                          .map((estimate: any) => (
+                            <SelectItem key={estimate.id} value={estimate.id}>
+                              {estimate.title} ({estimate.total_amount?.toLocaleString('ru-RU')} ₽)
+                            </SelectItem>
+                          ))
+                      ) : (
+                        <SelectItem value="none" disabled>
+                          Сначала выберите клиента
+                        </SelectItem>
+                      )}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Название КП</Label>
+                  <Input 
+                    value={newProposal.title}
+                    onChange={(e) => setNewProposal(prev => ({ ...prev, title: e.target.value }))}
+                    placeholder="Коммерческое предложение на..." 
                   />
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Шаблон</Label>
+                  <Select 
+                    value={selectedTemplate} 
+                    onValueChange={setSelectedTemplate}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Выберите шаблон" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {templates.map(template => (
+                        <SelectItem key={template.id} value={template.id}>
+                          {template.name} {template.is_default && '(по умолчанию)'}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
@@ -346,12 +432,12 @@ const AIProposalManager = () => {
                   {generating ? (
                     <>
                       <div className="animate-spin h-4 w-4 mr-2 border-2 border-white border-t-transparent rounded-full" />
-                      Генерирую КП...
+                      Создаю КП...
                     </>
                   ) : (
                     <>
-                      <Brain className="h-4 w-4 mr-2" />
-                      Сгенерировать КП с помощью ИИ
+                      <FileText className="h-4 w-4 mr-2" />
+                      Создать КП на основе шаблона
                     </>
                   )}
                 </Button>
@@ -360,19 +446,22 @@ const AIProposalManager = () => {
 
             <Card>
               <CardHeader>
-                <CardTitle>Шаблоны КП</CardTitle>
+                <CardTitle>Переменные для шаблонов</CardTitle>
+                <CardDescription>
+                  Используйте эти переменные в ваших шаблонах
+                </CardDescription>
               </CardHeader>
-              <CardContent className="space-y-3">
-                {[
-                  { name: 'Ремонт офиса', description: 'Стандартный ремонт офисных помещений' },
-                  { name: 'Ремонт квартиры', description: 'Капитальный ремонт жилых помещений' },
-                  { name: 'Коммерческие объекты', description: 'Ремонт торговых и складских помещений' }
-                ].map((template, index) => (
-                  <div key={index} className="p-3 border rounded-lg hover:bg-muted/50 cursor-pointer">
-                    <h4 className="font-medium">{template.name}</h4>
-                    <p className="text-sm text-muted-foreground">{template.description}</p>
-                  </div>
-                ))}
+              <CardContent className="space-y-2">
+                <div className="grid grid-cols-2 gap-2 text-sm">
+                  <code className="bg-muted p-2 rounded">{`{{client_name}}`}</code>
+                  <code className="bg-muted p-2 rounded">{`{{client_phone}}`}</code>
+                  <code className="bg-muted p-2 rounded">{`{{client_email}}`}</code>
+                  <code className="bg-muted p-2 rounded">{`{{client_address}}`}</code>
+                  <code className="bg-muted p-2 rounded">{`{{amount}}`}</code>
+                  <code className="bg-muted p-2 rounded">{`{{date}}`}</code>
+                  <code className="bg-muted p-2 rounded">{`{{services}}`}</code>
+                  <code className="bg-muted p-2 rounded">{`{{estimate_details}}`}</code>
+                </div>
               </CardContent>
             </Card>
           </div>
@@ -463,55 +552,6 @@ const AIProposalManager = () => {
               </Table>
             </CardContent>
           </Card>
-        </TabsContent>
-
-        <TabsContent value="analytics" className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <TrendingUp className="h-5 w-5" />
-                  Конверсия КП
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-3xl font-bold text-green-600">68%</div>
-                <p className="text-sm text-muted-foreground">
-                  Принятых предложений за месяц
-                </p>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Mail className="h-5 w-5" />
-                  Отправлено КП
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-3xl font-bold">42</div>
-                <p className="text-sm text-muted-foreground">
-                  За текущий месяц
-                </p>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Calendar className="h-5 w-5" />
-                  Средний срок
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-3xl font-bold">5 дней</div>
-                <p className="text-sm text-muted-foreground">
-                  От отправки до принятия
-                </p>
-              </CardContent>
-            </Card>
-          </div>
         </TabsContent>
 
         <TabsContent value="settings" className="space-y-6">

@@ -10,6 +10,8 @@ export interface Proposal {
   title: string;
   amount: number;
   status: 'draft' | 'sent' | 'approved' | 'rejected';
+  content?: string;
+  template_url?: string;
   created_at: string;
   updated_at: string;
   sent_at?: string;
