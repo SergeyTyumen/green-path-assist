@@ -37,6 +37,7 @@ import { useKnowledgeBase } from '@/hooks/useKnowledgeBase';
 import { useIntegrationStatus } from '@/hooks/useIntegrationStatus';
 import { getAIConfigForAssistant } from '@/utils/getAPIKeys';
 import WhatsAppIntegrationDialog from '@/components/WhatsAppIntegrationDialog';
+import TelegramIntegrationDialog from '@/components/TelegramIntegrationDialog';
 
 interface ChatMessage {
   id: string;
@@ -725,9 +726,7 @@ const AIConsultant = () => {
                         </p>
                       </div>
                     </div>
-                    <Button variant="outline">
-                      Настроить Telegram
-                    </Button>
+                    <TelegramIntegrationDialog onSettingsChange={refetchIntegrations} />
                   </div>
 
                   <div className="flex items-center justify-between p-4 border rounded-lg">
