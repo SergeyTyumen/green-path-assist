@@ -21,6 +21,7 @@ import {
   Calendar,
   TrendingUp
 } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
 import { useProposals } from '@/hooks/useProposals';
 import { useClients } from '@/hooks/useClients';
@@ -50,6 +51,7 @@ const AIProposalManager = () => {
   const [savingSettings, setSavingSettings] = useState(false);
   const [selectedTemplate, setSelectedTemplate] = useState<string>('');
   const [templates, setTemplates] = useState<any[]>([]);
+  const [viewingProposal, setViewingProposal] = useState<any | null>(null);
   
   const [localSettings, setLocalSettings] = useState(settings);
 
@@ -528,7 +530,11 @@ const AIProposalManager = () => {
                         </TableCell>
                         <TableCell>
                           <div className="flex gap-2">
-                            <Button variant="ghost" size="sm">
+                            <Button 
+                              variant="ghost" 
+                              size="sm"
+                              onClick={() => setViewingProposal(proposal)}
+                            >
                               <Eye className="h-4 w-4" />
                             </Button>
                             <Button variant="ghost" size="sm">
@@ -633,6 +639,17 @@ const AIProposalManager = () => {
           </Card>
         </TabsContent>
       </Tabs>
+
+      <Dialog open={!!viewingProposal} onOpenChange={() => setViewingProposal(null)}>
+        <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>{viewingProposal?.title}</DialogTitle>
+          </DialogHeader>
+          <div className="prose max-w-none">
+            <div className="whitespace-pre-wrap p-4 bg-muted rounded-lg">{viewingProposal?.content}</div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
