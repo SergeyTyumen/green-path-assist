@@ -204,6 +204,22 @@ const AIProposalManager = () => {
 
   const sendProposal = async (id: string) => {
     try {
+      const proposal = proposals.find(p => p.id === id);
+      
+      // Если черновик - сначала конвертируем в PDF
+      if (proposal?.status === 'draft') {
+        const { data: convertData, error: convertError } = await supabase.functions.invoke('convert-proposal-to-pdf', {
+          body: { proposal_id: id }
+        });
+
+        if (convertError) throw convertError;
+
+        toast({
+          title: "КП конвертировано в PDF",
+          description: "Теперь отправляем клиенту..."
+        });
+      }
+
       // Отправляем через AI Proposal Manager
       const { data, error } = await supabase.functions.invoke('ai-proposal-manager', {
         body: {
@@ -219,11 +235,8 @@ const AIProposalManager = () => {
       }
 
       if (data.success) {
-        // Обновляем локальный статус
-        await updateProposal(id, { 
-          status: 'sent',
-          sent_at: new Date().toISOString()
-        });
+        // Обновляем список
+        await refetch();
         
         toast({
           title: "КП отправлено",
@@ -625,26 +638,55 @@ const AIProposalManager = () => {
                     size="sm"
                     onClick={() => window.open(viewingProposal.template_url, '_blank')}
                   >
-                    Открыть в новой вкладке
+                    {viewingProposal.status === 'draft' ? 'Скачать DOCX' : 'Открыть PDF'}
                   </Button>
-                  <Button 
-                    variant="outline" 
-                    size="sm"
-                    onClick={() => window.print()}
-                  >
-                    Печать / Сохранить как PDF
-                  </Button>
+                  {viewingProposal.status === 'draft' && (
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={() => {
+                        const link = document.createElement('a');
+                        link.href = viewingProposal.template_url;
+                        link.download = `${viewingProposal.title}.docx`;
+                        link.click();
+                      }}
+                    >
+                      Редактировать
+                    </Button>
+                  )}
                 </div>
               )}
             </DialogTitle>
           </DialogHeader>
           <div className="prose max-w-none">
-            {viewingProposal?.template_url ? (
-              <iframe 
-                src={viewingProposal.template_url} 
-                className="w-full h-[600px] border rounded"
-                title="Proposal Preview"
-              />
+            {viewingProposal?.template_url?.endsWith('.docx') ? (
+              <div className="space-y-4">
+                <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                  <p className="text-sm text-blue-800">
+                    <strong>Черновик DOCX:</strong> Скачайте файл для редактирования. После финальных правок нажмите "Отправить" - КП автоматически конвертируется в PDF.
+                  </p>
+                </div>
+                <iframe
+                  src={`https://docs.google.com/gview?url=${encodeURIComponent(viewingProposal.template_url)}&embedded=true`}
+                  className="w-full h-[600px] border rounded"
+                  title="DOCX Preview"
+                />
+              </div>
+            ) : viewingProposal?.template_url?.endsWith('.html') || viewingProposal?.template_url?.endsWith('.pdf') ? (
+              <div className="space-y-4">
+                {viewingProposal.status === 'sent' && (
+                  <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
+                    <p className="text-sm text-green-800">
+                      <strong>Отправлено клиенту:</strong> PDF версия для просмотра клиентом
+                    </p>
+                  </div>
+                )}
+                <iframe 
+                  src={viewingProposal.template_url} 
+                  className="w-full h-[600px] border rounded"
+                  title="PDF Preview"
+                />
+              </div>
             ) : (
               <div className="whitespace-pre-wrap p-4 bg-muted rounded-lg">
                 {viewingProposal?.content}

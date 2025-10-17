@@ -13,6 +13,42 @@ interface GenerateProposalRequest {
   valid_days: number;
 }
 
+// Простая генерация DOCX через XML
+function generateDocx(content: string, title: string): Uint8Array {
+  const docXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  <w:body>
+    <w:p>
+      <w:pPr>
+        <w:jc w:val="center"/>
+        <w:rPr>
+          <w:b/>
+          <w:sz w:val="32"/>
+        </w:rPr>
+      </w:pPr>
+      <w:r>
+        <w:rPr>
+          <w:b/>
+          <w:sz w:val="32"/>
+        </w:rPr>
+        <w:t>${title}</w:t>
+      </w:r>
+    </w:p>
+    ${content.split('\n').map(line => `
+    <w:p>
+      <w:r>
+        <w:t>${line}</w:t>
+      </w:r>
+    </w:p>
+    `).join('')}
+  </w:body>
+</w:document>`;
+
+  // Создаем простую DOCX структуру
+  const encoder = new TextEncoder();
+  return encoder.encode(docXml);
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -88,34 +124,18 @@ Deno.serve(async (req) => {
       content = content.replace(new RegExp(`\\{\\{${key}\\}\\}`, 'g'), value);
     });
 
-    // Создаём HTML для PDF (простой вариант без библиотек)
-    const htmlContent = `
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <meta charset="utf-8">
-        <style>
-          body { font-family: Arial, sans-serif; padding: 40px; line-height: 1.6; }
-          h1 { color: #333; border-bottom: 2px solid #4f46e5; padding-bottom: 10px; }
-          .content { white-space: pre-wrap; }
-        </style>
-      </head>
-      <body>
-        <h1>${requestData.title}</h1>
-        <div class="content">${content.replace(/\n/g, '<br>')}</div>
-      </body>
-      </html>
-    `;
+    // Генерируем DOCX
+    const docxContent = generateDocx(content, requestData.title);
 
     // Генерируем имя файла
-    const fileName = `proposal_${requestData.client_id}_${Date.now()}.html`;
+    const fileName = `proposal_${requestData.client_id}_${Date.now()}.docx`;
     const filePath = `${user.id}/${fileName}`;
 
-    // Сохраняем HTML файл (для просмотра как PDF через принт)
+    // Сохраняем DOCX файл
     const { data: uploadData, error: uploadError } = await supabaseClient.storage
       .from('proposal-templates')
-      .upload(filePath, new Blob([htmlContent], { type: 'text/html' }), {
-        contentType: 'text/html',
+      .upload(filePath, docxContent, {
+        contentType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
         upsert: true
       });
 
