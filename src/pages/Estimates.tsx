@@ -374,10 +374,41 @@ export default function Estimates() {
                           variant="ghost" 
                           size="sm" 
                           className="min-w-[44px] min-h-[44px] p-0"
-                          onClick={(e) => {
+                          onClick={async (e) => {
                             e.stopPropagation();
-                            // Логика копирования сметы
-                            console.log('Копирование сметы:', estimate.id);
+                            try {
+                              // Копируем смету
+                              const newEstimate = await createEstimate({
+                                ...estimate,
+                                title: `${estimate.title} (копия)`,
+                                status: 'draft'
+                              });
+                              
+                              // Копируем позиции сметы
+                              if (newEstimate && estimate.items && estimate.items.length > 0) {
+                                const { error: itemsError } = await supabase
+                                  .from('estimate_items')
+                                  .insert(
+                                    estimate.items.map((item: any) => ({
+                                      estimate_id: newEstimate.id,
+                                      material_id: item.material_id,
+                                      service_id: item.service_id,
+                                      quantity: item.quantity,
+                                      unit_price: item.unit_price,
+                                      total: item.total,
+                                      description: item.description
+                                    }))
+                                  );
+                                
+                                if (itemsError) throw itemsError;
+                              }
+                              
+                              toast.success('Смета успешно скопирована');
+                              refetch();
+                            } catch (error) {
+                              console.error('Error copying estimate:', error);
+                              toast.error('Ошибка при копировании сметы');
+                            }
                           }}
                         >
                           <Copy className="h-4 w-4" />

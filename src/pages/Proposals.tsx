@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { 
   FileText, 
   Plus, 
@@ -11,65 +12,31 @@ import {
   Eye, 
   Download,
   Send,
-  Bot
+  Bot,
+  Loader2
 } from "lucide-react";
-
-interface Proposal {
-  id: string;
-  client: string;
-  project: string;
-  amount: number;
-  status: "draft" | "sent" | "viewed" | "approved" | "rejected";
-  sentAt?: string;
-  validUntil: string;
-  estimateId?: string;
-}
+import { useProposals } from "@/hooks/useProposals";
+import { useClients } from "@/hooks/useClients";
+import { useNavigate } from "react-router-dom";
+import { toast } from "sonner";
 
 export default function Proposals() {
+  const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState("");
+  const [viewingProposal, setViewingProposal] = useState<any | null>(null);
+  
+  const { proposals, loading, updateProposal } = useProposals();
+  const { clients } = useClients();
 
-  const proposals: Proposal[] = [
-    {
-      id: "KP-001",
-      client: "Анна Петрова",
-      project: "Ландшафтное проектирование участка",
-      amount: 450000,
-      status: "sent",
-      sentAt: "2024-07-22",
-      validUntil: "2024-08-22",
-      estimateId: "EST-001"
-    },
-    {
-      id: "KP-002", 
-      client: "ООО Стройком",
-      project: "Система автополива",
-      amount: 280000,
-      status: "draft",
-      validUntil: "2024-08-25",
-      estimateId: "EST-002"
-    },
-    {
-      id: "KP-003",
-      client: "Михаил Иванов", 
-      project: "Укладка газона",
-      amount: 150000,
-      status: "approved",
-      sentAt: "2024-07-20",
-      validUntil: "2024-08-20",
-      estimateId: "EST-003"
-    }
-  ];
-
-  const getStatusBadge = (status: Proposal["status"]) => {
-    const statusConfig = {
+  const getStatusBadge = (status: string) => {
+    const statusConfig: Record<string, { label: string; className: string }> = {
       "draft": { label: "Черновик", className: "bg-gray-100 text-gray-700" },
       "sent": { label: "Отправлено", className: "bg-blue-100 text-blue-700" },
-      "viewed": { label: "Просмотрено", className: "bg-yellow-100 text-yellow-700" },
       "approved": { label: "Принято", className: "bg-green-100 text-green-700" },
       "rejected": { label: "Отклонено", className: "bg-red-100 text-red-700" }
     };
     
-    const config = statusConfig[status];
+    const config = statusConfig[status] || statusConfig.draft;
     return (
       <Badge className={config.className}>
         {config.label}
@@ -77,11 +44,48 @@ export default function Proposals() {
     );
   };
 
-  const filteredProposals = proposals.filter(proposal =>
-    proposal.client.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    proposal.project.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    proposal.id.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const getClientName = (clientId?: string) => {
+    if (!clientId) return "Без клиента";
+    const client = clients.find(c => c.id === clientId);
+    return client?.name || "Неизвестный клиент";
+  };
+
+  const handleViewProposal = (proposal: any) => {
+    setViewingProposal(proposal);
+  };
+
+  const handleSendProposal = async (proposalId: string) => {
+    try {
+      await updateProposal(proposalId, { status: 'sent', sent_at: new Date().toISOString() });
+      toast.success("КП отправлено клиенту");
+    } catch (error) {
+      toast.error("Ошибка при отправке КП");
+    }
+  };
+
+  const handleDownloadProposal = (proposal: any) => {
+    if (proposal.template_url) {
+      window.open(proposal.template_url, '_blank');
+    } else {
+      toast.error("Документ КП не найден");
+    }
+  };
+
+  const filteredProposals = proposals.filter(proposal => {
+    const clientName = getClientName(proposal.client_id);
+    return clientName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+           proposal.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+           proposal.id.toLowerCase().includes(searchTerm.toLowerCase());
+  });
+
+  if (loading) {
+    return (
+      <div className="p-6 flex items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin" />
+        <span className="ml-2">Загрузка КП...</span>
+      </div>
+    );
+  }
 
   return (
     <div className="p-6 space-y-6">
@@ -93,12 +97,19 @@ export default function Proposals() {
           </p>
         </div>
         <div className="flex flex-wrap gap-2 sm:flex-nowrap">
-          <Button variant="outline" className="gap-2 min-touch-target">
+          <Button 
+            variant="outline" 
+            className="gap-2 min-touch-target"
+            onClick={() => navigate('/ai-proposal-manager')}
+          >
             <Bot className="h-4 w-4" />
             <span className="hidden sm:inline">ИИ-генерация</span>
             <span className="sm:hidden">ИИ</span>
           </Button>
-          <Button className="bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 gap-2 min-touch-target">
+          <Button 
+            className="bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 gap-2 min-touch-target"
+            onClick={() => navigate('/ai-proposal-manager')}
+          >
             <Plus className="h-4 w-4" />
             Создать КП
           </Button>
@@ -128,40 +139,36 @@ export default function Proposals() {
           <Card 
             key={proposal.id} 
             className="hover:shadow-md transition-all duration-200 cursor-pointer hover:scale-[1.01]"
-            onClick={() => {
-              // Здесь будет логика открытия детального просмотра
-              console.log('Просмотр КП:', proposal.id);
-            }}
+            onClick={() => handleViewProposal(proposal)}
           >
             <CardContent className="p-6">
               <div className="flex flex-col lg:flex-row lg:items-center gap-4">
                 <div className="flex-1 min-w-0">
                   <div className="flex flex-wrap items-center gap-2 mb-2">
                     <h3 className="text-lg font-semibold text-foreground">
-                      {proposal.id}
+                      {proposal.title}
                     </h3>
                     {getStatusBadge(proposal.status)}
                   </div>
                   
                   <div className="space-y-1">
                     <p className="text-sm font-medium text-foreground overflow-wrap-anywhere">
-                      {proposal.client}
-                    </p>
-                    <p className="text-sm text-muted-foreground overflow-wrap-anywhere">
-                      {proposal.project}
+                      {getClientName(proposal.client_id)}
                     </p>
                     <div className="flex flex-wrap items-center gap-2 sm:gap-4 text-xs text-muted-foreground">
-                      {proposal.sentAt && (
+                      {proposal.sent_at && (
                         <span className="whitespace-nowrap">
-                          Отправлено: {new Date(proposal.sentAt).toLocaleDateString('ru-RU')}
+                          Отправлено: {new Date(proposal.sent_at).toLocaleDateString('ru-RU')}
+                        </span>
+                      )}
+                      {proposal.expires_at && (
+                        <span className="whitespace-nowrap">
+                          Действительно до: {new Date(proposal.expires_at).toLocaleDateString('ru-RU')}
                         </span>
                       )}
                       <span className="whitespace-nowrap">
-                        Действительно до: {new Date(proposal.validUntil).toLocaleDateString('ru-RU')}
+                        Создано: {new Date(proposal.created_at).toLocaleDateString('ru-RU')}
                       </span>
-                      {proposal.estimateId && (
-                        <span className="whitespace-nowrap">Смета: {proposal.estimateId}</span>
-                      )}
                     </div>
                   </div>
                 </div>
@@ -183,7 +190,7 @@ export default function Proposals() {
                       className="min-touch-target"
                       onClick={(e) => {
                         e.stopPropagation();
-                        console.log('Редактировать КП:', proposal.id);
+                        navigate('/ai-proposal-manager');
                       }}
                     >
                       <Edit className="h-4 w-4" />
@@ -194,7 +201,7 @@ export default function Proposals() {
                       className="min-touch-target"
                       onClick={(e) => {
                         e.stopPropagation();
-                        console.log('Скачать КП:', proposal.id);
+                        handleDownloadProposal(proposal);
                       }}
                     >
                       <Download className="h-4 w-4" />
@@ -206,7 +213,7 @@ export default function Proposals() {
                         className="min-touch-target"
                         onClick={(e) => {
                           e.stopPropagation();
-                          console.log('Отправить КП:', proposal.id);
+                          handleSendProposal(proposal.id);
                         }}
                       >
                         <Send className="h-4 w-4" />
@@ -230,13 +237,74 @@ export default function Proposals() {
             <p className="text-muted-foreground mb-4">
               Попробуйте изменить параметры поиска или создайте новое коммерческое предложение
             </p>
-            <Button>
+            <Button onClick={() => navigate('/ai-proposal-manager')}>
               <Plus className="h-4 w-4 mr-2" />
               Создать первое КП
             </Button>
           </CardContent>
         </Card>
       )}
+
+      {/* Диалог просмотра КП */}
+      <Dialog open={!!viewingProposal} onOpenChange={() => setViewingProposal(null)}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>{viewingProposal?.title}</DialogTitle>
+          </DialogHeader>
+          {viewingProposal && (
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <p className="text-sm text-muted-foreground">Клиент</p>
+                  <p className="font-medium">{getClientName(viewingProposal.client_id)}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">Сумма</p>
+                  <p className="font-medium">₽{viewingProposal.amount.toLocaleString('ru-RU')}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">Статус</p>
+                  <div className="mt-1">{getStatusBadge(viewingProposal.status)}</div>
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">Создано</p>
+                  <p className="font-medium">{new Date(viewingProposal.created_at).toLocaleDateString('ru-RU')}</p>
+                </div>
+              </div>
+              
+              {viewingProposal.content && (
+                <div>
+                  <p className="text-sm text-muted-foreground mb-2">Содержание КП</p>
+                  <div className="p-4 bg-muted rounded-lg whitespace-pre-wrap">
+                    {viewingProposal.content}
+                  </div>
+                </div>
+              )}
+
+              {viewingProposal.template_url && (
+                <div className="flex gap-2">
+                  <Button onClick={() => handleDownloadProposal(viewingProposal)}>
+                    <Download className="h-4 w-4 mr-2" />
+                    Скачать КП
+                  </Button>
+                  {viewingProposal.status === 'draft' && (
+                    <Button 
+                      variant="default"
+                      onClick={() => {
+                        handleSendProposal(viewingProposal.id);
+                        setViewingProposal(null);
+                      }}
+                    >
+                      <Send className="h-4 w-4 mr-2" />
+                      Отправить клиенту
+                    </Button>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

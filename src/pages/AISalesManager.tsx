@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -20,59 +20,42 @@ import {
   Calendar,
   TrendingUp,
   Target,
-  DollarSign
+  DollarSign,
+  Loader2
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { ClickablePhone } from '@/components/ClickablePhone';
-
-interface SalesLead {
-  id: string;
-  clientName: string;
-  phone: string;
-  email: string;
-  source: string;
-  stage: string;
-  value: number;
-  lastContact: Date;
-  nextAction: string;
-  priority: 'high' | 'medium' | 'low';
-}
+import { useClients } from '@/hooks/useClients';
+import { useNavigate } from 'react-router-dom';
 
 const AISalesManager = () => {
   const { toast } = useToast();
-  const [leads, setLeads] = useState<SalesLead[]>([
-    {
-      id: '1',
-      clientName: 'Петров А.И.',
-      phone: '+7 (999) 123-45-67',
-      email: 'petrov@email.com',
-      source: 'Сайт',
-      stage: 'Переговоры',
-      value: 450000,
-      lastContact: new Date('2024-01-10'),
-      nextAction: 'Отправить КП',
-      priority: 'high'
-    },
-    {
-      id: '2',
-      clientName: 'ООО "СтройТех"',
-      phone: '+7 (999) 987-65-43',
-      email: 'info@stroytech.ru',
-      source: 'Звонок',
-      stage: 'Квалификация',
-      value: 1200000,
-      lastContact: new Date('2024-01-12'),
-      nextAction: 'Провести презентацию',
-      priority: 'high'
-    }
-  ]);
+  const navigate = useNavigate();
+  const { clients, loading } = useClients();
+
+  // Преобразуем клиентов в лиды для работы с воронкой
+  const leads = clients.map(client => ({
+    id: client.id,
+    clientName: client.name,
+    phone: client.phone,
+    email: client.email || '',
+    source: client.lead_source || 'Сайт',
+    stage: client.status === 'new' ? 'Лид' : 
+           client.status === 'in-progress' ? 'Квалификация' : 
+           client.status === 'proposal-sent' ? 'Предложение' : 'Переговоры',
+    value: client.budget || 0,
+    lastContact: new Date(client.last_contact || client.created_at),
+    nextAction: client.next_action || 'Связаться с клиентом',
+    priority: (client.lead_quality_score || 0) > 70 ? 'high' as const : 
+              (client.lead_quality_score || 0) > 40 ? 'medium' as const : 'low' as const
+  }));
 
   const salesStages = [
-    { name: 'Лид', count: 8, color: 'bg-blue-500' },
-    { name: 'Квалификация', count: 5, color: 'bg-yellow-500' },
-    { name: 'Переговоры', count: 3, color: 'bg-orange-500' },
-    { name: 'Предложение', count: 2, color: 'bg-purple-500' },
-    { name: 'Сделка', count: 1, color: 'bg-green-500' }
+    { name: 'Лид', count: leads.filter(l => l.stage === 'Лид').length, color: 'bg-blue-500' },
+    { name: 'Квалификация', count: leads.filter(l => l.stage === 'Квалификация').length, color: 'bg-yellow-500' },
+    { name: 'Переговоры', count: leads.filter(l => l.stage === 'Переговоры').length, color: 'bg-orange-500' },
+    { name: 'Предложение', count: leads.filter(l => l.stage === 'Предложение').length, color: 'bg-purple-500' },
+    { name: 'Сделка', count: leads.filter(l => l.stage === 'Сделка').length, color: 'bg-green-500' }
   ];
 
   const getPriorityColor = (priority: string) => {
@@ -92,6 +75,15 @@ const AISalesManager = () => {
       default: return priority;
     }
   };
+
+  if (loading) {
+    return (
+      <div className="p-6 flex items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin" />
+        <span className="ml-2">Загрузка данных...</span>
+      </div>
+    );
+  }
 
   return (
     <div className="p-6 max-w-6xl mx-auto">
@@ -243,7 +235,7 @@ const AISalesManager = () => {
                   <Users className="h-5 w-5" />
                   Управление лидами
                 </div>
-                <Button>
+                <Button onClick={() => navigate('/clients')}>
                   <Plus className="h-4 w-4 mr-2" />
                   Добавить лид
                 </Button>
@@ -286,10 +278,18 @@ const AISalesManager = () => {
                       <TableCell className="text-sm">{lead.nextAction}</TableCell>
                       <TableCell>
                         <div className="flex gap-2">
-                          <Button variant="ghost" size="sm">
+                          <Button 
+                            variant="ghost" 
+                            size="sm"
+                            onClick={() => navigate(`/clients`)}
+                          >
                             <Eye className="h-4 w-4" />
                           </Button>
-                          <Button variant="ghost" size="sm">
+                          <Button 
+                            variant="ghost" 
+                            size="sm"
+                            onClick={() => window.open(`tel:${lead.phone}`)}
+                          >
                             <Phone className="h-4 w-4" />
                           </Button>
                         </div>
