@@ -12,8 +12,62 @@ const supabase = createClient(
   Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
 );
 
+// Автоматическая отправка через мессенджеры
+async function sendAutoResponse(userId: string, clientPhone: string, message: string, channel: 'whatsapp' | 'telegram') {
+  try {
+    console.log(`Автоотправка через ${channel} на ${clientPhone}`);
+    
+    if (channel === 'whatsapp') {
+      // Отправка через WhatsApp
+      const { data: settings } = await supabase
+        .from('integration_settings')
+        .select('settings')
+        .eq('user_id', userId)
+        .eq('integration_type', 'whatsapp')
+        .single();
+
+      if (!settings?.settings?.access_token || !settings?.settings?.phone_number_id) {
+        console.log('WhatsApp не настроен');
+        return { success: false, reason: 'whatsapp_not_configured' };
+      }
+
+      const whatsappApiUrl = `https://graph.facebook.com/v18.0/${settings.settings.phone_number_id}/messages`;
+      
+      const response = await fetch(whatsappApiUrl, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${settings.settings.access_token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          messaging_product: 'whatsapp',
+          to: clientPhone,
+          type: 'text',
+          text: { body: message }
+        })
+      });
+
+      const result = await response.json();
+      console.log('WhatsApp response:', result);
+      
+      return { 
+        success: response.ok, 
+        message_id: result.messages?.[0]?.id,
+        channel: 'whatsapp'
+      };
+    }
+    
+    // Telegram support можно добавить позже
+    return { success: false, reason: 'channel_not_supported' };
+    
+  } catch (error) {
+    console.error('Ошибка автоотправки:', error);
+    return { success: false, error: error.message };
+  }
+}
+
 // Обработка консультационных запросов
-async function handleConsultationRequest(question: string, context: any, userId: string): Promise<any> {
+async function handleConsultationRequest(question: string, context: any, userId: string, autoSend: boolean = false): Promise<any> {
   console.log('AI-Consultant handling question:', question);
   
   // Получаем данные из базы для контекста
@@ -22,11 +76,23 @@ async function handleConsultationRequest(question: string, context: any, userId:
   // Анализируем тип вопроса
   const questionType = analyzeQuestionType(question);
   
-  // Формируем контекстуальный ответ
-  const response = await generateConsultationResponse(question, questionType, knowledgeBase, context);
+  // Формируем контекстуальный ответ с учетом истории
+  const response = await generateConsultationResponse(question, questionType, knowledgeBase, context, userId);
   
   // Сохраняем в историю консультаций
   await saveConsultationHistory(userId, question, response, questionType);
+  
+  let sendResult = null;
+  
+  // Автоматическая отправка, если включена
+  if (autoSend && context?.client_phone && context?.channel) {
+    sendResult = await sendAutoResponse(
+      userId, 
+      context.client_phone, 
+      response.answer, 
+      context.channel
+    );
+  }
   
   return {
     success: true,
@@ -34,7 +100,8 @@ async function handleConsultationRequest(question: string, context: any, userId:
     question_type: questionType,
     recommendations: response.recommendations,
     related_services: response.related_services,
-    price_range: response.price_range
+    price_range: response.price_range,
+    auto_sent: sendResult
   };
 }
 
@@ -76,12 +143,33 @@ function analyzeQuestionType(question: string): string {
   }
 }
 
-// Генерация ответа с помощью OpenAI
-async function generateConsultationResponse(question: string, questionType: string, knowledgeBase: any, context: any) {
+// Получение истории диалогов для обучения
+async function getConversationHistory(userId: string, limit: number = 20) {
+  const { data: history } = await supabase
+    .from('voice_command_history')
+    .select('transcript, response, conversation_context, execution_result')
+    .eq('user_id', userId)
+    .eq('status', 'completed')
+    .order('created_at', { ascending: false })
+    .limit(limit);
+
+  return history || [];
+}
+
+// Генерация ответа с помощью OpenAI и обучением на истории
+async function generateConsultationResponse(question: string, questionType: string, knowledgeBase: any, context: any, userId: string) {
   const openaiApiKey = Deno.env.get('OPENAI_API_KEY');
   if (!openaiApiKey) {
     throw new Error('OPENAI_API_KEY not found');
   }
+
+  // Получаем историю диалогов для контекста
+  const conversationHistory = await getConversationHistory(userId);
+  
+  // Формируем контекст из истории
+  const historyContext = conversationHistory.map((h: any) => 
+    `Клиент: ${h.transcript}\nОтвет: ${h.response}`
+  ).join('\n\n');
 
   const systemPrompt = `Ты - профессиональный консультант строительной компании. 
 Отвечай на вопросы клиентов по услугам, ценам, материалам и процессам.
@@ -104,14 +192,19 @@ ${knowledgeBase.materials.map((m: any) => `${m.name} - ${m.price}₽ за ${m.un
 ПОСЛЕДНИЕ СМЕТЫ:
 ${knowledgeBase.recent_estimates.map((e: any) => `${e.title} - ${e.total_amount}₽ (${e.status})`).join('\n')}
 
+ИСТОРИЯ ПРЕДЫДУЩИХ ДИАЛОГОВ (для контекста):
+${historyContext}
+
 ИНСТРУКЦИИ:
 - Используй информацию из базы знаний для ответов
+- Учитывай историю предыдущих диалогов для персонализации
 - Ищи релевантную информацию по темам, содержанию и ключевым словам
 - Информация с высоким приоритетом важнее чем с низким
 - Если вопрос о ценах - указывай конкретные цены из базы
 - Предлагай дополнительные услуги когда это уместно
 - Будь профессиональным и вежливым
 - Если нет точных данных - предложи связаться с менеджером
+- Адаптируй ответы на основе стиля общения из истории
 
 Тип вопроса: ${questionType}
 ${context ? `Контекст: ${JSON.stringify(context)}` : ''}`;
@@ -225,8 +318,8 @@ serve(async (req) => {
   }
 
   try {
-    const { question, context, conversation_mode } = await req.json();
-    console.log('AI Consultant request:', { question, conversation_mode });
+    const { question, context, conversation_mode, auto_send = false } = await req.json();
+    console.log('AI Consultant request:', { question, conversation_mode, auto_send });
 
     if (!question) {
       throw new Error('Question is required');
@@ -247,8 +340,8 @@ serve(async (req) => {
 
     const userId = user.user.id;
 
-    // Обработка консультационного запроса
-    const result = await handleConsultationRequest(question, context || {}, userId);
+    // Обработка консультационного запроса с автоотправкой
+    const result = await handleConsultationRequest(question, context || {}, userId, auto_send);
 
     return new Response(JSON.stringify(result), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
