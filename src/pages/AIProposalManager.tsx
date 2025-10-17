@@ -618,37 +618,33 @@ const AIProposalManager = () => {
           <DialogHeader>
             <DialogTitle className="flex items-center justify-between">
               <span>{viewingProposal?.title}</span>
-              {viewingProposal?.template_url?.endsWith('.docx') && (
-                <Button 
-                  variant="outline" 
-                  size="sm"
-                  onClick={() => window.open(viewingProposal.template_url, '_blank')}
-                >
-                  Скачать DOCX
-                </Button>
+              {viewingProposal?.template_url && (
+                <div className="flex gap-2">
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={() => window.open(viewingProposal.template_url, '_blank')}
+                  >
+                    Открыть в новой вкладке
+                  </Button>
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={() => window.print()}
+                  >
+                    Печать / Сохранить как PDF
+                  </Button>
+                </div>
               )}
             </DialogTitle>
           </DialogHeader>
           <div className="prose max-w-none">
-            {viewingProposal?.template_url?.endsWith('.pdf') ? (
+            {viewingProposal?.template_url ? (
               <iframe 
                 src={viewingProposal.template_url} 
                 className="w-full h-[600px] border rounded"
-                title="PDF Preview"
+                title="Proposal Preview"
               />
-            ) : viewingProposal?.template_url?.endsWith('.docx') ? (
-              <div className="space-y-4">
-                <div className="p-4 bg-muted rounded-lg text-center">
-                  <p className="text-sm text-muted-foreground mb-2">
-                    Предпросмотр DOCX файла
-                  </p>
-                  <iframe
-                    src={`https://docs.google.com/gview?url=${encodeURIComponent(viewingProposal.template_url)}&embedded=true`}
-                    className="w-full h-[600px] border rounded"
-                    title="DOCX Preview"
-                  />
-                </div>
-              </div>
             ) : (
               <div className="whitespace-pre-wrap p-4 bg-muted rounded-lg">
                 {viewingProposal?.content}

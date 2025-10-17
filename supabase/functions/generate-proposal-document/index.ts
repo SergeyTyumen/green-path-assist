@@ -21,15 +21,15 @@ Deno.serve(async (req) => {
   try {
     const supabaseClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
-      {
-        global: {
-          headers: { Authorization: req.headers.get('Authorization')! },
-        },
-      }
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
     );
 
-    const { data: { user }, error: userError } = await supabaseClient.auth.getUser();
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader) throw new Error('No authorization header');
+
+    const token = authHeader.replace('Bearer ', '');
+    const { data: { user }, error: userError } = await supabaseClient.auth.getUser(token);
+    
     if (userError || !user) {
       throw new Error('Unauthorized');
     }
@@ -66,7 +66,7 @@ Deno.serve(async (req) => {
 
     // Формируем данные для заполнения
     const services = estimate.estimate_items?.map((item: any) => 
-      `${item.description || 'Услуга'} - ${item.quantity} шт. × ${item.unit_price} ₽ = ${item.total} ₽`
+      `${item.description || 'Услуга'} - ${item.quantity} шт. × ${item.unit_price?.toLocaleString('ru-RU')} ₽ = ${item.total?.toLocaleString('ru-RU')} ₽`
     ).join('\n') || '';
 
     const replacements: Record<string, string> = {
@@ -82,48 +82,87 @@ Deno.serve(async (req) => {
 
     console.log('Replacements:', replacements);
 
-    // Если шаблон - это текстовый контент
-    if (template.content) {
-      let content = template.content;
-      Object.entries(replacements).forEach(([key, value]) => {
-        content = content.replace(new RegExp(`\\{\\{${key}\\}\\}`, 'g'), value);
+    // Заполняем шаблон
+    let content = template.content || '';
+    Object.entries(replacements).forEach(([key, value]) => {
+      content = content.replace(new RegExp(`\\{\\{${key}\\}\\}`, 'g'), value);
+    });
+
+    // Создаём HTML для PDF (простой вариант без библиотек)
+    const htmlContent = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="utf-8">
+        <style>
+          body { font-family: Arial, sans-serif; padding: 40px; line-height: 1.6; }
+          h1 { color: #333; border-bottom: 2px solid #4f46e5; padding-bottom: 10px; }
+          .content { white-space: pre-wrap; }
+        </style>
+      </head>
+      <body>
+        <h1>${requestData.title}</h1>
+        <div class="content">${content.replace(/\n/g, '<br>')}</div>
+      </body>
+      </html>
+    `;
+
+    // Генерируем имя файла
+    const fileName = `proposal_${requestData.client_id}_${Date.now()}.html`;
+    const filePath = `${user.id}/${fileName}`;
+
+    // Сохраняем HTML файл (для просмотра как PDF через принт)
+    const { data: uploadData, error: uploadError } = await supabaseClient.storage
+      .from('proposal-templates')
+      .upload(filePath, new Blob([htmlContent], { type: 'text/html' }), {
+        contentType: 'text/html',
+        upsert: true
       });
 
-      // Создаём HTML для превью
-      const htmlContent = content.replace(/\n/g, '<br>');
-
-      // Создаём КП в базе
-      const expiresAt = new Date();
-      expiresAt.setDate(expiresAt.getDate() + requestData.valid_days);
-
-      const { data: proposal, error: proposalError } = await supabaseClient
-        .from('proposals')
-        .insert({
-          user_id: user.id,
-          client_id: requestData.client_id,
-          title: requestData.title,
-          status: 'draft',
-          amount: estimate.total_amount || 0,
-          content: content,
-          expires_at: expiresAt.toISOString(),
-        })
-        .select()
-        .single();
-
-      if (proposalError) throw proposalError;
-
-      return new Response(
-        JSON.stringify({ 
-          success: true, 
-          proposal,
-          preview_html: htmlContent
-        }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+    if (uploadError) {
+      console.error('Upload error:', uploadError);
+      throw uploadError;
     }
 
-    // Если шаблон - это файл (для будущего расширения)
-    throw new Error('DOCX templates not yet implemented');
+    // Получаем публичный URL
+    const { data: urlData } = supabaseClient.storage
+      .from('proposal-templates')
+      .getPublicUrl(filePath);
+
+    console.log('File uploaded:', urlData.publicUrl);
+
+    // Создаём КП в базе
+    const expiresAt = new Date();
+    expiresAt.setDate(expiresAt.getDate() + requestData.valid_days);
+
+    const { data: proposal, error: proposalError } = await supabaseClient
+      .from('proposals')
+      .insert({
+        user_id: user.id,
+        client_id: requestData.client_id,
+        title: requestData.title,
+        status: 'draft',
+        amount: estimate.total_amount || 0,
+        content: content,
+        template_url: urlData.publicUrl,
+        expires_at: expiresAt.toISOString(),
+      })
+      .select()
+      .single();
+
+    if (proposalError) {
+      console.error('Proposal creation error:', proposalError);
+      throw proposalError;
+    }
+
+    return new Response(
+      JSON.stringify({ 
+        success: true, 
+        proposal,
+        file_url: urlData.publicUrl
+      }),
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
 
   } catch (error) {
     console.error('Error generating proposal:', error);
