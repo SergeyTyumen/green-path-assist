@@ -1595,6 +1595,7 @@ export type Database = {
           title: string
           updated_at: string
           user_id: string
+          work_items: Json | null
           work_scope: string | null
         }
         Insert: {
@@ -1614,6 +1615,7 @@ export type Database = {
           title: string
           updated_at?: string
           user_id: string
+          work_items?: Json | null
           work_scope?: string | null
         }
         Update: {
@@ -1633,6 +1635,7 @@ export type Database = {
           title?: string
           updated_at?: string
           user_id?: string
+          work_items?: Json | null
           work_scope?: string | null
         }
         Relationships: []
