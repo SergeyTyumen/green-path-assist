@@ -38,6 +38,7 @@ import { useIntegrationStatus } from '@/hooks/useIntegrationStatus';
 import { getAIConfigForAssistant } from '@/utils/getAPIKeys';
 import WhatsAppIntegrationDialog from '@/components/WhatsAppIntegrationDialog';
 import TelegramIntegrationDialog from '@/components/TelegramIntegrationDialog';
+import WebsiteWidgetIntegrationDialog from '@/components/WebsiteWidgetIntegrationDialog';
 
 interface ChatMessage {
   id: string;
@@ -739,9 +740,7 @@ const AIConsultant = () => {
                         </p>
                       </div>
                     </div>
-                    <Button variant="outline">
-                      Настроить виджет
-                    </Button>
+                    <WebsiteWidgetIntegrationDialog onSettingsChange={refetchIntegrations} />
                   </div>
                 </div>
 
