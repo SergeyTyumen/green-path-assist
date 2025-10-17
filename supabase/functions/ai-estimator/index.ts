@@ -263,8 +263,22 @@ function suggestMaterialsForService(serviceName: string, allMaterials: any[]): a
              searchTerms.includes('дренаж');
     }
     
-    if (serviceLower.includes('подсыпка') || serviceLower.includes('основание')) {
+    // Улучшенное сопоставление для подстилающих слоев и оснований
+    if (serviceLower.includes('подсыпк') || serviceLower.includes('основан') || serviceLower.includes('подстилающ')) {
+      // Проверяем упоминание конкретных материалов в названии услуги
+      if (serviceLower.includes('песк')) {
+        return searchTerms.includes('песок') || materialLower.includes('песок');
+      }
+      if (serviceLower.includes('щебен') || serviceLower.includes('щебн')) {
+        return searchTerms.includes('щебень') || materialLower.includes('щебен');
+      }
+      // Общий случай - песок или щебень
       return searchTerms.includes('песок') || searchTerms.includes('щебень');
+    }
+    
+    // Асфальтирование
+    if (serviceLower.includes('асфальт')) {
+      return searchTerms.includes('асфальт') || materialLower.includes('асфальт');
     }
     
     return false;
