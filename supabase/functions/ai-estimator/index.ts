@@ -83,7 +83,56 @@ async function calculateMaterialConsumption(services: ServiceInput[], userId: st
         (dbService.price * service.quantity) : 0;
     }
 
-    // Проверяем существующие нормы для данной услуги
+    // ПРИОРИТЕТ: Если materials уже есть в service (из ТЗ), используем их
+    if (service.materials && Array.isArray(service.materials) && service.materials.length > 0) {
+      console.log(`Using pre-calculated materials from tech spec for service: ${service.service}`);
+      
+      const processedMaterials: MaterialCalculation[] = [];
+      
+      for (const techMaterial of service.materials) {
+        // Ищем материал в базе по точному названию
+        const dbMaterial = allMaterials.find(m => 
+          m.name.toLowerCase() === techMaterial.material_name.toLowerCase()
+        );
+        
+        if (dbMaterial) {
+          const totalPrice = dbMaterial.price * techMaterial.quantity;
+          processedMaterials.push({
+            material_id: dbMaterial.id,
+            name: dbMaterial.name,
+            unit: techMaterial.unit,
+            quantity: techMaterial.quantity,
+            calculation: techMaterial.calculation || `${service.quantity} ${service.unit}`,
+            unit_price: dbMaterial.price,
+            total_price: Math.round(totalPrice)
+          });
+        } else {
+          console.warn(`Material not found in DB: ${techMaterial.material_name}`);
+          processedMaterials.push({
+            name: techMaterial.material_name,
+            unit: techMaterial.unit,
+            quantity: techMaterial.quantity,
+            calculation: techMaterial.calculation || '',
+            error: 'Материал не найден в базе данных'
+          });
+        }
+      }
+      
+      const totalCost = processedMaterials.reduce((sum, m) => sum + (m.total_price || 0), 0) + servicePrice;
+      
+      results.push({
+        service: service.service,
+        quantity: service.quantity,
+        unit: service.unit,
+        materials: processedMaterials,
+        service_price: servicePrice,
+        total_cost: Math.round(totalCost)
+      });
+      
+      continue; // Переходим к следующей услуге
+    }
+
+    // Fallback: Проверяем существующие нормы для данной услуги
     const { data: norms, error: normsError } = await supabase
       .from('norms')
       .select('*')
@@ -384,18 +433,45 @@ async function createFullEstimate(
     throw new Error(`Error creating estimate: ${estimateError.message}`);
   }
 
+  // Получаем список услуг пользователя для определения service_id
+  const { data: allServices } = await supabase
+    .from('services')
+    .select('id, name, price, unit')
+    .eq('user_id', userId);
+
+  const servicesMap = new Map(
+    (allServices || []).map(s => [s.name.toLowerCase(), s])
+  );
+
   // Создаем позиции сметы
   const estimateItems = [];
   
   for (const calculation of calculations) {
+    // 1. Добавляем услугу (работу)
+    const dbService = servicesMap.get(calculation.service.toLowerCase());
+    if (dbService && calculation.service_price && calculation.service_price > 0) {
+      estimateItems.push({
+        estimate_id: estimate.id,
+        service_id: dbService.id,
+        material_id: null, // услуга, не материал
+        quantity: calculation.quantity,
+        unit_price: dbService.price,
+        total: calculation.service_price,
+        description: calculation.service
+      });
+    }
+    
+    // 2. Добавляем материалы для этой услуги
     for (const material of calculation.materials) {
       if (!material.error && material.material_id) {
         estimateItems.push({
           estimate_id: estimate.id,
+          service_id: null, // материал, не услуга
           material_id: material.material_id,
           quantity: material.quantity,
           unit_price: material.unit_price || 0,
-          total: material.total_price || 0
+          total: material.total_price || 0,
+          description: `${material.name} для: ${calculation.service}`
         });
       }
     }
@@ -408,6 +484,8 @@ async function createFullEstimate(
 
     if (itemsError) {
       console.error('Error saving estimate items:', itemsError);
+    } else {
+      console.log(`Created ${estimateItems.length} estimate items (services + materials)`);
     }
   }
 
@@ -497,10 +575,26 @@ async function createEstimateFromTechnicalTask(data: any, userId: string): Promi
       };
     }
 
-    console.log('Found technical task:', technicalTask.title);
+    console.log('Found tech spec:', technicalTask.title);
 
-    // Парсим объем работ из технического задания
-    const services = parseServicesFromWorkScope(technicalTask.work_scope);
+    // ПРИОРИТЕТ: Используем структурированные work_items если они есть
+    let services: ServiceInput[] = [];
+    
+    if (technicalTask.work_items && Array.isArray(technicalTask.work_items) && technicalTask.work_items.length > 0) {
+      console.log('Using structured work_items from tech spec');
+      console.log('Work items:', JSON.stringify(technicalTask.work_items));
+      
+      services = technicalTask.work_items.map((item: any) => ({
+        service: item.service_name,
+        quantity: item.quantity,
+        unit: item.unit,
+        materials: item.materials // Передаем материалы из ТЗ
+      }));
+    } else {
+      // Fallback: парсим из work_scope для старых ТЗ
+      console.log('Fallback: parsing work_scope');
+      services = parseServicesFromWorkScope(technicalTask.work_scope);
+    }
     
     if (services.length === 0) {
       return {
@@ -509,7 +603,7 @@ async function createEstimateFromTechnicalTask(data: any, userId: string): Promi
       };
     }
 
-    console.log('Parsed services from work scope:', services);
+    console.log('Parsed services from tech spec:', services.length);
 
     // Ищем клиента по имени из ТЗ
     let clientInfo = null;

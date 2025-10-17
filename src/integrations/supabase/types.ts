@@ -684,28 +684,34 @@ export type Database = {
       estimate_items: {
         Row: {
           created_at: string
+          description: string | null
           estimate_id: string
           id: string
           material_id: string | null
           quantity: number
+          service_id: string | null
           total: number
           unit_price: number
         }
         Insert: {
           created_at?: string
+          description?: string | null
           estimate_id: string
           id?: string
           material_id?: string | null
           quantity: number
+          service_id?: string | null
           total: number
           unit_price: number
         }
         Update: {
           created_at?: string
+          description?: string | null
           estimate_id?: string
           id?: string
           material_id?: string | null
           quantity?: number
+          service_id?: string | null
           total?: number
           unit_price?: number
         }
@@ -715,6 +721,13 @@ export type Database = {
             columns: ["estimate_id"]
             isOneToOne: false
             referencedRelation: "estimates"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "estimate_items_service_id_fkey"
+            columns: ["service_id"]
+            isOneToOne: false
+            referencedRelation: "services"
             referencedColumns: ["id"]
           },
         ]

@@ -7,10 +7,14 @@ export interface EstimateItem {
   id: string;
   estimate_id: string;
   material_id?: string;
+  service_id?: string;
+  description?: string;
   quantity: number;
   unit_price: number;
   total: number;
   created_at: string;
+  materials?: { name: string; unit: string };
+  services?: { name: string; unit: string };
 }
 
 export interface Estimate {
@@ -44,7 +48,42 @@ export function useEstimates() {
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      setEstimates((data || []) as Estimate[]);
+      
+      // Подгружаем данные о материалах и услугах отдельно
+      const estimatesWithDetails = await Promise.all(
+        (data || []).map(async (est: any) => {
+          const itemsWithDetails = await Promise.all(
+            (est.items || []).map(async (item: any) => {
+              let materials = null;
+              let services = null;
+              
+              if (item.material_id) {
+                const { data: mat } = await supabase
+                  .from('materials')
+                  .select('name, unit')
+                  .eq('id', item.material_id)
+                  .single();
+                materials = mat;
+              }
+              
+              if (item.service_id) {
+                const { data: srv } = await supabase
+                  .from('services')
+                  .select('name, unit')
+                  .eq('id', item.service_id)
+                  .single();
+                services = srv;
+              }
+              
+              return { ...item, materials, services };
+            })
+          );
+          
+          return { ...est, items: itemsWithDetails };
+        })
+      );
+      
+      setEstimates(estimatesWithDetails as Estimate[]);
     } catch (error) {
       console.error('Error fetching estimates:', error);
       toast.error('Ошибка при загрузке смет');

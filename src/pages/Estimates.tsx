@@ -65,19 +65,8 @@ export default function Estimates() {
       const jsPDF = (await import('jspdf')).default;
       const html2canvas = (await import('html2canvas')).default;
       
-      // Получаем данные о материалах для отображения названий
-      const { data: materials } = await supabase
-        .from('materials')
-        .select('id, name');
-        
-      const { data: services } = await supabase
-        .from('services')
-        .select('id, name');
-      
-      const getMaterialName = (materialId: string) => {
-        const material = materials?.find(m => m.id === materialId);
-        const service = services?.find(s => s.id === materialId);
-        return material?.name || service?.name || `Позиция`;
+      const getItemName = (item: any) => {
+        return item.materials?.name || item.services?.name || item.description || 'Позиция';
       };
       
       // Создаем временный элемент для рендера PDF
@@ -116,7 +105,7 @@ export default function Estimates() {
               estimate.items.map((item, index) => `
                 <tr>
                   <td style="border: 1px solid #ddd; padding: 10px; text-align: center;">${index + 1}</td>
-                  <td style="border: 1px solid #ddd; padding: 10px;">${getMaterialName(item.material_id)}</td>
+                  <td style="border: 1px solid #ddd; padding: 10px;">${getItemName(item)}</td>
                   <td style="border: 1px solid #ddd; padding: 10px; text-align: center;">${item.quantity}</td>
                   <td style="border: 1px solid #ddd; padding: 10px; text-align: right;">${item.unit_price.toLocaleString('ru-RU')} ₽</td>
                   <td style="border: 1px solid #ddd; padding: 10px; text-align: right;">${item.total.toLocaleString('ru-RU')} ₽</td>
