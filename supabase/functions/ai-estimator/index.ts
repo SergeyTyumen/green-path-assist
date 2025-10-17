@@ -951,18 +951,50 @@ serve(async (req) => {
 
         console.log('Found tech spec:', techSpec.title);
         
-        if (!techSpec.work_scope) {
+        // НОВЫЙ ПОДХОД: используем структурированные work_items если есть
+        let specServices;
+        
+        if (techSpec.work_items && Array.isArray(techSpec.work_items) && techSpec.work_items.length > 0) {
+          console.log('Using structured work_items from tech spec');
+          console.log('Work items:', JSON.stringify(techSpec.work_items));
+          
+          // Проверяем что services существуют в БД и получаем полную информацию
+          const serviceNames = techSpec.work_items.map((item: any) => item.service_name);
+          const { data: dbServices } = await supabase
+            .from('services')
+            .select('*')
+            .eq('user_id', userId)
+            .in('name', serviceNames);
+          
+          console.log('Found services in DB:', dbServices?.length);
+          
+          // Создаем массив услуг с проверкой наличия в БД
+          specServices = techSpec.work_items.map((item: any) => {
+            const dbService = dbServices?.find(s => s.name === item.service_name);
+            if (!dbService) {
+              console.warn(`Service not found in DB: ${item.service_name}`);
+            }
+            return {
+              service: item.service_name,
+              quantity: item.quantity,
+              unit: item.unit,
+              dbService: dbService  // для использования в расчетах
+            };
+          });
+        } else if (techSpec.work_scope) {
+          console.log('Fallback: parsing work_scope');
+          // Старый подход: парсим текстовое описание
+          specServices = await parseServicesFromWorkScope(techSpec.work_scope);
+        } else {
           return new Response(
             JSON.stringify({ 
               success: false, 
-              error: 'Техническое задание не содержит объема работ' 
+              error: 'Техническое задание не содержит ни work_items, ни work_scope' 
             }),
             { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
           );
         }
 
-        // Парсим объем работ из технического задания
-        const specServices = await parseServicesFromWorkScope(techSpec.work_scope);
         if (!specServices || specServices.length === 0) {
           return new Response(
             JSON.stringify({ 

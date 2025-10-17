@@ -145,6 +145,13 @@ ${servicesNomenclature}
     "client_name": "имя клиента",
     "object_address": "адрес объекта", 
     "work_scope": "детальное описание всех видов работ с указанием объемов и последовательности",
+    "work_items": [
+      {
+        "service_name": "точное название из номенклатуры услуг (ОБЯЗАТЕЛЬНО)",
+        "quantity": число,
+        "unit": "единица измерения (м², м.п, шт)"
+      }
+    ],
     "materials_spec": "спецификация материалов с характеристиками, количеством и единицами измерения",
     "normative_references": ["СНИП 3.02.01-87", "ГОСТ 8736-2014", ...],
     "recommendations": "технологические рекомендации и особенности выполнения работ",
@@ -153,6 +160,11 @@ ${servicesNomenclature}
     "created_at": "ISO дата"
   }
 }
+
+КРИТИЧЕСКИ ВАЖНО для work_items:
+- service_name ДОЛЖНО быть ТОЧНЫМ названием из номенклатуры услуг
+- НЕ придумывай свои названия - только из предоставленного списка
+- Если услуги нет в номенклатуре - укажи в recommendations необходимость добавить услугу
 
 ВАЖНО:
 - Указывай конкретные объемы материалов с учетом коэффициентов уплотнения
@@ -230,6 +242,7 @@ ${servicesNomenclature}
             client_name: specData.client_name,
             object_address: specData.object_address,
             work_scope: specData.work_scope,
+            work_items: specData.work_items || null,
             materials_spec: specData.materials_spec,
             normative_references: specData.normative_references,
             quality_requirements: specData.recommendations,
@@ -255,6 +268,7 @@ ${servicesNomenclature}
             client_name: specData.client_name,
             object_address: specData.object_address,
             work_scope: specData.work_scope,
+            work_items: specData.work_items || null,
             materials_spec: specData.materials_spec,
             normative_references: specData.normative_references,
             quality_requirements: specData.recommendations,
