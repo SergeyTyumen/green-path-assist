@@ -1642,7 +1642,8 @@ async function createEstimateFromTechSpec(userId: string, args: any, userToken: 
       let query = supabaseAdmin
         .from('technical_specifications')
         .select('*')
-        .eq('user_id', userId);
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false });
 
       if (args.client_name) {
         query = query.ilike('client_name', `%${args.client_name}%`);
@@ -1651,9 +1652,17 @@ async function createEstimateFromTechSpec(userId: string, args: any, userToken: 
         query = query.ilike('title', `%${args.spec_title}%`);
       }
 
-      const { data, error } = await query.limit(1).single();
+      const { data, error } = await query.limit(1);
       
-      if (error || !data) {
+      if (error) {
+        console.error('Error fetching tech spec:', error);
+        return {
+          success: false,
+          message: 'Ошибка при поиске технического задания'
+        };
+      }
+      
+      if (!data || data.length === 0) {
         return {
           success: false,
           message: args.client_name 
@@ -1661,7 +1670,7 @@ async function createEstimateFromTechSpec(userId: string, args: any, userToken: 
             : `Техническое задание "${args.spec_title}" не найдено`
         };
       }
-      techSpec = data;
+      techSpec = data[0];
     }
 
     // Вызываем AI-сметчик для создания сметы
