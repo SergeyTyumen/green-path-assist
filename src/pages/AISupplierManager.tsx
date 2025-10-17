@@ -288,7 +288,7 @@ const AISupplierManager = () => {
               <CardContent className="space-y-4">
                 <div className="space-y-2">
                   <Label>Категория</Label>
-                  <Select>
+                  <Select value={newRequest.category} onValueChange={(value) => setNewRequest({...newRequest, category: value})}>
                     <SelectTrigger>
                       <SelectValue placeholder="Выберите категорию" />
                     </SelectTrigger>
@@ -305,19 +305,26 @@ const AISupplierManager = () => {
                 <div className="space-y-2">
                   <Label>Материалы</Label>
                   <Textarea 
-                    placeholder="Укажите названия материалов..."
+                    placeholder="Укажите названия материалов через запятую..."
                     rows={3}
+                    value={newRequest.materials}
+                    onChange={(e) => setNewRequest({...newRequest, materials: e.target.value})}
                   />
                 </div>
 
                 <div className="grid grid-cols-2 gap-2">
                   <div className="space-y-2">
                     <Label>Количество</Label>
-                    <Input type="number" placeholder="0" />
+                    <Input 
+                      type="number" 
+                      placeholder="0" 
+                      value={newRequest.quantity}
+                      onChange={(e) => setNewRequest({...newRequest, quantity: e.target.value})}
+                    />
                   </div>
                   <div className="space-y-2">
                     <Label>Единица</Label>
-                    <Select defaultValue="шт">
+                    <Select value={newRequest.unit} onValueChange={(value) => setNewRequest({...newRequest, unit: value})}>
                       <SelectTrigger>
                         <SelectValue />
                       </SelectTrigger>
@@ -334,7 +341,11 @@ const AISupplierManager = () => {
 
                 <div className="space-y-2">
                   <Label>Срок поставки</Label>
-                  <Input type="date" />
+                  <Input 
+                    type="date" 
+                    value={newRequest.deadline}
+                    onChange={(e) => setNewRequest({...newRequest, deadline: e.target.value})}
+                  />
                 </div>
 
                 <Button 

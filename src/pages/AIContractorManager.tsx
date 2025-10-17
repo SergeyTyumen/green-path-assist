@@ -360,7 +360,7 @@ const AIContractorManager = () => {
               <CardContent className="space-y-4">
                 <div className="space-y-2">
                   <Label>Вид работ</Label>
-                  <Select>
+                  <Select value={newTask.workType} onValueChange={(value) => setNewTask({...newTask, workType: value})}>
                     <SelectTrigger>
                       <SelectValue placeholder="Выберите вид работ" />
                     </SelectTrigger>
@@ -379,23 +379,39 @@ const AIContractorManager = () => {
                   <Textarea 
                     placeholder="Подробное описание задания..."
                     rows={3}
+                    value={newTask.description}
+                    onChange={(e) => setNewTask({...newTask, description: e.target.value})}
                   />
                 </div>
 
                 <div className="grid grid-cols-2 gap-2">
                   <div className="space-y-2">
                     <Label>Площадь (м²)</Label>
-                    <Input type="number" placeholder="0" />
+                    <Input 
+                      type="number" 
+                      placeholder="0" 
+                      value={newTask.area}
+                      onChange={(e) => setNewTask({...newTask, area: e.target.value})}
+                    />
                   </div>
                   <div className="space-y-2">
                     <Label>Бюджет (₽/м²)</Label>
-                    <Input type="number" placeholder="0" />
+                    <Input 
+                      type="number" 
+                      placeholder="0" 
+                      value={newTask.budget}
+                      onChange={(e) => setNewTask({...newTask, budget: e.target.value})}
+                    />
                   </div>
                 </div>
 
                 <div className="space-y-2">
                   <Label>Срок выполнения</Label>
-                  <Input type="date" />
+                  <Input 
+                    type="date" 
+                    value={newTask.deadline}
+                    onChange={(e) => setNewTask({...newTask, deadline: e.target.value})}
+                  />
                 </div>
 
                 <Button 

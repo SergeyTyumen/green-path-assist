@@ -231,19 +231,39 @@ const CompetitorAnalysisPage = () => {
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-2">
-                <Button variant="outline" size="sm" className="w-full justify-start">
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  className="w-full justify-start"
+                  onClick={() => toast({ title: "Поиск акций", description: "Функция в разработке" })}
+                >
                   <Search className="h-4 w-4 mr-2" />
                   Поиск новых акций
                 </Button>
-                <Button variant="outline" size="sm" className="w-full justify-start">
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  className="w-full justify-start"
+                  onClick={() => toast({ title: "Обновление трендов", description: "Функция в разработке" })}
+                >
                   <TrendingUp className="h-4 w-4 mr-2" />
                   Обновить тренды
                 </Button>
-                <Button variant="outline" size="sm" className="w-full justify-start">
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  className="w-full justify-start"
+                  onClick={() => toast({ title: "Анализ цен", description: "Функция в разработке" })}
+                >
                   <BarChart3 className="h-4 w-4 mr-2" />
                   Анализ цен
                 </Button>
-                <Button variant="outline" size="sm" className="w-full justify-start">
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  className="w-full justify-start"
+                  onClick={() => toast({ title: "Прогноз изменений", description: "Функция в разработке" })}
+                >
                   <Target className="h-4 w-4 mr-2" />
                   Прогноз изменений
                 </Button>
