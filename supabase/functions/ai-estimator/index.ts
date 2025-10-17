@@ -668,32 +668,48 @@ function parseServicesFromText(text: string): ServiceInput[] {
 
 // Парсинг услуг из объема работ технического задания
 function parseServicesFromWorkScope(workScope: string): ServiceInput[] {
-  if (!workScope) return [];
+  console.log('Parsing work scope:', workScope);
+  
+  if (!workScope || typeof workScope !== 'string') {
+    console.warn('Invalid work scope provided');
+    return [];
+  }
   
   const services: ServiceInput[] = [];
-  const lines = workScope.split('\n');
+  const lines = workScope.split(/\n|;/).map(line => line.trim()).filter(line => line.length > 0);
+  
+  console.log(`Processing ${lines.length} lines from work scope`);
   
   for (const line of lines) {
-    const trimmedLine = line.trim().toLowerCase();
+    // Пропускаем строки без цифр
+    if (!/\d/.test(line)) {
+      continue;
+    }
     
-    // Ищем строки с количественными показателями
+    // Универсальный паттерн для формата "Название: число единица"
+    const universalMatch = line.match(/(.+?):\s*(\d+(?:\.\d+)?)\s*(м²|кв\.?\s*м|м\.п|п\.м|м(?!\²)|шт|точ)/i);
+    if (universalMatch) {
+      const serviceName = universalMatch[1].replace(/^\d+\.\s*/, '').trim(); // Убираем нумерацию
+      const quantity = parseFloat(universalMatch[2]);
+      const unit = normalizeUnit(universalMatch[3]);
+      
+      services.push({
+        service: serviceName,
+        quantity: quantity,
+        unit: unit
+      });
+      
+      console.log(`Parsed universal: ${serviceName} - ${quantity} ${unit}`);
+      continue;
+    }
+    
+    // Специфичные паттерны для стандартных услуг
     const patterns = [
-      // Газон/озеленение: "газон 150 м²", "устройство газона 200м2"
       { regex: /(?:газон|озеленение|трав).*?(\d+(?:\.\d+)?)\s*(м²|кв)/i, service: 'Устройство газона', unit: 'м²' },
-      
-      // Дорожки/мощение: "дорожки 50 м²", "мощение 80м2"
       { regex: /(?:дорожк|мощение|плитка|брусчатка).*?(\d+(?:\.\d+)?)\s*(м²|кв)/i, service: 'Мощение дорожек', unit: 'м²' },
-      
-      // Дренаж: "дренаж 100 м.п.", "дренажная система 150м"
       { regex: /(?:дренаж|водоотвод).*?(\d+(?:\.\d+)?)\s*(м\.п|п\.м|м(?!\²))/i, service: 'Устройство дренажа', unit: 'м.п' },
-      
-      // Бордюры: "бордюры 80 м.п."
       { regex: /(?:бордюр|поребрик).*?(\d+(?:\.\d+)?)\s*(м\.п|п\.м|м(?!\²))/i, service: 'Установка бордюров', unit: 'м.п' },
-      
-      // Освещение: "освещение 12 шт", "светильники 15 точек"
       { regex: /(?:освещение|светильник|фонар).*?(\d+(?:\.\d+)?)\s*(шт|точ)/i, service: 'Устройство освещения', unit: 'шт' },
-      
-      // Автополив: "автополив 200 м²", "система полива"
       { regex: /(?:автополив|полив|орошение).*?(\d+(?:\.\d+)?)\s*(м²|кв)/i, service: 'Система автополива', unit: 'м²' }
     ];
     
@@ -706,12 +722,27 @@ function parseServicesFromWorkScope(workScope: string): ServiceInput[] {
           quantity: quantity,
           unit: pattern.unit
         });
-        break; // Прерываем поиск для этой строки
+        console.log(`Parsed specific: ${pattern.service} - ${quantity} ${pattern.unit}`);
+        break;
       }
     }
   }
   
+  console.log(`Successfully parsed ${services.length} services from work scope`);
   return services;
+}
+
+// Нормализация единиц измерения
+function normalizeUnit(unit: string): string {
+  const normalized = unit.toLowerCase().replace(/\s+/g, '');
+  
+  if (normalized.includes('м²') || normalized.includes('кв')) return 'м²';
+  if (normalized.includes('м.п') || normalized.includes('п.м')) return 'м.п';
+  if (normalized === 'м') return 'м.п';
+  if (normalized.includes('шт')) return 'шт';
+  if (normalized.includes('точ')) return 'шт';
+  
+  return unit;
 }
 
 // Форматирование ответа для сметы из технического задания
