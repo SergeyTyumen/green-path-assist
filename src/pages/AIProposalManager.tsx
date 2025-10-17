@@ -23,7 +23,7 @@ import {
 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
-import { useProposals } from '@/hooks/useProposals';
+import { useProposals, Proposal } from '@/hooks/useProposals';
 import { useClients } from '@/hooks/useClients';
 import { useEstimates } from '@/hooks/useEstimates';
 import { useProposalSettings } from '@/hooks/useProposalSettings';
@@ -35,7 +35,7 @@ import { ProposalTemplateManager } from '@/components/ProposalTemplateManager';
 const AIProposalManager = () => {
   const { user } = useAuth();
   const { toast } = useToast();
-  const { proposals, loading, createProposal, updateProposal } = useProposals();
+  const { proposals, loading, createProposal, updateProposal, refetch } = useProposals();
   const { clients } = useClients();
   const { estimates, loading: estimatesLoading } = useEstimates();
   const { settings, loading: settingsLoading, saveSettings } = useProposalSettings();
@@ -114,73 +114,46 @@ const AIProposalManager = () => {
       return;
     }
 
+    if (!selectedTemplate) {
+      toast({
+        title: "Ошибка",
+        description: "Выберите шаблон",
+        variant: "destructive"
+      });
+      return;
+    }
+
     setGenerating(true);
     
     try {
-      // Получаем данные клиента
-      const { data: client, error: clientError } = await supabase
-        .from('clients')
-        .select('*')
-        .eq('id', newProposal.clientId)
-        .single();
-
-      if (clientError) throw clientError;
-
-      // Получаем данные сметы
-      const { data: estimate, error: estimateError } = await supabase
-        .from('estimates')
-        .select('*, estimate_items(*)')
-        .eq('id', newProposal.estimateId)
-        .single();
-
-      if (estimateError) throw estimateError;
-
-      // Получаем шаблон
-      const { data: template, error: templateError } = await supabase
-        .from('templates')
-        .select('*')
-        .eq('id', selectedTemplate || templates.find(t => t.is_default)?.id)
-        .single();
-
-      if (templateError) throw templateError;
-
-      // Формируем список услуг из сметы
-      const services = estimate.estimate_items?.map((item: any) => 
-        `${item.description || 'Услуга'} - ${item.quantity} ${item.unit_price} ₽`
-      ).join('\n') || '';
-
-      // Заполняем переменные в шаблоне
-      let content = template.content;
-      content = content.replace(/\{\{client_name\}\}/g, client.name || '');
-      content = content.replace(/\{\{client_phone\}\}/g, client.phone || '');
-      content = content.replace(/\{\{client_email\}\}/g, client.email || '');
-      content = content.replace(/\{\{client_address\}\}/g, client.address || '');
-      content = content.replace(/\{\{amount\}\}/g, estimate.total_amount?.toLocaleString('ru-RU') || '0');
-      content = content.replace(/\{\{date\}\}/g, new Date().toLocaleDateString('ru-RU'));
-      content = content.replace(/\{\{services\}\}/g, services);
-      content = content.replace(/\{\{estimate_details\}\}/g, estimate.title || '');
-
-      // Создаем КП в базе
-      await createProposal({
-        client_id: newProposal.clientId,
-        title: newProposal.title,
-        status: 'draft' as const,
-        amount: estimate.total_amount || 0,
-        content: content,
-        expires_at: new Date(Date.now() + newProposal.validDays * 24 * 60 * 60 * 1000).toISOString()
+      const { data, error } = await supabase.functions.invoke('generate-proposal-document', {
+        body: {
+          template_id: selectedTemplate,
+          client_id: newProposal.clientId,
+          estimate_id: newProposal.estimateId,
+          title: newProposal.title,
+          valid_days: newProposal.validDays
+        }
       });
-      
-      setNewProposal({
-        clientId: '',
-        estimateId: '',
-        title: '',
-        validDays: settings.default_validity_days
-      });
-      
-      toast({
-        title: "КП создано",
-        description: "Коммерческое предложение успешно сформировано на основе шаблона"
-      });
+
+      if (error) throw error;
+
+      if (data.success) {
+        setNewProposal({
+          clientId: '',
+          estimateId: '',
+          title: '',
+          validDays: settings.default_validity_days
+        });
+        
+        // Обновляем список предложений
+        await refetch();
+        
+        toast({
+          title: "КП создано",
+          description: "Коммерческое предложение успешно сформировано"
+        });
+      }
     } catch (error) {
       console.error('Error generating proposal:', error);
       toast({
@@ -643,10 +616,44 @@ const AIProposalManager = () => {
       <Dialog open={!!viewingProposal} onOpenChange={() => setViewingProposal(null)}>
         <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>{viewingProposal?.title}</DialogTitle>
+            <DialogTitle className="flex items-center justify-between">
+              <span>{viewingProposal?.title}</span>
+              {viewingProposal?.template_url?.endsWith('.docx') && (
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={() => window.open(viewingProposal.template_url, '_blank')}
+                >
+                  Скачать DOCX
+                </Button>
+              )}
+            </DialogTitle>
           </DialogHeader>
           <div className="prose max-w-none">
-            <div className="whitespace-pre-wrap p-4 bg-muted rounded-lg">{viewingProposal?.content}</div>
+            {viewingProposal?.template_url?.endsWith('.pdf') ? (
+              <iframe 
+                src={viewingProposal.template_url} 
+                className="w-full h-[600px] border rounded"
+                title="PDF Preview"
+              />
+            ) : viewingProposal?.template_url?.endsWith('.docx') ? (
+              <div className="space-y-4">
+                <div className="p-4 bg-muted rounded-lg text-center">
+                  <p className="text-sm text-muted-foreground mb-2">
+                    Предпросмотр DOCX файла
+                  </p>
+                  <iframe
+                    src={`https://docs.google.com/gview?url=${encodeURIComponent(viewingProposal.template_url)}&embedded=true`}
+                    className="w-full h-[600px] border rounded"
+                    title="DOCX Preview"
+                  />
+                </div>
+              </div>
+            ) : (
+              <div className="whitespace-pre-wrap p-4 bg-muted rounded-lg">
+                {viewingProposal?.content}
+              </div>
+            )}
           </div>
         </DialogContent>
       </Dialog>
