@@ -1677,7 +1677,9 @@ async function createEstimateFromTechSpec(userId: string, args: any, userToken: 
         },
         body: JSON.stringify({
           action: 'create_estimate_from_spec',
-          technical_specification_id: techSpec.id
+          data: {
+            technical_specification_id: techSpec.id
+          }
         })
       }
     );
