@@ -89,6 +89,21 @@ async function callOpenAIWithTools(messages: AIMessage[], settings: UserSettings
       {
         type: "function",
         function: {
+          name: "get_consultant_analytics",
+          description: "Получить статистику и аналитику работы ИИ-консультанта",
+          parameters: {
+            type: "object",
+            properties: {
+              period: { type: "string", enum: ["today", "week", "month", "all"], description: "Период для анализа" },
+              metric: { type: "string", enum: ["count", "questions", "types", "all"], description: "Тип метрики: count - количество обращений, questions - частые вопросы, types - типы вопросов, all - все данные" }
+            },
+            required: ["period"]
+          }
+        }
+      },
+      {
+        type: "function",
+        function: {
           name: "create_task",
           description: "Создать задачу (встреча, звонок и т.п.)",
           parameters: {
@@ -454,9 +469,134 @@ async function executeFunction(functionName: string, args: any, userId: string, 
       
     case 'send_proposal':
       return await sendProposalViaAI(userId, args, userToken);
+    
+    case 'get_consultant_analytics':
+      return await getConsultantAnalytics(userId, args);
       
     default:
       return { error: `Unknown function: ${functionName}` };
+  }
+}
+
+// Получение аналитики ИИ-консультанта
+async function getConsultantAnalytics(userId: string, args: any) {
+  try {
+    const supabaseAdmin = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+    );
+
+    const period = args.period || 'week';
+    const metric = args.metric || 'all';
+    
+    // Определяем дату начала периода
+    let startDate = new Date();
+    switch (period) {
+      case 'today':
+        startDate.setHours(0, 0, 0, 0);
+        break;
+      case 'week':
+        startDate.setDate(startDate.getDate() - 7);
+        break;
+      case 'month':
+        startDate.setMonth(startDate.getMonth() - 1);
+        break;
+      case 'all':
+        startDate = new Date('2020-01-01');
+        break;
+    }
+
+    // Запрос истории консультаций
+    const { data: consultations, error } = await supabaseAdmin
+      .from('voice_command_history')
+      .select('*')
+      .eq('user_id', userId)
+      .eq('status', 'completed')
+      .gte('created_at', startDate.toISOString())
+      .or('actions->0->>type.eq.consultation,execution_result->>response_type.not.is.null');
+
+    if (error) throw error;
+
+    const consultationData = consultations || [];
+    const totalCount = consultationData.length;
+
+    // Анализ типов вопросов
+    const questionTypes: Record<string, number> = {};
+    const frequentQuestions: Record<string, number> = {};
+
+    consultationData.forEach((item) => {
+      // Подсчет типов вопросов
+      const questionType = item.execution_result?.response_type || 
+                          item.actions?.[0]?.question_type || 
+                          'general';
+      questionTypes[questionType] = (questionTypes[questionType] || 0) + 1;
+
+      // Подсчет частоты вопросов (первые 100 символов)
+      const question = item.transcript?.substring(0, 100) || '';
+      if (question) {
+        frequentQuestions[question] = (frequentQuestions[question] || 0) + 1;
+      }
+    });
+
+    // Топ-10 частых вопросов
+    const topQuestions = Object.entries(frequentQuestions)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 10)
+      .map(([q, count]) => ({ question: q, count }));
+
+    // Формируем сообщение в зависимости от метрики
+    let message = `📊 Статистика ИИ-консультанта за ${
+      period === 'today' ? 'сегодня' :
+      period === 'week' ? 'неделю' :
+      period === 'month' ? 'месяц' : 'все время'
+    }:\n\n`;
+
+    if (metric === 'count' || metric === 'all') {
+      message += `📈 Всего обращений: ${totalCount}\n\n`;
+    }
+
+    if (metric === 'types' || metric === 'all') {
+      message += `📋 По типам вопросов:\n`;
+      Object.entries(questionTypes)
+        .sort((a, b) => b[1] - a[1])
+        .forEach(([type, count]) => {
+          const typeNames: Record<string, string> = {
+            'pricing': '💰 Цены',
+            'materials': '🧱 Материалы',
+            'services': '🛠️ Услуги',
+            'timing': '⏱️ Сроки',
+            'process': '📝 Процессы',
+            'general': '❓ Общие'
+          };
+          message += `  ${typeNames[type] || type}: ${count} (${Math.round(count / totalCount * 100)}%)\n`;
+        });
+      message += '\n';
+    }
+
+    if (metric === 'questions' || metric === 'all') {
+      message += `🔥 Топ-10 частых вопросов:\n`;
+      topQuestions.forEach((item, idx) => {
+        message += `${idx + 1}. ${item.question}... (${item.count} раз)\n`;
+      });
+    }
+
+    return {
+      success: true,
+      message,
+      analytics: {
+        total_count: totalCount,
+        question_types: questionTypes,
+        top_questions: topQuestions,
+        period
+      }
+    };
+  } catch (error) {
+    console.error('Error getting consultant analytics:', error);
+    return {
+      success: false,
+      error: (error as Error).message,
+      message: `❌ Ошибка получения аналитики: ${(error as Error).message}`
+    };
   }
 }
 
@@ -1133,6 +1273,11 @@ serve(async (req) => {
 - Создание сметы из технического задания через create_estimate_from_technical_spec (ID ТЗ, имя клиента или название ТЗ)
 - Создание задач через create_task (заголовок, описание, дата выполнения)
 - Завершение задач через complete_task (название задачи или ID)
+
+АНАЛИТИКА ИИ-КОНСУЛЬТАНТА:
+- Статистика обращений через get_consultant_analytics (period: today/week/month/all, metric: count/questions/types/all)
+- ПРИМЕРЫ ЗАПРОСОВ: "сколько обращений к консультанту за неделю?", "какие самые частые вопросы к консультанту?", "покажи статистику по типам вопросов консультанта"
+- Возвращает: количество обращений, топ-10 частых вопросов, распределение по типам (цены, материалы, услуги, сроки, процессы)
 
 ВАЖНО - СВЯЗКА С КЛИЕНТАМИ И ТЗ:
 • При запросе создания ТЗ или сметы для клиента: СНАЧАЛА ищи клиента через get_client_info
