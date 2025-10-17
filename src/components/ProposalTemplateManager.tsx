@@ -110,6 +110,8 @@ export function ProposalTemplateManager() {
 
       toast.success('Шаблон загружен');
       setNewTemplate({ name: '', type: 'html', content: '' });
+      // Очищаем input файла
+      e.target.value = '';
       await loadTemplates();
     } catch (error) {
       console.error('Error uploading template:', error);
