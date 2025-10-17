@@ -27,6 +27,7 @@ import { useClients } from '@/hooks/useClients';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { getAIConfigForAssistant } from '@/utils/getAPIKeys';
+import { ProposalTemplateManager } from '@/components/ProposalTemplateManager';
 
 const AIProposalManager = () => {
   const { user } = useAuth();
@@ -478,6 +479,8 @@ const AIProposalManager = () => {
         </TabsContent>
 
         <TabsContent value="settings" className="space-y-6">
+          <ProposalTemplateManager />
+          
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
