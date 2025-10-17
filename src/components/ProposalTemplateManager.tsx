@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -192,9 +192,9 @@ export function ProposalTemplateManager() {
     }
   };
 
-  useState(() => {
+  useEffect(() => {
     loadTemplates();
-  });
+  }, [user]);
 
   return (
     <div className="space-y-6">
@@ -232,13 +232,24 @@ export function ProposalTemplateManager() {
                 />
               </div>
               <div>
-                <Label>Файл шаблона (HTML, TXT, MD, DOCX)</Label>
-                <Input
-                  type="file"
-                  accept=".html,.txt,.md,.docx"
-                  onChange={handleFileUpload}
-                  disabled={loading}
-                />
+                <Label htmlFor="template-file">Файл шаблона (HTML, TXT, MD, DOCX)</Label>
+                <div className="mt-2">
+                  <label htmlFor="template-file" className="block">
+                    <div className="border-2 border-dashed rounded-lg p-6 text-center hover:bg-muted/50 cursor-pointer transition-colors">
+                      <Upload className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
+                      <p className="text-sm font-medium">Нажмите для выбора файла</p>
+                      <p className="text-xs text-muted-foreground mt-1">HTML, TXT, MD, DOCX</p>
+                    </div>
+                  </label>
+                  <input
+                    id="template-file"
+                    type="file"
+                    accept=".html,.txt,.md,.docx"
+                    onChange={handleFileUpload}
+                    disabled={loading}
+                    className="hidden"
+                  />
+                </div>
               </div>
               <div className="p-3 bg-muted/50 rounded-lg text-sm">
                 <p className="font-medium mb-2">Доступные переменные:</p>
