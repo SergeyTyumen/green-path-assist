@@ -251,6 +251,49 @@ async function callOpenAIWithTools(messages: AIMessage[], settings: UserSettings
             }
           }
         }
+      },
+      {
+        type: "function",
+        function: {
+          name: "search_services_in_nomenclature",
+          description: "Поиск услуг в номенклатуре CRM по ключевым словам для добавления в смету",
+          parameters: {
+            type: "object",
+            properties: {
+              search_query: { type: "string", description: "Поисковый запрос (например, 'доставка песка', 'доставка самосвалом')" },
+              limit: { type: "number", description: "Максимальное количество результатов (по умолчанию 5)" }
+            },
+            required: ["search_query"]
+          }
+        }
+      },
+      {
+        type: "function",
+        function: {
+          name: "add_items_to_estimate",
+          description: "Добавить позиции в смету на основе найденных услуг из номенклатуры",
+          parameters: {
+            type: "object",
+            properties: {
+              estimate_id: { type: "string", description: "ID сметы для добавления позиций" },
+              client_name: { type: "string", description: "Имя клиента (если не указан ID сметы)" },
+              services: { 
+                type: "array", 
+                items: {
+                  type: "object",
+                  properties: {
+                    service_id: { type: "string", description: "ID услуги из номенклатуры" },
+                    service_name: { type: "string", description: "Название услуги" },
+                    quantity: { type: "number", description: "Количество" },
+                    unit_price: { type: "number", description: "Цена за единицу" }
+                  }
+                },
+                description: "Массив услуг для добавления в смету" 
+              }
+            },
+            required: ["services"]
+          }
+        }
       }
     ];
 
@@ -472,6 +515,12 @@ async function executeFunction(functionName: string, args: any, userId: string, 
     
     case 'get_consultant_analytics':
       return await getConsultantAnalytics(userId, args);
+    
+    case 'search_services_in_nomenclature':
+      return await searchServicesInNomenclature(userId, args);
+    
+    case 'add_items_to_estimate':
+      return await addItemsToEstimate(userId, args);
       
     default:
       return { error: `Unknown function: ${functionName}` };
@@ -1606,6 +1655,157 @@ async function createNewClient(userId: string, args: any) {
     return { 
       success: false, 
       error: (error as Error).message 
+    };
+  }
+}
+
+// Поиск услуг в номенклатуре
+async function searchServicesInNomenclature(userId: string, args: any) {
+  try {
+    const supabaseAdmin = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+    );
+
+    const searchQuery = args.search_query.toLowerCase();
+    const limit = args.limit || 5;
+
+    console.log('Searching services:', searchQuery);
+
+    // Поиск по названию и категории
+    const { data: services, error } = await supabaseAdmin
+      .from('services')
+      .select('id, name, category, unit, price, description')
+      .eq('user_id', userId)
+      .or(`name.ilike.%${searchQuery}%,category.ilike.%${searchQuery}%,description.ilike.%${searchQuery}%`)
+      .limit(limit);
+
+    if (error) throw error;
+
+    if (!services || services.length === 0) {
+      return {
+        success: false,
+        message: `❌ Услуги по запросу "${args.search_query}" не найдены в номенклатуре.\n\nПопробуйте:\n• Изменить формулировку\n• Проверить номенклатуру в CRM`
+      };
+    }
+
+    // Форматируем результаты для пользователя
+    const formattedServices = services.map((service, index) => 
+      `${index + 1}. ${service.name}\n   Категория: ${service.category}\n   Цена: ${service.price} руб/${service.unit}\n   ID: ${service.id}`
+    ).join('\n\n');
+
+    return {
+      success: true,
+      services: services,
+      message: `✅ Найдено услуг: ${services.length}\n\n${formattedServices}\n\n💡 Хотите добавить какую-то из этих позиций в смету?`
+    };
+  } catch (error) {
+    console.error('Error searching services:', error);
+    return {
+      success: false,
+      message: `❌ Ошибка поиска: ${error instanceof Error ? error.message : 'Неизвестная ошибка'}`
+    };
+  }
+}
+
+// Добавление позиций в смету
+async function addItemsToEstimate(userId: string, args: any) {
+  try {
+    const supabaseAdmin = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+    );
+
+    let estimateId = args.estimate_id;
+
+    // Если ID сметы не указан, ищем по имени клиента
+    if (!estimateId && args.client_name) {
+      const { data: estimates } = await supabaseAdmin
+        .from('estimates')
+        .select('id, title')
+        .eq('user_id', userId)
+        .ilike('title', `%${args.client_name}%`)
+        .order('created_at', { ascending: false })
+        .limit(1);
+
+      if (estimates && estimates.length > 0) {
+        estimateId = estimates[0].id;
+      } else {
+        return {
+          success: false,
+          message: `❌ Смета для клиента "${args.client_name}" не найдена`
+        };
+      }
+    }
+
+    if (!estimateId) {
+      return {
+        success: false,
+        message: `❌ Не указана смета для добавления позиций`
+      };
+    }
+
+    // Проверяем, что смета существует
+    const { data: estimate, error: estimateError } = await supabaseAdmin
+      .from('estimates')
+      .select('id, title, total_amount')
+      .eq('id', estimateId)
+      .eq('user_id', userId)
+      .single();
+
+    if (estimateError || !estimate) {
+      return {
+        success: false,
+        message: `❌ Смета с ID ${estimateId} не найдена`
+      };
+    }
+
+    // Добавляем позиции
+    const itemsToAdd = args.services.map((service: any) => ({
+      estimate_id: estimateId,
+      material_id: service.service_id,
+      quantity: service.quantity || 1,
+      unit_price: service.unit_price,
+      total: (service.quantity || 1) * service.unit_price
+    }));
+
+    const { data: newItems, error: itemsError } = await supabaseAdmin
+      .from('estimate_items')
+      .insert(itemsToAdd)
+      .select();
+
+    if (itemsError) throw itemsError;
+
+    // Пересчитываем общую сумму сметы
+    const { data: allItems } = await supabaseAdmin
+      .from('estimate_items')
+      .select('total')
+      .eq('estimate_id', estimateId);
+
+    const newTotalAmount = allItems?.reduce((sum, item) => sum + parseFloat(item.total), 0) || 0;
+
+    // Обновляем общую сумму
+    await supabaseAdmin
+      .from('estimates')
+      .update({ total_amount: newTotalAmount })
+      .eq('id', estimateId);
+
+    const addedServices = args.services.map((s: any) => 
+      `• ${s.service_name}: ${s.quantity || 1} x ${s.unit_price} руб = ${(s.quantity || 1) * s.unit_price} руб`
+    ).join('\n');
+
+    return {
+      success: true,
+      estimate_id: estimateId,
+      items_added: newItems?.length || 0,
+      new_total: newTotalAmount,
+      message: `✅ Добавлено позиций в смету "${estimate.title}": ${newItems?.length || 0}\n\n${addedServices}\n\n💰 Новая общая сумма: ${newTotalAmount.toFixed(2)} руб`
+    };
+  } catch (error) {
+    console.error('Error adding items to estimate:', error);
+    return {
+      success: false,
+      message: `❌ Ошибка добавления позиций: ${error instanceof Error ? error.message : 'Неизвестная ошибка'}`
     };
   }
 }
