@@ -1006,7 +1006,7 @@ serve(async (req) => {
           estimate: specResult.estimate,
           calculations: specResult.calculations,
           items_count: specResult.items_count,
-          message: `✅ Смета создана на основе технического задания "${spec.title}"`
+          message: `✅ Смета создана на основе технического задания "${techSpec.title}"`
         }), {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
