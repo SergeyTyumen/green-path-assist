@@ -882,13 +882,17 @@ serve(async (req) => {
         });
 
       case 'create_estimate_from_spec':
-        const techSpecId = data.technical_specification_id;
+        console.log('Received data for create_estimate_from_spec:', JSON.stringify(data));
+        
+        const techSpecId = data?.technical_specification_id;
         
         if (!techSpecId) {
+          console.error('Missing technical_specification_id in data:', data);
           return new Response(
             JSON.stringify({ 
               success: false, 
-              error: 'technical_specification_id is required' 
+              error: 'technical_specification_id is required',
+              received_data: data
             }),
             { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
           );
