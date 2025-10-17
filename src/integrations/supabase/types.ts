@@ -1229,11 +1229,13 @@ export type Database = {
         Row: {
           amount: number
           client_id: string | null
+          content: string | null
           created_at: string
           expires_at: string | null
           id: string
           sent_at: string | null
           status: string
+          template_url: string | null
           title: string
           updated_at: string
           user_id: string
@@ -1241,11 +1243,13 @@ export type Database = {
         Insert: {
           amount?: number
           client_id?: string | null
+          content?: string | null
           created_at?: string
           expires_at?: string | null
           id?: string
           sent_at?: string | null
           status?: string
+          template_url?: string | null
           title: string
           updated_at?: string
           user_id: string
@@ -1253,11 +1257,13 @@ export type Database = {
         Update: {
           amount?: number
           client_id?: string | null
+          content?: string | null
           created_at?: string
           expires_at?: string | null
           id?: string
           sent_at?: string | null
           status?: string
+          template_url?: string | null
           title?: string
           updated_at?: string
           user_id?: string

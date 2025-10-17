@@ -203,6 +203,39 @@ async function callOpenAIWithTools(messages: AIMessage[], settings: UserSettings
             }
           }
         }
+      },
+      {
+        type: "function",
+        function: {
+          name: "create_proposal",
+          description: "Создать коммерческое предложение для клиента через AI-менеджера КП",
+          parameters: {
+            type: "object",
+            properties: {
+              client_name: { type: "string", description: "Имя клиента" },
+              estimate_id: { type: "string", description: "ID сметы для включения в КП (опционально)" },
+              title: { type: "string", description: "Название коммерческого предложения" },
+              template_name: { type: "string", description: "Название шаблона бланка для КП (опционально)" },
+              send_immediately: { type: "boolean", description: "Отправить сразу после создания" }
+            },
+            required: ["client_name"]
+          }
+        }
+      },
+      {
+        type: "function",
+        function: {
+          name: "send_proposal",
+          description: "Отправить коммерческое предложение клиенту по email или мессенджеру",
+          parameters: {
+            type: "object",
+            properties: {
+              proposal_id: { type: "string", description: "ID коммерческого предложения" },
+              client_name: { type: "string", description: "Имя клиента (если не указан ID)" },
+              send_method: { type: "string", enum: ["email", "whatsapp", "telegram"], description: "Способ отправки" }
+            }
+          }
+        }
       }
     ];
 
@@ -415,6 +448,12 @@ async function executeFunction(functionName: string, args: any, userId: string, 
 
     case 'get_technical_specifications':
       return await getTechnicalSpecifications(userId, args);
+      
+    case 'create_proposal':
+      return await createProposalViaAI(userId, args, userToken);
+      
+    case 'send_proposal':
+      return await sendProposalViaAI(userId, args, userToken);
       
     default:
       return { error: `Unknown function: ${functionName}` };
@@ -1527,6 +1566,187 @@ async function createEstimateFromTechSpec(userId: string, args: any, userToken: 
       success: false, 
       error: (error as Error).message,
       message: `Ошибка при создании сметы из ТЗ: ${(error as Error).message}`
+    };
+  }
+}
+
+// Создание коммерческого предложения через AI-менеджера КП
+async function createProposalViaAI(userId: string, args: any, userToken?: string) {
+  try {
+    console.log('Creating proposal via AI Proposal Manager:', args);
+    
+    const supabaseAdmin = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+    );
+
+    // Находим клиента
+    const { data: clients } = await supabaseAdmin
+      .from('clients')
+      .select('*')
+      .eq('user_id', userId)
+      .ilike('name', `%${args.client_name}%`)
+      .limit(1);
+
+    if (!clients || clients.length === 0) {
+      return {
+        success: false,
+        message: `❌ Клиент "${args.client_name}" не найден. Сначала создайте клиента.`
+      };
+    }
+
+    const client = clients[0];
+
+    // Находим смету если указана
+    let estimateId = args.estimate_id;
+    if (!estimateId && args.client_name) {
+      const { data: estimates } = await supabaseAdmin
+        .from('estimates')
+        .select('*')
+        .eq('user_id', userId)
+        .eq('client_id', client.id)
+        .order('created_at', { ascending: false })
+        .limit(1);
+      
+      if (estimates && estimates.length > 0) {
+        estimateId = estimates[0].id;
+      }
+    }
+
+    // Вызываем AI-менеджера КП для создания предложения
+    const { data, error } = await supabaseAdmin.functions.invoke('ai-proposal-manager', {
+      body: {
+        action: 'create_proposal',
+        data: {
+          client_id: client.id,
+          estimate_id: estimateId,
+          title: args.title || `КП для ${client.name}`,
+          template_name: args.template_name
+        }
+      },
+      headers: {
+        Authorization: `Bearer ${userToken || Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`
+      }
+    });
+
+    if (error) throw error;
+
+    if (data && data.success) {
+      let message = `✅ Коммерческое предложение "${args.title || 'КП для ' + client.name}" создано!\n\nID: ${data.proposal_id}`;
+      
+      // Если нужно отправить сразу
+      if (args.send_immediately) {
+        const sendResult = await sendProposalViaAI(userId, {
+          proposal_id: data.proposal_id,
+          client_name: args.client_name,
+          send_method: 'email'
+        }, userToken);
+        
+        if (sendResult.success) {
+          message += `\n\n${sendResult.message}`;
+        }
+      }
+      
+      return {
+        success: true,
+        message,
+        proposal_id: data.proposal_id
+      };
+    } else {
+      return {
+        success: false,
+        message: `❌ Ошибка создания КП: ${data?.error || 'Неизвестная ошибка'}`
+      };
+    }
+  } catch (error) {
+    console.error('Error in createProposalViaAI:', error);
+    return {
+      success: false,
+      message: `❌ Ошибка: ${error instanceof Error ? error.message : 'Неизвестная ошибка'}`
+    };
+  }
+}
+
+// Отправка коммерческого предложения
+async function sendProposalViaAI(userId: string, args: any, userToken?: string) {
+  try {
+    console.log('Sending proposal via AI Proposal Manager:', args);
+    
+    const supabaseAdmin = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+    );
+
+    let proposalId = args.proposal_id;
+
+    // Если не указан ID, ищем по имени клиента
+    if (!proposalId && args.client_name) {
+      const { data: clients } = await supabaseAdmin
+        .from('clients')
+        .select('id')
+        .eq('user_id', userId)
+        .ilike('name', `%${args.client_name}%`)
+        .limit(1);
+
+      if (clients && clients.length > 0) {
+        const { data: proposals } = await supabaseAdmin
+          .from('proposals')
+          .select('id')
+          .eq('user_id', userId)
+          .eq('client_id', clients[0].id)
+          .eq('status', 'draft')
+          .order('created_at', { ascending: false })
+          .limit(1);
+        
+        if (proposals && proposals.length > 0) {
+          proposalId = proposals[0].id;
+        }
+      }
+    }
+
+    if (!proposalId) {
+      return {
+        success: false,
+        message: '❌ Коммерческое предложение не найдено.'
+      };
+    }
+
+    // Вызываем AI-менеджера КП для отправки
+    const { data, error } = await supabaseAdmin.functions.invoke('ai-proposal-manager', {
+      body: {
+        action: 'send_proposal',
+        data: {
+          proposal_id: proposalId,
+          send_options: {
+            method: args.send_method || 'email'
+          }
+        }
+      },
+      headers: {
+        Authorization: `Bearer ${userToken || Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`
+      }
+    });
+
+    if (error) throw error;
+
+    if (data && data.success) {
+      const sendMethod = args.send_method === 'whatsapp' ? 'WhatsApp' : 
+                        args.send_method === 'telegram' ? 'Telegram' : 'Email';
+      return {
+        success: true,
+        message: `✅ КП отправлено клиенту через ${sendMethod}!\n\nАдрес: ${data.sent_to}\nВремя отправки: ${new Date(data.sent_at).toLocaleString('ru-RU')}`
+      };
+    } else {
+      return {
+        success: false,
+        message: `❌ Ошибка отправки КП: ${data?.error || 'Неизвестная ошибка'}`
+      };
+    }
+  } catch (error) {
+    console.error('Error in sendProposalViaAI:', error);
+    return {
+      success: false,
+      message: `❌ Ошибка: ${error instanceof Error ? error.message : 'Неизвестная ошибка'}`
     };
   }
 }

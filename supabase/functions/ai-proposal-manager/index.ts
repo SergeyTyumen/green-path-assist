@@ -294,13 +294,31 @@ function getDefaultExpiryDate(): string {
 }
 
 async function saveProposalContent(proposalId: string, content: string) {
-  // В реальной системе можно сохранять в отдельную таблицу или файловое хранилище
-  console.log('Saving proposal content for:', proposalId);
+  try {
+    await supabase
+      .from('proposals')
+      .update({ content })
+      .eq('id', proposalId);
+    console.log('Saved proposal content for:', proposalId);
+  } catch (error) {
+    console.error('Error saving proposal content:', error);
+  }
 }
 
 async function getProposalContent(proposalId: string): Promise<string> {
-  // Заглушка - в реальной системе получение из хранилища
-  return "Контент коммерческого предложения";
+  try {
+    const { data, error } = await supabase
+      .from('proposals')
+      .select('content')
+      .eq('id', proposalId)
+      .single();
+    
+    if (error) throw error;
+    return data?.content || 'Контент коммерческого предложения';
+  } catch (error) {
+    console.error('Error fetching proposal content:', error);
+    return 'Контент коммерческого предложения';
+  }
 }
 
 async function generateEmailContent(proposal: any, proposalContent: string, sendOptions: any) {
