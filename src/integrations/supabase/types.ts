@@ -1238,6 +1238,39 @@ export type Database = {
         }
         Relationships: []
       }
+      proposal_settings: {
+        Row: {
+          auto_send: boolean | null
+          created_at: string
+          default_validity_days: number | null
+          email_template: string | null
+          id: string
+          signature: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          auto_send?: boolean | null
+          created_at?: string
+          default_validity_days?: number | null
+          email_template?: string | null
+          id?: string
+          signature?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          auto_send?: boolean | null
+          created_at?: string
+          default_validity_days?: number | null
+          email_template?: string | null
+          id?: string
+          signature?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       proposals: {
         Row: {
           amount: number

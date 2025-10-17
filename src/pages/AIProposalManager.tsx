@@ -24,6 +24,7 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { useProposals } from '@/hooks/useProposals';
 import { useClients } from '@/hooks/useClients';
+import { useProposalSettings } from '@/hooks/useProposalSettings';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { getAIConfigForAssistant } from '@/utils/getAPIKeys';
@@ -34,16 +35,20 @@ const AIProposalManager = () => {
   const { toast } = useToast();
   const { proposals, loading, createProposal, updateProposal } = useProposals();
   const { clients } = useClients();
+  const { settings, loading: settingsLoading, saveSettings } = useProposalSettings();
 
   const [newProposal, setNewProposal] = useState({
     clientId: '',
     title: '',
     description: '',
     services: [],
-    validDays: 14
+    validDays: settings.default_validity_days
   });
 
   const [generating, setGenerating] = useState(false);
+  const [savingSettings, setSavingSettings] = useState(false);
+  
+  const [localSettings, setLocalSettings] = useState(settings);
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -149,6 +154,37 @@ const AIProposalManager = () => {
       setGenerating(false);
     }
   };
+
+  const handleSaveSettings = async () => {
+    setSavingSettings(true);
+    try {
+      const { error } = await saveSettings(localSettings);
+      
+      if (error) throw error;
+      
+      toast({
+        title: "Настройки сохранены",
+        description: "Настройки КП-менеджера успешно обновлены"
+      });
+    } catch (error) {
+      console.error('Error saving settings:', error);
+      toast({
+        title: "Ошибка",
+        description: "Не удалось сохранить настройки",
+        variant: "destructive"
+      });
+    } finally {
+      setSavingSettings(false);
+    }
+  };
+
+  // Обновляем локальные настройки при загрузке
+  React.useEffect(() => {
+    if (!settingsLoading) {
+      setLocalSettings(settings);
+      setNewProposal(prev => ({ ...prev, validDays: settings.default_validity_days }));
+    }
+  }, [settings, settingsLoading]);
 
   const sendProposal = async (id: string) => {
     try {
@@ -494,9 +530,14 @@ const AIProposalManager = () => {
                   <Label>Шаблон письма</Label>
                   <Textarea 
                     className="mt-2"
-                    placeholder="Уважаемый {client_name}, направляем Вам коммерческое предложение..."
+                    placeholder="Уважаемый {{client_name}}, направляем Вам коммерческое предложение..."
                     rows={4}
+                    value={localSettings.email_template}
+                    onChange={(e) => setLocalSettings(prev => ({ ...prev, email_template: e.target.value }))}
                   />
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Доступные переменные: {`{{client_name}}, {{title}}`}
+                  </p>
                 </div>
                 <div>
                   <Label>Подпись</Label>
@@ -504,16 +545,32 @@ const AIProposalManager = () => {
                     className="mt-2"
                     placeholder="С уважением, команда компании..."
                     rows={3}
+                    value={localSettings.signature}
+                    onChange={(e) => setLocalSettings(prev => ({ ...prev, signature: e.target.value }))}
                   />
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <Label>Срок действия по умолчанию</Label>
-                    <Input type="number" defaultValue={14} className="mt-2" />
+                    <Label>Срок действия по умолчанию (дней)</Label>
+                    <Input 
+                      type="number" 
+                      className="mt-2"
+                      value={localSettings.default_validity_days}
+                      onChange={(e) => setLocalSettings(prev => ({ 
+                        ...prev, 
+                        default_validity_days: parseInt(e.target.value) || 14 
+                      }))}
+                    />
                   </div>
                   <div>
                     <Label>Автоотправка</Label>
-                    <Select defaultValue="manual">
+                    <Select 
+                      value={localSettings.auto_send ? 'auto' : 'manual'}
+                      onValueChange={(value) => setLocalSettings(prev => ({ 
+                        ...prev, 
+                        auto_send: value === 'auto' 
+                      }))}
+                    >
                       <SelectTrigger className="mt-2">
                         <SelectValue />
                       </SelectTrigger>
@@ -524,8 +581,12 @@ const AIProposalManager = () => {
                     </Select>
                   </div>
                 </div>
-                <Button className="w-full mt-4">
-                  Сохранить настройки
+                <Button 
+                  className="w-full mt-4"
+                  onClick={handleSaveSettings}
+                  disabled={savingSettings}
+                >
+                  {savingSettings ? 'Сохранение...' : 'Сохранить настройки'}
                 </Button>
               </div>
             </CardContent>
