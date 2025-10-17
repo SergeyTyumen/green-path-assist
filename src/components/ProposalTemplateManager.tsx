@@ -76,8 +76,11 @@ export function ProposalTemplateManager() {
 
     setLoading(true);
     try {
-      // Загружаем файл в Storage
-      const filePath = `${user.id}/${Date.now()}_${file.name}`;
+      // Создаём безопасное имя файла (только ASCII символы)
+      const fileExtension = file.name.split('.').pop();
+      const safeFileName = `${Date.now()}.${fileExtension}`;
+      const filePath = `${user.id}/${safeFileName}`;
+      
       const { error: uploadError } = await supabase.storage
         .from('proposal-templates')
         .upload(filePath, file);
