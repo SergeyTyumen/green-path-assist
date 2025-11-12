@@ -12,9 +12,10 @@ import { MessageCircle, ExternalLink, Copy, CheckCircle, Loader2 } from 'lucide-
 
 interface TelegramIntegrationDialogProps {
   onSettingsChange?: () => void;
+  isConfigured?: boolean;
 }
 
-const TelegramIntegrationDialog = ({ onSettingsChange }: TelegramIntegrationDialogProps) => {
+const TelegramIntegrationDialog = ({ onSettingsChange, isConfigured = false }: TelegramIntegrationDialogProps) => {
   const { user } = useAuth();
   const { toast } = useToast();
   const [open, setOpen] = useState(false);
@@ -152,7 +153,7 @@ const TelegramIntegrationDialog = ({ onSettingsChange }: TelegramIntegrationDial
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         <Button variant="outline">
-          {isActive ? 'Настроено' : 'Настроить Telegram'}
+          {isConfigured ? 'Настроено' : 'Настроить Telegram'}
         </Button>
       </DialogTrigger>
       <DialogContent className="max-w-2xl">

@@ -709,7 +709,10 @@ const AIConsultant = () => {
                         </p>
                       </div>
                     </div>
-                    <WhatsAppIntegrationDialog onSettingsChange={refetchIntegrations} />
+                    <WhatsAppIntegrationDialog 
+                      onSettingsChange={refetchIntegrations} 
+                      isConfigured={integrationStatus.whatsapp}
+                    />
                   </div>
 
                   <div className="flex items-center justify-between p-4 border rounded-lg">
@@ -722,7 +725,10 @@ const AIConsultant = () => {
                         </p>
                       </div>
                     </div>
-                    <TelegramIntegrationDialog onSettingsChange={refetchIntegrations} />
+                    <TelegramIntegrationDialog 
+                      onSettingsChange={refetchIntegrations}
+                      isConfigured={integrationStatus.telegram}
+                    />
                   </div>
 
                   <div className="flex items-center justify-between p-4 border rounded-lg">
@@ -735,7 +741,10 @@ const AIConsultant = () => {
                         </p>
                       </div>
                     </div>
-                    <WebsiteWidgetIntegrationDialog onSettingsChange={refetchIntegrations} />
+                    <WebsiteWidgetIntegrationDialog 
+                      onSettingsChange={refetchIntegrations}
+                      isConfigured={integrationStatus.website}
+                    />
                   </div>
                 </div>
 

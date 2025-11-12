@@ -15,9 +15,10 @@ import { Globe, Copy, CheckCircle, Loader2, Code, Eye } from 'lucide-react';
 
 interface WebsiteWidgetIntegrationDialogProps {
   onSettingsChange?: () => void;
+  isConfigured?: boolean;
 }
 
-const WebsiteWidgetIntegrationDialog = ({ onSettingsChange }: WebsiteWidgetIntegrationDialogProps) => {
+const WebsiteWidgetIntegrationDialog = ({ onSettingsChange, isConfigured = false }: WebsiteWidgetIntegrationDialogProps) => {
   const { user } = useAuth();
   const { toast } = useToast();
   const [open, setOpen] = useState(false);
@@ -308,7 +309,7 @@ const WebsiteWidgetIntegrationDialog = ({ onSettingsChange }: WebsiteWidgetInteg
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         <Button variant="outline">
-          {isActive ? 'Настроено' : 'Настроить виджет'}
+          {isConfigured ? 'Настроено' : 'Настроить виджет'}
         </Button>
       </DialogTrigger>
       <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">

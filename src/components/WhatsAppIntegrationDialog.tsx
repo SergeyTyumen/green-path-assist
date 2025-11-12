@@ -29,9 +29,10 @@ interface IntegrationSettings {
 
 interface WhatsAppIntegrationDialogProps {
   onSettingsChange?: () => void;
+  isConfigured?: boolean;
 }
 
-const WhatsAppIntegrationDialog: React.FC<WhatsAppIntegrationDialogProps> = ({ onSettingsChange }) => {
+const WhatsAppIntegrationDialog: React.FC<WhatsAppIntegrationDialogProps> = ({ onSettingsChange, isConfigured = false }) => {
   const { user } = useAuth();
   const { toast } = useToast();
   const [isOpen, setIsOpen] = useState(false);
@@ -190,7 +191,7 @@ const WhatsAppIntegrationDialog: React.FC<WhatsAppIntegrationDialogProps> = ({ o
       <DialogTrigger asChild>
         <Button variant="outline" size="sm">
           <Settings className="h-4 w-4 mr-2" />
-          Настроить WhatsApp
+          {isConfigured ? 'Настроено' : 'Настроить WhatsApp'}
         </Button>
       </DialogTrigger>
       <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
