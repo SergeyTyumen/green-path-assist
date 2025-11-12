@@ -58,18 +58,126 @@ serve(async (req) => {
         });
       }
 
-      // Сохраняем историю сообщения
-      await supabase.from('voice_command_history').insert({
-        user_id: crm_user_id,
-        command_text: messageText,
-        command_type: 'telegram_message',
-        status: 'pending',
-        metadata: {
-          chat_id: chatId,
-          telegram_user_id: userId,
-          telegram_username: userName
+      // 1. Найти или создать канал Telegram
+      let { data: channel } = await supabase
+        .from('channels')
+        .select('id')
+        .eq('user_id', crm_user_id)
+        .eq('type', 'telegram')
+        .single();
+
+      if (!channel) {
+        const { data: newChannel } = await supabase
+          .from('channels')
+          .insert({
+            user_id: crm_user_id,
+            type: 'telegram',
+            name: 'Telegram',
+            is_active: true,
+            credentials: { bot_token: botToken }
+          })
+          .select('id')
+          .single();
+        channel = newChannel;
+      }
+
+      if (!channel) {
+        console.error('Не удалось создать канал');
+        return new Response(JSON.stringify({ ok: true }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
+      // 2. Найти или создать контакт
+      let { data: contactIdentity } = await supabase
+        .from('contact_identities')
+        .select('contact_id, contacts(*)')
+        .eq('channel_id', channel.id)
+        .eq('external_user_id', userId)
+        .single();
+
+      let contact;
+      if (!contactIdentity) {
+        // Создаем новый контакт
+        const { data: newContact } = await supabase
+          .from('contacts')
+          .insert({
+            user_id: crm_user_id,
+            name: userName,
+            phone: '',
+          })
+          .select()
+          .single();
+
+        if (newContact) {
+          // Создаем identity
+          await supabase
+            .from('contact_identities')
+            .insert({
+              contact_id: newContact.id,
+              channel_id: channel.id,
+              external_user_id: userId,
+              meta: { username: userName, chat_id: chatId }
+            });
+          contact = newContact;
         }
-      });
+      } else {
+        contact = contactIdentity.contacts;
+      }
+
+      if (!contact) {
+        console.error('Не удалось создать контакт');
+        return new Response(JSON.stringify({ ok: true }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
+      // 3. Найти или создать conversation
+      let { data: conversation } = await supabase
+        .from('conversations')
+        .select('id')
+        .eq('contact_id', contact.id)
+        .eq('channel_id', channel.id)
+        .single();
+
+      if (!conversation) {
+        const { data: newConversation } = await supabase
+          .from('conversations')
+          .insert({
+            contact_id: contact.id,
+            channel_id: channel.id,
+            status: 'open',
+            last_message_at: new Date().toISOString()
+          })
+          .select('id')
+          .single();
+        conversation = newConversation;
+      }
+
+      if (!conversation) {
+        console.error('Не удалось создать conversation');
+        return new Response(JSON.stringify({ ok: true }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
+      // 4. Сохранить входящее сообщение
+      const { data: incomingMessage } = await supabase
+        .from('messages')
+        .insert({
+          conversation_id: conversation.id,
+          direction: 'inbound',
+          provider: 'telegram',
+          provider_message_id: update.message.message_id?.toString(),
+          text: messageText,
+          status: 'received',
+          sent_at: new Date(update.message.date * 1000).toISOString(),
+          payload: { chat_id: chatId, from: update.message.from }
+        })
+        .select('id')
+        .single();
+
+      console.log('Входящее сообщение сохранено:', incomingMessage?.id);
 
       // Вызываем AI консультанта (передаем user_id CRM, а не telegram user_id)
       const { data: consultantResponse, error: consultantError } = await supabase.functions.invoke(
@@ -128,23 +236,28 @@ serve(async (req) => {
         const result = await telegramResponse.json();
         console.log('Telegram отправка:', result);
 
-        // Обновляем историю
-        await supabase
-          .from('voice_command_history')
-          .update({
-            status: 'completed',
-            response_text: responseText,
-            metadata: {
-              chat_id: chatId,
-              telegram_user_id: userId,
-              telegram_username: userName,
-              telegram_message_id: result.result?.message_id
-            }
-          })
-          .eq('user_id', crm_user_id)
-          .eq('command_text', messageText)
-          .order('created_at', { ascending: false })
-          .limit(1);
+        // 5. Сохранить исходящее сообщение
+        if (result.ok && conversation) {
+          await supabase
+            .from('messages')
+            .insert({
+              conversation_id: conversation.id,
+              direction: 'outbound',
+              provider: 'telegram',
+              provider_message_id: result.result?.message_id?.toString(),
+              text: responseText,
+              status: 'sent',
+              sent_at: new Date().toISOString(),
+              author_user_id: crm_user_id,
+              payload: result.result
+            });
+
+          // Обновляем время последнего сообщения в conversation
+          await supabase
+            .from('conversations')
+            .update({ last_message_at: new Date().toISOString() })
+            .eq('id', conversation.id);
+        }
       }
     }
 

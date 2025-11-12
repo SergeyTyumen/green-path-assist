@@ -87,6 +87,88 @@ const AIConsultant = () => {
   const [inputMessage, setInputMessage] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const [autoMode, setAutoMode] = useState(false);
+
+  // Загрузка реальных сообщений из базы данных
+  useEffect(() => {
+    if (!user) return;
+
+    const loadMessages = async () => {
+      try {
+        // Загружаем все conversations пользователя с последними сообщениями
+        const { data: conversations, error } = await supabase
+          .from('conversations')
+          .select(`
+            id,
+            contact_id,
+            channel_id,
+            contacts (id, name),
+            channels (type),
+            messages (
+              id,
+              text,
+              direction,
+              created_at,
+              sent_at,
+              provider,
+              status
+            )
+          `)
+          .eq('channels.user_id', user.id)
+          .order('created_at', { ascending: true });
+
+        if (error) {
+          console.error('Error loading messages:', error);
+          return;
+        }
+
+        // Преобразуем в формат ChatMessage
+        const allMessages: ChatMessage[] = [];
+        conversations?.forEach((conv: any) => {
+          conv.messages?.forEach((msg: any) => {
+            allMessages.push({
+              id: msg.id,
+              type: msg.direction === 'inbound' ? 'user' : 'assistant',
+              content: msg.text || '',
+              timestamp: new Date(msg.sent_at || msg.created_at),
+              source: conv.channels?.type as 'telegram' | 'whatsapp' | 'website',
+              clientId: conv.contact_id,
+              status: msg.status === 'sent' ? 'sent' : 'pending'
+            });
+          });
+        });
+
+        // Сортируем по времени
+        allMessages.sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime());
+        setMessages(allMessages);
+      } catch (error) {
+        console.error('Error in loadMessages:', error);
+      }
+    };
+
+    loadMessages();
+
+    // Подписка на новые сообщения
+    const channel = supabase
+      .channel('messages-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'messages'
+        },
+        async (payload) => {
+          console.log('New message received:', payload);
+          // Перезагружаем сообщения
+          loadMessages();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user]);
   
   const [integrations, setIntegrations] = useState<IntegrationConfig>({
     whatsapp: { enabled: integrationStatus.whatsapp },
