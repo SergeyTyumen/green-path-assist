@@ -1925,22 +1925,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      can_user_create_tasks: {
-        Args: { _user_id: string }
-        Returns: boolean
-      }
-      can_user_delete_tasks: {
-        Args: { _user_id: string }
-        Returns: boolean
-      }
-      can_user_edit_tasks: {
-        Args: { _user_id: string }
-        Returns: boolean
-      }
-      can_user_view_tasks: {
-        Args: { _user_id: string }
-        Returns: boolean
-      }
+      can_user_create_tasks: { Args: { _user_id: string }; Returns: boolean }
+      can_user_delete_tasks: { Args: { _user_id: string }; Returns: boolean }
+      can_user_edit_tasks: { Args: { _user_id: string }; Returns: boolean }
+      can_user_view_tasks: { Args: { _user_id: string }; Returns: boolean }
       has_module_permission: {
         Args: {
           _module_name: string
@@ -1956,14 +1944,8 @@ export type Database = {
         }
         Returns: boolean
       }
-      is_admin: {
-        Args: Record<PropertyKey, never>
-        Returns: boolean
-      }
-      is_contacts_owner: {
-        Args: { contact_user_id: string }
-        Returns: boolean
-      }
+      is_admin: { Args: never; Returns: boolean }
+      is_contacts_owner: { Args: { contact_user_id: string }; Returns: boolean }
     }
     Enums: {
       app_role: "admin" | "manager" | "employee"
