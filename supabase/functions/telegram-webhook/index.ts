@@ -29,23 +29,27 @@ serve(async (req) => {
 
       console.log(`Сообщение от ${userName} (${userId}): ${messageText}`);
 
-      // Получаем настройки пользователя из БД по chat_id
-      const { data: settings } = await supabase
+      // Получаем ВСЕ активные настройки Telegram (у нас может быть несколько пользователей с ботами)
+      const { data: allSettings } = await supabase
         .from('integration_settings')
         .select('user_id, settings')
         .eq('integration_type', 'telegram')
-        .eq('is_active', true)
-        .single();
+        .eq('is_active', true);
 
-      if (!settings) {
-        console.error('Telegram интеграция не найдена');
+      if (!allSettings || allSettings.length === 0) {
+        console.error('Нет активных Telegram интеграций');
         return new Response(JSON.stringify({ ok: true }), {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
       }
 
+      // Берем первую активную интеграцию (в будущем можно добавить маппинг bot -> user)
+      const settings = allSettings[0];
+
       const botToken = settings.settings?.bot_token;
       const crm_user_id = settings.user_id;
+
+      console.log(`Используем CRM user_id: ${crm_user_id}`);
 
       if (!botToken) {
         console.error('Telegram bot token не найден');
