@@ -206,6 +206,18 @@ async function generateConsultationResponse(question: string, questionType: stri
     throw new Error('OPENAI_API_KEY not found');
   }
 
+  // Получаем настройки AI-консультанта пользователя
+  const { data: userSettings } = await supabase
+    .from('ai_assistant_settings')
+    .select('settings')
+    .eq('user_id', userId)
+    .eq('assistant_type', 'consultant')
+    .eq('is_active', true)
+    .maybeSingle();
+
+  const customPrompt = userSettings?.settings?.system_prompt;
+  console.log('Custom prompt:', customPrompt ? 'Используется кастомный промпт' : 'Используется дефолтный промпт');
+
   // Получаем историю диалогов для контекста
   const conversationHistory = await getConversationHistory(userId);
   
@@ -214,7 +226,8 @@ async function generateConsultationResponse(question: string, questionType: stri
     `Клиент: ${h.transcript}\nОтвет: ${h.response}`
   ).join('\n\n');
 
-  const systemPrompt = `Ты - профессиональный консультант строительной компании. 
+  // Дефолтный промпт (используется если нет кастомного)
+  const defaultSystemPrompt = `Ты - профессиональный консультант строительной компании.
 Отвечай на вопросы клиентов по услугам, ценам, материалам и процессам.
 
 БАЗА ЗНАНИЙ:
@@ -252,6 +265,9 @@ ${historyContext}
 Тип вопроса: ${questionType}
 ${context ? `Контекст: ${JSON.stringify(context)}` : ''}`;
 
+  // Используем кастомный промпт если есть, иначе дефолтный с данными из БД
+  const finalSystemPrompt = customPrompt || defaultSystemPrompt;
+
   const response = await fetch('https://api.openai.com/v1/chat/completions', {
     method: 'POST',
     headers: {
@@ -259,13 +275,13 @@ ${context ? `Контекст: ${JSON.stringify(context)}` : ''}`;
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
-      model: 'gpt-4o-mini',
+      model: userSettings?.settings?.model || 'gpt-4o-mini',
       messages: [
-        { role: 'system', content: systemPrompt },
+        { role: 'system', content: finalSystemPrompt },
         { role: 'user', content: question }
       ],
-      temperature: 0.7,
-      max_tokens: 1000,
+      temperature: userSettings?.settings?.temperature || 0.7,
+      max_tokens: userSettings?.settings?.max_tokens || 1000,
     }),
   });
 
