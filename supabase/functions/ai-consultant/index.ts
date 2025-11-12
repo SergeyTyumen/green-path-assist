@@ -57,7 +57,43 @@ async function sendAutoResponse(userId: string, clientPhone: string, message: st
       };
     }
     
-    // Telegram support можно добавить позже
+    if (channel === 'telegram') {
+      // Отправка через Telegram Bot API
+      const { data: settings } = await supabase
+        .from('integration_settings')
+        .select('settings')
+        .eq('user_id', userId)
+        .eq('integration_type', 'telegram')
+        .eq('is_active', true)
+        .single();
+
+      if (!settings?.settings?.bot_token) {
+        return { success: false, reason: 'telegram_not_configured' };
+      }
+
+      const botToken = settings.settings.bot_token;
+      const chatId = context?.chat_id || clientPhone;
+
+      const response = await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          chat_id: chatId,
+          text: message,
+          parse_mode: 'Markdown'
+        })
+      });
+
+      const result = await response.json();
+      console.log('Telegram отправка результат:', result);
+
+      return { 
+        success: response.ok, 
+        message_id: result.result?.message_id,
+        channel: 'telegram'
+      };
+    }
+    
     return { success: false, reason: 'channel_not_supported' };
     
   } catch (error) {
@@ -69,6 +105,8 @@ async function sendAutoResponse(userId: string, clientPhone: string, message: st
 // Обработка консультационных запросов
 async function handleConsultationRequest(question: string, context: any, userId: string, autoSend: boolean = false): Promise<any> {
   console.log('AI-Consultant handling question:', question);
+  
+  const channel = context?.channel || 'web';
   
   // Получаем данные из базы для контекста
   const knowledgeBase = await getKnowledgeBase(userId);
@@ -85,13 +123,18 @@ async function handleConsultationRequest(question: string, context: any, userId:
   let sendResult = null;
   
   // Автоматическая отправка, если включена
-  if (autoSend && context?.client_phone && context?.channel) {
-    sendResult = await sendAutoResponse(
-      userId, 
-      context.client_phone, 
-      response.answer, 
-      context.channel
-    );
+  if (autoSend) {
+    const targetChannel = channel === 'telegram' ? 'telegram' : 'whatsapp';
+    const targetContact = channel === 'telegram' ? context?.chat_id : context?.client_phone;
+    
+    if (targetContact) {
+      sendResult = await sendAutoResponse(
+        userId, 
+        targetContact, 
+        response.answer, 
+        targetChannel
+      );
+    }
   }
   
   return {
