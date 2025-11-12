@@ -112,15 +112,24 @@ const WebsiteWidgetIntegrationDialog = ({ onSettingsChange, isConfigured = false
   };
 
   const generateWidgetCode = () => {
-    const projectUrl = import.meta.env.VITE_SUPABASE_URL || 'https://nxyzmxqtzsvjezmkmkja.supabase.co';
+    const apiUrl = `https://nxyzmxqtzsvjezmkmkja.supabase.co/functions/v1/website-widget`;
+    const userId = user!.id;
     
     return `<!-- AI Consultant Widget -->
 <div id="ai-consultant-widget"></div>
 <script>
 (function() {
+  // Generate unique session ID for this visitor
+  let sessionId = localStorage.getItem('crm_widget_session');
+  if (!sessionId) {
+    sessionId = 'visitor_' + Math.random().toString(36).substr(2, 9) + '_' + Date.now();
+    localStorage.setItem('crm_widget_session', sessionId);
+  }
+
   const config = {
-    userId: '${user?.id || 'YOUR_USER_ID'}',
-    apiUrl: '${projectUrl}/functions/v1/ai-consultant',
+    userId: '${userId}',
+    sessionId: sessionId,
+    apiUrl: '${apiUrl}',
     title: '${widgetTitle}',
     welcomeMessage: '${welcomeMessage}',
     position: '${widgetPosition}',
@@ -243,14 +252,16 @@ const WebsiteWidgetIntegrationDialog = ({ onSettingsChange, isConfigured = false
     messagesDiv.scrollTop = messagesDiv.scrollHeight;
     input.value = '';
 
-    // Call AI consultant
+    // Call AI consultant via website-widget function
     try {
       const response = await fetch(config.apiUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           question: message,
-          context: { source: 'website' }
+          userId: config.userId,
+          sessionId: config.sessionId,
+          userName: localStorage.getItem('crm_widget_username') || null
         })
       });
 
