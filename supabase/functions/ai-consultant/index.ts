@@ -361,27 +361,39 @@ serve(async (req) => {
   }
 
   try {
-    const { question, context, conversation_mode, auto_send = false } = await req.json();
-    console.log('AI Consultant request:', { question, conversation_mode, auto_send });
+    const { question, context, conversation_mode, auto_send = false, user_id } = await req.json();
+    console.log('AI Consultant request:', { question, conversation_mode, auto_send, channel: context?.channel });
 
     if (!question) {
       throw new Error('Question is required');
     }
 
-    // Аутентификация пользователя
-    const authHeader = req.headers.get('Authorization');
-    if (!authHeader) {
-      throw new Error('Authorization header required');
+    let userId: string;
+
+    // Для Telegram/WhatsApp используем user_id из body (вызов от webhook)
+    if (context?.channel === 'telegram' || context?.channel === 'whatsapp') {
+      if (!user_id) {
+        throw new Error('user_id is required for messenger integrations');
+      }
+      userId = user_id;
+      console.log('Using user_id from messenger webhook:', userId);
+    } else {
+      // Для веб-интерфейса требуем JWT аутентификацию
+      const authHeader = req.headers.get('Authorization');
+      if (!authHeader) {
+        throw new Error('Authorization header required');
+      }
+
+      const token = authHeader.replace('Bearer ', '');
+      const { data: user, error: authError } = await supabase.auth.getUser(token);
+
+      if (authError || !user.user) {
+        throw new Error('Authentication failed');
+      }
+
+      userId = user.user.id;
+      console.log('Using user_id from JWT:', userId);
     }
-
-    const token = authHeader.replace('Bearer ', '');
-    const { data: user, error: authError } = await supabase.auth.getUser(token);
-
-    if (authError || !user.user) {
-      throw new Error('Authentication failed');
-    }
-
-    const userId = user.user.id;
 
     // Обработка консультационного запроса с автоотправкой
     const result = await handleConsultationRequest(question, context || {}, userId, auto_send);

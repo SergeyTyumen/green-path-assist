@@ -71,21 +71,20 @@ serve(async (req) => {
         }
       });
 
-      // Вызываем AI консультанта
+      // Вызываем AI консультанта (передаем user_id CRM, а не telegram user_id)
       const { data: consultantResponse, error: consultantError } = await supabase.functions.invoke(
         'ai-consultant',
         {
           body: {
             question: messageText,
+            user_id: crm_user_id,
             context: {
               channel: 'telegram',
               chat_id: chatId,
-              user_name: userName
+              user_name: userName,
+              telegram_user_id: userId
             },
-            auto_send: true
-          },
-          headers: {
-            Authorization: `Bearer ${Deno.env.get('SUPABASE_ANON_KEY')}`
+            auto_send: false // Отправим сами через Telegram API
           }
         }
       );
