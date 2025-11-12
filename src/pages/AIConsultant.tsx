@@ -118,31 +118,26 @@ const AIConsultant = () => {
 
   const generateAIResponse = async (userMessage: string): Promise<string> => {
     try {
-      const aiConfig = await getAIConfigForAssistant(user!.id, 'consultant');
-      if (!aiConfig?.apiKey) {
-        throw new Error('API ключ не найден. Настройте API ключ в разделе настроек.');
-      }
-
       // Вызываем AI Consultant Edge Function
       const { data, error } = await supabase.functions.invoke('ai-consultant', {
         body: {
           question: userMessage,
           context: {
-            source: 'website',
-            knowledge_base: knowledgeBaseItems
+            source: 'website'
           },
-          aiConfig // Передаем настройки AI
+          auto_send: autoMode
         }
       });
 
       if (error) {
+        console.error('Edge function error:', error);
         throw new Error(error.message);
       }
 
-      if (data.success) {
+      if (data?.success) {
         return data.response;
       } else {
-        throw new Error(data.error || 'Ошибка генерации ответа');
+        throw new Error(data?.error || 'Ошибка генерации ответа');
       }
     } catch (error) {
       console.error('Error calling AI consultant:', error);

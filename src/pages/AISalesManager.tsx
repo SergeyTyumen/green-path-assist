@@ -21,17 +21,23 @@ import {
   TrendingUp,
   Target,
   DollarSign,
-  Loader2
+  Loader2,
+  Sparkles
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { ClickablePhone } from '@/components/ClickablePhone';
 import { useClients } from '@/hooks/useClients';
 import { useNavigate } from 'react-router-dom';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/hooks/useAuth';
 
 const AISalesManager = () => {
   const { toast } = useToast();
   const navigate = useNavigate();
+  const { user } = useAuth();
   const { clients, loading } = useClients();
+  const [analyzing, setAnalyzing] = useState(false);
+  const [aiRecommendations, setAiRecommendations] = useState<any>(null);
 
   // Преобразуем клиентов в лиды для работы с воронкой
   const leads = clients.map(client => ({
@@ -73,6 +79,43 @@ const AISalesManager = () => {
       case 'medium': return 'Средний';
       case 'low': return 'Низкий';
       default: return priority;
+    }
+  };
+
+  const analyzeClient = async (clientId: string) => {
+    if (!user) return;
+    
+    setAnalyzing(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('ai-sales-manager', {
+        body: {
+          action: 'analyze_client',
+          clientId,
+          salesContext: {
+            currentStage: clients.find(c => c.id === clientId)?.status,
+            requestedBy: user.id
+          }
+        }
+      });
+
+      if (error) throw error;
+
+      if (data?.success) {
+        setAiRecommendations(data.data);
+        toast({
+          title: "Анализ завершен",
+          description: "Получены рекомендации ИИ",
+        });
+      }
+    } catch (error) {
+      console.error('Error analyzing client:', error);
+      toast({
+        title: "Ошибка",
+        description: "Не удалось проанализировать клиента",
+        variant: "destructive",
+      });
+    } finally {
+      setAnalyzing(false);
     }
   };
 
@@ -210,18 +253,36 @@ const AISalesManager = () => {
                 <CardTitle>Рекомендации ИИ</CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
-                <div className="p-3 bg-blue-50 rounded-lg">
-                  <div className="font-medium text-sm">Горячий лид</div>
-                  <div className="text-xs text-muted-foreground">
-                    ООО "СтройТех" показывает высокую активность. Рекомендуется ускорить процесс.
+                {aiRecommendations ? (
+                  <>
+                    <div className="p-3 bg-blue-50 rounded-lg">
+                      <div className="font-medium text-sm">Анализ клиента</div>
+                      <div className="text-xs text-muted-foreground">
+                        {aiRecommendations.analysis}
+                      </div>
+                    </div>
+                    <div className="p-3 bg-green-50 rounded-lg">
+                      <div className="font-medium text-sm">Рекомендуемое действие</div>
+                      <div className="text-xs text-muted-foreground">
+                        {aiRecommendations.recommendedAction}
+                      </div>
+                    </div>
+                    {aiRecommendations.nextActions?.length > 0 && (
+                      <div className="p-3 bg-purple-50 rounded-lg">
+                        <div className="font-medium text-sm mb-2">Следующие шаги</div>
+                        <ul className="text-xs text-muted-foreground list-disc list-inside">
+                          {aiRecommendations.nextActions.map((action: string, i: number) => (
+                            <li key={i}>{action}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <div className="text-center py-4 text-muted-foreground text-sm">
+                    Выберите клиента в таблице и нажмите "Анализ ИИ" для получения рекомендаций
                   </div>
-                </div>
-                <div className="p-3 bg-yellow-50 rounded-lg">
-                  <div className="font-medium text-sm">Требует внимания</div>
-                  <div className="text-xs text-muted-foreground">
-                    Петров А.И. не отвечает 3 дня. Попробуйте другой канал связи.
-                  </div>
-                </div>
+                )}
               </CardContent>
             </Card>
           </div>
@@ -282,6 +343,7 @@ const AISalesManager = () => {
                             variant="ghost" 
                             size="sm"
                             onClick={() => navigate(`/clients`)}
+                            title="Просмотр клиента"
                           >
                             <Eye className="h-4 w-4" />
                           </Button>
@@ -289,8 +351,22 @@ const AISalesManager = () => {
                             variant="ghost" 
                             size="sm"
                             onClick={() => window.open(`tel:${lead.phone}`)}
+                            title="Позвонить"
                           >
                             <Phone className="h-4 w-4" />
+                          </Button>
+                          <Button 
+                            variant="ghost" 
+                            size="sm"
+                            onClick={() => analyzeClient(lead.id)}
+                            disabled={analyzing}
+                            title="Анализ ИИ"
+                          >
+                            {analyzing ? (
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                              <Sparkles className="h-4 w-4" />
+                            )}
                           </Button>
                         </div>
                       </TableCell>
