@@ -94,6 +94,12 @@ const AIConsultant = () => {
   const [isTyping, setIsTyping] = useState(false);
   const [autoMode, setAutoMode] = useState(false);
   const [createdLeads, setCreatedLeads] = useState<Set<string>>(new Set());
+  const [selectedRecipient, setSelectedRecipient] = useState<{
+    clientId: string;
+    clientName: string;
+    conversationId: string;
+    source: 'website' | 'whatsapp' | 'telegram';
+  } | null>(null);
 
   // Загрузка настроек автоматического режима
   useEffect(() => {
@@ -557,6 +563,16 @@ const AIConsultant = () => {
   const handleManualReply = async () => {
     if (!manualReply.trim() || !user) return;
 
+    // Проверяем, выбран ли получатель
+    if (!selectedRecipient) {
+      toast({
+        title: "Выберите получателя",
+        description: "Пожалуйста, выберите клиента из списка",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setIsProcessingManualReply(true);
 
     try {
@@ -578,9 +594,6 @@ const AIConsultant = () => {
 
       const aiImprovedVersion = data?.response || manualReply;
 
-      // Получаем последнее входящее сообщение для определения контекста
-      const lastIncomingMessage = messages.filter(m => m.type === 'user').pop();
-
       // Создаем два варианта сообщения для модерации
       const manualMessage: ChatMessage = {
         id: Date.now().toString(),
@@ -589,10 +602,10 @@ const AIConsultant = () => {
         timestamp: new Date(),
         status: 'pending',
         originalContent: manualReply,
-        conversationId: lastIncomingMessage?.conversationId,
-        clientId: lastIncomingMessage?.clientId,
-        clientName: lastIncomingMessage?.clientName,
-        source: lastIncomingMessage?.source
+        conversationId: selectedRecipient.conversationId,
+        clientId: selectedRecipient.clientId,
+        clientName: selectedRecipient.clientName,
+        source: selectedRecipient.source
       };
 
       const aiMessage: ChatMessage = {
@@ -603,10 +616,10 @@ const AIConsultant = () => {
         status: 'pending',
         originalContent: manualReply,
         aiImproved: true,
-        conversationId: lastIncomingMessage?.conversationId,
-        clientId: lastIncomingMessage?.clientId,
-        clientName: lastIncomingMessage?.clientName,
-        source: lastIncomingMessage?.source
+        conversationId: selectedRecipient.conversationId,
+        clientId: selectedRecipient.clientId,
+        clientName: selectedRecipient.clientName,
+        source: selectedRecipient.source
       };
 
       // Добавляем оба варианта в очередь модерации
@@ -784,17 +797,30 @@ const AIConsultant = () => {
               <CardContent className="space-y-4">
                 {pendingMessages.map((message) => (
                   <div key={message.id} className="border rounded-lg p-4 space-y-3">
-                    <div className="flex items-start gap-2">
-                      {message.aiImproved ? (
-                        <Badge variant="default" className="mt-1">
-                          <Sparkles className="h-3 w-3 mr-1" />
-                          AI улучшенная версия
-                        </Badge>
-                      ) : (
-                        <Badge variant="outline" className="mt-1">
-                          <User className="h-3 w-3 mr-1" />
-                          Ваша версия
-                        </Badge>
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex items-center gap-2">
+                        {message.aiImproved ? (
+                          <Badge variant="default" className="mt-1">
+                            <Sparkles className="h-3 w-3 mr-1" />
+                            AI улучшенная версия
+                          </Badge>
+                        ) : (
+                          <Badge variant="outline" className="mt-1">
+                            <User className="h-3 w-3 mr-1" />
+                            Ваша версия
+                          </Badge>
+                        )}
+                      </div>
+                      {message.clientName && (
+                        <div className="flex items-center gap-2 text-sm">
+                          <User className="h-4 w-4 text-muted-foreground" />
+                          <span className="font-medium">{message.clientName}</span>
+                          <Badge variant="secondary" className="text-xs">
+                            {message.source === 'telegram' && '💬 Telegram'}
+                            {message.source === 'whatsapp' && '📱 WhatsApp'}
+                            {message.source === 'website' && '🌐 Сайт'}
+                          </Badge>
+                        </div>
                       )}
                     </div>
                     {message.originalContent && message.originalContent !== message.content && (
@@ -934,6 +960,65 @@ const AIConsultant = () => {
                   {/* Поле для ручного ответа менеджера */}
                   <div className="border-t pt-4 space-y-2">
                     <Label className="text-sm font-medium">Ответить клиенту</Label>
+                    
+                    {/* Селектор получателя */}
+                    <div className="space-y-2">
+                      <Label className="text-xs text-muted-foreground">Получатель</Label>
+                      <Select
+                        value={selectedRecipient?.clientId || ''}
+                        onValueChange={(value) => {
+                          const recipient = messages
+                            .filter(m => m.type === 'user' && m.clientId)
+                            .reverse()
+                            .find(m => m.clientId === value);
+                          if (recipient) {
+                            setSelectedRecipient({
+                              clientId: recipient.clientId!,
+                              clientName: recipient.clientName!,
+                              conversationId: recipient.conversationId!,
+                              source: recipient.source!
+                            });
+                          }
+                        }}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Выберите клиента для ответа">
+                            {selectedRecipient && (
+                              <div className="flex items-center gap-2">
+                                <User className="h-4 w-4" />
+                                <span>{selectedRecipient.clientName}</span>
+                                <Badge variant="outline" className="ml-auto text-xs">
+                                  {selectedRecipient.source === 'telegram' && '💬 Telegram'}
+                                  {selectedRecipient.source === 'whatsapp' && '📱 WhatsApp'}
+                                  {selectedRecipient.source === 'website' && '🌐 Сайт'}
+                                </Badge>
+                              </div>
+                            )}
+                          </SelectValue>
+                        </SelectTrigger>
+                        <SelectContent>
+                          {Array.from(new Map(
+                            messages
+                              .filter(m => m.type === 'user' && m.clientId)
+                              .reverse()
+                              .map(m => [m.clientId, m])
+                          ).values()).map((message) => (
+                            <SelectItem key={message.clientId} value={message.clientId!}>
+                              <div className="flex items-center gap-2">
+                                <User className="h-4 w-4" />
+                                <span>{message.clientName}</span>
+                                <Badge variant="outline" className="ml-2 text-xs">
+                                  {message.source === 'telegram' && '💬 TG'}
+                                  {message.source === 'whatsapp' && '📱 WA'}
+                                  {message.source === 'website' && '🌐 Web'}
+                                </Badge>
+                              </div>
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
                     <div className="flex gap-2">
                       <Textarea
                         value={manualReply}
@@ -941,6 +1026,7 @@ const AIConsultant = () => {
                         placeholder="Напишите ответ клиенту... AI проверит и предложит улучшенную версию"
                         rows={3}
                         className="flex-1"
+                        disabled={!selectedRecipient}
                       />
                     </div>
                     <div className="flex justify-between items-center">
@@ -949,7 +1035,7 @@ const AIConsultant = () => {
                       </p>
                       <Button 
                         onClick={handleManualReply} 
-                        disabled={!manualReply.trim() || isProcessingManualReply}
+                        disabled={!manualReply.trim() || isProcessingManualReply || !selectedRecipient}
                         size="sm"
                       >
                         {isProcessingManualReply ? (
