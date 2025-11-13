@@ -89,6 +89,67 @@ const AIConsultant = () => {
   const [isTyping, setIsTyping] = useState(false);
   const [autoMode, setAutoMode] = useState(false);
 
+  // Загрузка настроек автоматического режима
+  useEffect(() => {
+    if (!user) return;
+    
+    const loadAutoMode = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('ai_settings')
+          .eq('user_id', user.id)
+          .single();
+        
+        if (error) throw error;
+        
+        const aiSettings = data?.ai_settings as any;
+        if (aiSettings?.auto_send_enabled !== undefined) {
+          setAutoMode(aiSettings.auto_send_enabled);
+        }
+      } catch (error) {
+        console.error('Error loading auto mode:', error);
+      }
+    };
+    
+    loadAutoMode();
+  }, [user]);
+
+  // Сохранение настроек автоматического режима
+  useEffect(() => {
+    if (!user) return;
+
+    const saveAutoMode = async () => {
+      try {
+        const { data: currentProfile } = await supabase
+          .from('profiles')
+          .select('ai_settings')
+          .eq('user_id', user.id)
+          .single();
+
+        const currentSettings = (currentProfile?.ai_settings as any) || {};
+
+        const { error } = await supabase
+          .from('profiles')
+          .update({
+            ai_settings: {
+              ...currentSettings,
+              auto_send_enabled: autoMode
+            }
+          })
+          .eq('user_id', user.id);
+
+        if (error) throw error;
+
+        console.log('Auto mode saved:', autoMode);
+      } catch (error) {
+        console.error('Error saving auto mode:', error);
+      }
+    };
+
+    saveAutoMode();
+  }, [autoMode, user]);
+
   // Загрузка реальных сообщений из базы данных
   useEffect(() => {
     if (!user) return;

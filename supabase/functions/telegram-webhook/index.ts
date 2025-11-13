@@ -228,6 +228,30 @@ serve(async (req) => {
         console.log('Входящее сообщение сохранено:', incomingMessage?.id);
       }
 
+      // Проверяем настройку автоматического режима
+      const { data: profileData, error: profileError } = await supabase
+        .from('profiles')
+        .select('ai_settings')
+        .eq('user_id', crm_user_id)
+        .maybeSingle();
+
+      if (profileError) {
+        console.error('Ошибка загрузки профиля:', profileError);
+      }
+
+      const aiSettings = (profileData?.ai_settings as any) || {};
+      const autoSendEnabled = aiSettings.auto_send_enabled ?? false;
+
+      console.log('Настройка автоматического режима:', autoSendEnabled);
+
+      // Если автоматический режим выключен, не вызываем AI консультанта
+      if (!autoSendEnabled) {
+        console.log('Автоматический режим выключен, сообщение сохранено без ответа AI');
+        return new Response(JSON.stringify({ ok: true, mode: 'manual' }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
       // Вызываем AI консультанта (передаем user_id CRM, а не telegram user_id)
       const { data: consultantResponse, error: consultantError } = await supabase.functions.invoke(
         'ai-consultant',
