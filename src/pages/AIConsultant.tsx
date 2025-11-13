@@ -50,6 +50,8 @@ interface ChatMessage {
   timestamp: Date;
   source?: 'website' | 'whatsapp' | 'telegram';
   clientId?: string;
+  clientName?: string;
+  conversationId?: string;
   status?: 'pending' | 'approved' | 'sent';
   originalContent?: string;
   aiImproved?: boolean;
@@ -217,6 +219,8 @@ const AIConsultant = () => {
               timestamp: new Date(msg.sent_at || msg.created_at),
               source: conv.channels?.type as 'telegram' | 'whatsapp' | 'website',
               clientId: conv.contact_id,
+              clientName: conv.contacts?.name || 'Неизвестный',
+              conversationId: conv.id,
               status: msg.status === 'sent' ? 'sent' : 'pending'
             });
           });
@@ -382,32 +386,60 @@ const AIConsultant = () => {
     if (!message || !user) return;
 
     try {
-      // Находим conversation_id и channel_account_id для этого клиента
-      const { data: conversations, error: convError } = await supabase
-        .from('conversations')
-        .select('id, channels(id, type, channel_accounts(id, account_identifier))')
-        .eq('channels.user_id', user.id)
-        .limit(1)
-        .single();
+      // Если есть conversationId, используем его напрямую
+      let conversationId = message.conversationId;
+      let provider = message.source || 'telegram';
+      let chatId: string | null = null;
 
-      if (convError || !conversations) {
-        console.error('Ошибка поиска conversation:', convError);
-        toast({
-          title: "Ошибка",
-          description: "Не удалось найти чат с клиентом",
-          variant: "destructive",
-        });
-        return;
+      if (!conversationId) {
+        // Находим последнюю conversation для этого пользователя
+        const { data: conversations, error: convError } = await supabase
+          .from('conversations')
+          .select('id, channels!inner(id, type, user_id), contact_identities!inner(contact_id, external_user_id, meta)')
+          .eq('channels.user_id', user.id)
+          .order('last_message_at', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        if (convError || !conversations) {
+          console.error('Ошибка поиска conversation:', convError);
+          toast({
+            title: "Ошибка",
+            description: "Не удалось найти чат с клиентом. Пожалуйста, дождитесь входящего сообщения.",
+            variant: "destructive",
+          });
+          return;
+        }
+
+        conversationId = conversations.id;
+        const channelData = conversations.channels as any;
+        provider = channelData?.type || 'telegram';
+        
+        // Получаем chat_id из meta
+        const contactIdentity = conversations.contact_identities as any;
+        chatId = contactIdentity?.external_user_id || contactIdentity?.meta?.chat_id;
+      } else {
+        // Получаем данные conversation
+        const { data: conversation, error: convError } = await supabase
+          .from('conversations')
+          .select('channels!inner(type), contact_identities!inner(external_user_id, meta)')
+          .eq('id', conversationId)
+          .single();
+
+        if (conversation) {
+          const channelData = conversation.channels as any;
+          provider = channelData?.type || 'telegram';
+          
+          const contactIdentity = conversation.contact_identities as any;
+          chatId = contactIdentity?.external_user_id || contactIdentity?.meta?.chat_id;
+        }
       }
-
-      const channelData = conversations.channels as any;
-      const provider = channelData?.type || 'telegram';
 
       // Сохраняем сообщение в базу данных
       const { data: savedMessage, error: saveError } = await supabase
         .from('messages')
         .insert({
-          conversation_id: conversations.id,
+          conversation_id: conversationId,
           direction: 'out',
           text: message.content,
           status: 'sent',
@@ -425,27 +457,22 @@ const AIConsultant = () => {
       console.log('Сообщение сохранено в БД:', savedMessage?.id);
 
       // Отправляем в Telegram (если это Telegram канал)
-      if (provider === 'telegram') {
-        const channelAccount = channelData.channel_accounts as any;
-        const chatId = channelAccount?.account_identifier;
-
-        if (chatId) {
-          // Вызываем edge function для отправки в Telegram
-          const { error: telegramError } = await supabase.functions.invoke('telegram-send-message', {
-            body: {
-              chat_id: chatId,
-              text: message.content
-            }
-          });
-
-          if (telegramError) {
-            console.error('Ошибка отправки в Telegram:', telegramError);
-            toast({
-              title: "Предупреждение",
-              description: "Сообщение сохранено, но не отправлено в Telegram",
-              variant: "destructive",
-            });
+      if (provider === 'telegram' && chatId) {
+        // Вызываем edge function для отправки в Telegram
+        const { error: telegramError } = await supabase.functions.invoke('telegram-send-message', {
+          body: {
+            chat_id: chatId,
+            text: message.content
           }
+        });
+
+        if (telegramError) {
+          console.error('Ошибка отправки в Telegram:', telegramError);
+          toast({
+            title: "Предупреждение",
+            description: "Сообщение сохранено, но не отправлено в Telegram",
+            variant: "destructive",
+          });
         }
       }
 
@@ -498,6 +525,9 @@ const AIConsultant = () => {
 
       const aiImprovedVersion = data?.response || manualReply;
 
+      // Получаем последнее входящее сообщение для определения контекста
+      const lastIncomingMessage = messages.filter(m => m.type === 'user').pop();
+
       // Создаем два варианта сообщения для модерации
       const manualMessage: ChatMessage = {
         id: Date.now().toString(),
@@ -505,7 +535,11 @@ const AIConsultant = () => {
         content: manualReply,
         timestamp: new Date(),
         status: 'pending',
-        originalContent: manualReply
+        originalContent: manualReply,
+        conversationId: lastIncomingMessage?.conversationId,
+        clientId: lastIncomingMessage?.clientId,
+        clientName: lastIncomingMessage?.clientName,
+        source: lastIncomingMessage?.source
       };
 
       const aiMessage: ChatMessage = {
@@ -515,7 +549,11 @@ const AIConsultant = () => {
         timestamp: new Date(),
         status: 'pending',
         originalContent: manualReply,
-        aiImproved: true
+        aiImproved: true,
+        conversationId: lastIncomingMessage?.conversationId,
+        clientId: lastIncomingMessage?.clientId,
+        clientName: lastIncomingMessage?.clientName,
+        source: lastIncomingMessage?.source
       };
 
       // Добавляем оба варианта в очередь модерации
@@ -548,6 +586,69 @@ const AIConsultant = () => {
 
   const deleteKnowledgeItem = async (id: string) => {
     await deleteItem(id);
+  };
+
+  const createLeadFromContact = async (contactId: string, contactName: string, source: string) => {
+    if (!user) return;
+
+    try {
+      // Получаем данные контакта
+      const { data: contact, error: contactError } = await supabase
+        .from('contacts')
+        .select('name, phone, email')
+        .eq('id', contactId)
+        .single();
+
+      if (contactError) throw contactError;
+
+      // Проверяем, существует ли уже клиент с таким контактом
+      const { data: existingClient } = await supabase
+        .from('clients')
+        .select('id, name')
+        .eq('user_id', user.id)
+        .or(`phone.eq.${contact.phone},email.eq.${contact.email}`)
+        .maybeSingle();
+
+      if (existingClient) {
+        toast({
+          title: "Клиент уже существует",
+          description: `${existingClient.name} уже добавлен в базу клиентов`,
+        });
+        return;
+      }
+
+      // Создаем нового клиента
+      const { data: newClient, error: clientError } = await supabase
+        .from('clients')
+        .insert({
+          user_id: user.id,
+          name: contact.name || contactName,
+          phone: contact.phone || '',
+          email: contact.email,
+          status: 'new',
+          services: [],
+          lead_source_details: {
+            source: source,
+            contact_id: contactId
+          }
+        })
+        .select()
+        .single();
+
+      if (clientError) throw clientError;
+
+      toast({
+        title: "Лид создан",
+        description: `${newClient.name} добавлен в базу клиентов`,
+      });
+    } catch (error) {
+      console.error('Ошибка создания лида:', error);
+      toast({
+        title: "Ошибка",
+        description: "Не удалось создать лида",
+        variant: "destructive",
+      });
+    }
   };
 
   return (
@@ -717,7 +818,13 @@ const AIConsultant = () => {
                                 : 'bg-primary text-primary-foreground'
                             }`}
                           >
-                            <div className="flex items-center gap-2 mb-1">
+                            <div className="flex items-center gap-2 mb-1 flex-wrap">
+                              {message.clientName && message.type === 'user' && (
+                                <Badge variant="secondary" className="text-xs">
+                                  <Users className="h-3 w-3 mr-1" />
+                                  {message.clientName}
+                                </Badge>
+                              )}
                               {message.source && (
                                 <Badge variant="outline" className="text-xs">
                                   {message.source === 'telegram' && '📱 Telegram'}
@@ -730,6 +837,17 @@ const AIConsultant = () => {
                               </span>
                             </div>
                             <p className="text-sm">{message.content}</p>
+                            {message.type === 'user' && message.clientId && (
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="mt-2 h-6 text-xs"
+                                onClick={() => createLeadFromContact(message.clientId!, message.clientName || 'Клиент', message.source || 'telegram')}
+                              >
+                                <Plus className="h-3 w-3 mr-1" />
+                                Создать лида
+                              </Button>
+                            )}
                           </div>
                         </div>
                       ))}
