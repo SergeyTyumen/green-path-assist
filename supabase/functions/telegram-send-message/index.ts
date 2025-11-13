@@ -35,23 +35,28 @@ serve(async (req) => {
       throw new Error('Пользователь не авторизован')
     }
 
-    // Получаем токен Telegram из настроек
-    const { data: profile, error: profileError } = await supabase
-      .from('profiles')
-      .select('ai_settings')
+    // Получаем токен Telegram из настроек интеграции
+    const { data: integrationSettings, error: settingsError } = await supabase
+      .from('integration_settings')
+      .select('settings, is_active')
       .eq('user_id', user.id)
+      .eq('integration_type', 'telegram')
       .single()
 
-    if (profileError) {
-      console.error('Ошибка получения профиля:', profileError)
-      throw new Error('Не удалось получить настройки')
+    if (settingsError || !integrationSettings) {
+      console.error('Ошибка получения настроек Telegram:', settingsError)
+      throw new Error('Telegram интеграция не настроена')
     }
 
-    const aiSettings = (profile?.ai_settings as any) || {}
-    const telegramToken = aiSettings.telegram_bot_token
+    if (!integrationSettings.is_active) {
+      throw new Error('Telegram интеграция отключена')
+    }
+
+    const settings = (integrationSettings.settings as any) || {}
+    const telegramToken = settings.bot_token
 
     if (!telegramToken) {
-      throw new Error('Telegram bot token не настроен')
+      throw new Error('Telegram bot token не настроен в интеграции')
     }
 
     // Отправляем сообщение через Telegram Bot API
