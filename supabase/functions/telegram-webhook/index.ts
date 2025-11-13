@@ -207,7 +207,7 @@ serve(async (req) => {
       }
 
       // 4. Сохранить входящее сообщение
-      const { data: incomingMessage } = await supabase
+      const { data: incomingMessage, error: messageError } = await supabase
         .from('messages')
         .insert({
           conversation_id: conversation.id,
@@ -222,7 +222,11 @@ serve(async (req) => {
         .select('id')
         .single();
 
-      console.log('Входящее сообщение сохранено:', incomingMessage?.id);
+      if (messageError) {
+        console.error('Ошибка сохранения входящего сообщения:', messageError);
+      } else {
+        console.log('Входящее сообщение сохранено:', incomingMessage?.id);
+      }
 
       // Вызываем AI консультанта (передаем user_id CRM, а не telegram user_id)
       const { data: consultantResponse, error: consultantError } = await supabase.functions.invoke(
@@ -283,7 +287,7 @@ serve(async (req) => {
 
         // 5. Сохранить исходящее сообщение
         if (result.ok && conversation) {
-          await supabase
+          const { data: outgoingMessage, error: outgoingError } = await supabase
             .from('messages')
             .insert({
               conversation_id: conversation.id,
@@ -295,13 +299,25 @@ serve(async (req) => {
               sent_at: new Date().toISOString(),
               author_user_id: crm_user_id,
               payload: result.result
-            });
+            })
+            .select('id')
+            .single();
+
+          if (outgoingError) {
+            console.error('Ошибка сохранения исходящего сообщения:', outgoingError);
+          } else {
+            console.log('Исходящее сообщение сохранено:', outgoingMessage?.id);
+          }
 
           // Обновляем время последнего сообщения в conversation
-          await supabase
+          const { error: updateError } = await supabase
             .from('conversations')
             .update({ last_message_at: new Date().toISOString() })
             .eq('id', conversation.id);
+
+          if (updateError) {
+            console.error('Ошибка обновления времени сообщения:', updateError);
+          }
         }
       }
     }

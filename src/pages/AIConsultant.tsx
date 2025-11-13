@@ -95,6 +95,24 @@ const AIConsultant = () => {
 
     const loadMessages = async () => {
       try {
+        // Сначала получаем каналы пользователя
+        const { data: userChannels, error: channelsError } = await supabase
+          .from('channels')
+          .select('id')
+          .eq('user_id', user.id);
+
+        if (channelsError) {
+          console.error('Error loading channels:', channelsError);
+          return;
+        }
+
+        if (!userChannels || userChannels.length === 0) {
+          console.log('No channels found for user');
+          return;
+        }
+
+        const channelIds = userChannels.map(ch => ch.id);
+
         // Загружаем все conversations пользователя с последними сообщениями
         const { data: conversations, error } = await supabase
           .from('conversations')
@@ -114,13 +132,15 @@ const AIConsultant = () => {
               status
             )
           `)
-          .eq('channels.user_id', user.id)
+          .in('channel_id', channelIds)
           .order('created_at', { ascending: true });
 
         if (error) {
           console.error('Error loading messages:', error);
           return;
         }
+
+        console.log('Loaded conversations:', conversations?.length || 0);
 
         // Преобразуем в формат ChatMessage
         const allMessages: ChatMessage[] = [];
