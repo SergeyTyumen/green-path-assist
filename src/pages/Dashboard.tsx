@@ -8,24 +8,29 @@ import {
   Clock,
   AlertCircle,
   Plus,
-  Loader2
+  Loader2,
+  MessageSquare,
+  MessageCircle
 } from "lucide-react";
 import { useClients } from "@/hooks/useClients";
 import { useTasks } from "@/hooks/useTasks";
 import { useEstimates } from "@/hooks/useEstimates";
 import { useProposals } from "@/hooks/useProposals";
 import { useNavigate } from "react-router-dom";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/useAuth";
+import { supabase } from "@/integrations/supabase/client";
 
 export default function Dashboard() {
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { user } = useAuth();
   const [showAddClientDialog, setShowAddClientDialog] = useState(false);
   const [newClient, setNewClient] = useState({
     name: '',
@@ -37,11 +42,115 @@ export default function Dashboard() {
     budget: 0,
     project_area: 0
   });
+  const [newRequestsCount, setNewRequestsCount] = useState(0);
+  const [newMessagesCount, setNewMessagesCount] = useState(0);
 
   const { clients, loading: clientsLoading, createClient } = useClients();
   const { tasks, loading: tasksLoading } = useTasks();
   const { estimates, loading: estimatesLoading } = useEstimates();
   const { proposals, loading: proposalsLoading } = useProposals();
+
+  // Загрузка уведомлений о новых сообщениях
+  useEffect(() => {
+    if (!user) return;
+
+    const loadNotifications = async () => {
+      try {
+        // Получаем все каналы пользователя
+        const { data: channels } = await supabase
+          .from('channels')
+          .select('id')
+          .eq('user_id', user.id);
+
+        if (!channels || channels.length === 0) return;
+
+        const channelIds = channels.map(c => c.id);
+
+        // Получаем все conversations с последними сообщениями
+        const { data: conversations } = await supabase
+          .from('conversations')
+          .select(`
+            id,
+            contact_id,
+            contacts (id, name, phone, email),
+            messages (
+              id,
+              direction,
+              created_at,
+              read_at
+            )
+          `)
+          .in('channel_id', channelIds)
+          .order('created_at', { ascending: false });
+
+        if (!conversations) return;
+
+        // Получаем всех клиентов пользователя
+        const { data: allClients } = await supabase
+          .from('clients')
+          .select('id, lead_source_details, assigned_manager_id')
+          .eq('user_id', user.id);
+
+        // Создаем Map для быстрого поиска клиентов по contact_id
+        const contactToClientMap = new Map();
+        allClients?.forEach(client => {
+          const sourceDetails = client.lead_source_details as { contact_id?: string } | null;
+          const contactId = sourceDetails?.contact_id;
+          if (contactId) {
+            contactToClientMap.set(contactId, client);
+          }
+        });
+
+        let newRequests = 0;
+        let myClientMessages = 0;
+
+        conversations.forEach((conv: any) => {
+          const hasUnreadMessages = conv.messages?.some(
+            (msg: any) => msg.direction === 'in' && !msg.read_at
+          );
+
+          if (!hasUnreadMessages) return;
+
+          const client = contactToClientMap.get(conv.contact_id);
+
+          if (!client) {
+            // Новое обращение - нет связанного клиента
+            newRequests++;
+          } else if (client.assigned_manager_id === user.id) {
+            // Сообщение от моего клиента
+            myClientMessages++;
+          }
+        });
+
+        setNewRequestsCount(newRequests);
+        setNewMessagesCount(myClientMessages);
+      } catch (error) {
+        console.error('Error loading notifications:', error);
+      }
+    };
+
+    loadNotifications();
+
+    // Подписка на новые сообщения
+    const channel = supabase
+      .channel('dashboard-messages')
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'messages'
+        },
+        () => {
+          loadNotifications();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user]);
 
   const handleAddClient = async () => {
     if (!newClient.name || !newClient.phone) {
@@ -75,35 +184,59 @@ export default function Dashboard() {
 
   const stats = [
     {
+      title: "Новые обращения",
+      value: newRequestsCount.toString(),
+      description: "Требуют обработки",
+      icon: MessageSquare,
+      color: "text-orange-600",
+      bgColor: "bg-orange-50",
+      onClick: () => navigate('/ai-assistants/consultant'),
+      highlight: newRequestsCount > 0
+    },
+    {
+      title: "Новые сообщения",
+      value: newMessagesCount.toString(),
+      description: "От ваших клиентов",
+      icon: MessageCircle,
+      color: "text-blue-600",
+      bgColor: "bg-blue-50",
+      onClick: () => navigate('/ai-assistants/consultant'),
+      highlight: newMessagesCount > 0
+    },
+    {
       title: "Активные клиенты",
       value: clients.length.toString(),
-      change: "+12%",
+      description: "+12%",
       icon: Users,
-      color: "text-blue-600",
+      color: "text-indigo-600",
+      bgColor: "bg-indigo-50",
       onClick: () => navigate('/clients')
     },
     {
       title: "Сметы в работе",
       value: estimates.filter(e => e.status === 'draft' || e.status === 'sent').length.toString(),
-      change: "+3",
+      description: "+3",
       icon: Calculator,
       color: "text-green-600",
+      bgColor: "bg-green-50",
       onClick: () => navigate('/estimates')
     },
     {
       title: "Отправленные КП",
       value: proposals.filter(p => p.status === 'sent').length.toString(),
-      change: "+5",
+      description: "+5",
       icon: FileText,
       color: "text-purple-600",
+      bgColor: "bg-purple-50",
       onClick: () => navigate('/proposals')
     },
     {
       title: "Общий оборот",
       value: `₽${(proposals.filter(p => p.status === 'approved').reduce((sum, p) => sum + p.amount, 0) / 1000000).toFixed(1)}М`,
-      change: "+18%",
+      description: "+18%",
       icon: TrendingUp,
       color: "text-emerald-600",
+      bgColor: "bg-emerald-50",
       onClick: () => navigate('/proposals')
     }
   ];
@@ -221,8 +354,8 @@ export default function Dashboard() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-foreground">{stat.value}</div>
-              <p className="text-xs text-green-600 font-medium">
-                {stat.change} за месяц
+              <p className="text-xs text-muted-foreground font-medium">
+                {stat.description}
               </p>
             </CardContent>
           </Card>
