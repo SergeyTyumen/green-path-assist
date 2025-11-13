@@ -55,6 +55,7 @@ interface ChatMessage {
   status?: 'pending' | 'approved' | 'sent';
   originalContent?: string;
   aiImproved?: boolean;
+  isRead?: boolean;
 }
 
 interface KnowledgeItem {
@@ -246,7 +247,8 @@ const AIConsultant = () => {
               sent_at,
               provider,
               status,
-              payload
+              payload,
+              is_read
             )
           `)
           .in('channel_id', channelIds)
@@ -272,7 +274,8 @@ const AIConsultant = () => {
               clientId: conv.contact_id,
               clientName: conv.contacts?.name || 'Неизвестный',
               conversationId: conv.id,
-              status: msg.status === 'sent' ? 'sent' : 'pending'
+              status: msg.status === 'sent' ? 'sent' : 'pending',
+              isRead: msg.is_read || false
             });
           });
         });
@@ -854,7 +857,7 @@ const AIConsultant = () => {
                     <User className="h-4 w-4" />
                     Мои клиенты
                     <Badge variant="secondary" className="ml-auto">
-                      {messages.filter(m => m.type === 'user' && m.clientId && createdLeads.has(m.clientId)).length}
+                      {messages.filter(m => m.type === 'user' && !m.isRead && m.clientId && createdLeads.has(m.clientId)).length}
                     </Badge>
                   </TabsTrigger>
                 </TabsList>
@@ -1229,26 +1232,43 @@ const AIConsultant = () => {
                               const clientMessages = messages.filter(m => {
                                 return m.clientId && client.lead_source_details?.contact_id === m.clientId;
                               });
-                              const unreadCount = clientMessages.filter(m => m.type === 'user').length;
+                              const unreadCount = clientMessages.filter(m => m.type === 'user' && !m.isRead).length;
                               
                               return (
                                 <Button
                                   key={client.id}
                                   variant={selectedClientId === client.id ? "default" : "ghost"}
                                   className="w-full justify-start text-left h-auto p-3"
-                                  onClick={() => {
+                                  onClick={async () => {
                                     setSelectedClientId(client.id);
                                     // Автоматически устанавливаем получателя для ответа
                                     const contactId = client.lead_source_details?.contact_id;
                                     if (contactId) {
                                       const message = messages.find(m => m.clientId === contactId && m.type === 'user');
-                                      if (message) {
+                                      if (message && message.conversationId) {
                                         setSelectedRecipient({
                                           clientId: message.clientId!,
                                           clientName: message.clientName!,
                                           conversationId: message.conversationId!,
                                           source: message.source!
                                         });
+                                        
+                                        // Помечаем сообщения как прочитанные
+                                        try {
+                                          await supabase.rpc('mark_messages_as_read', {
+                                            p_conversation_id: message.conversationId,
+                                            p_user_id: user?.id
+                                          });
+                                          
+                                          // Обновляем локальное состояние
+                                          setMessages(prev => prev.map(m => 
+                                            m.conversationId === message.conversationId && m.type === 'user'
+                                              ? { ...m, isRead: true }
+                                              : m
+                                          ));
+                                        } catch (error) {
+                                          console.error('Error marking messages as read:', error);
+                                        }
                                       }
                                     }
                                   }}
