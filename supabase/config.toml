@@ -62,3 +62,24 @@ verify_jwt = true
 
 [functions.website-widget]
 verify_jwt = false
+
+[functions.generate-conversation-summary]
+verify_jwt = true
+
+[functions.whatsapp-send]
+verify_jwt = true
+
+[functions.send-document]
+verify_jwt = true
+
+[functions.generate-proposal-document]
+verify_jwt = true
+
+[functions.convert-proposal-to-pdf]
+verify_jwt = true
+
+[functions.edit-technical-specification]
+verify_jwt = true
+
+[functions.process-registration-request]
+verify_jwt = false

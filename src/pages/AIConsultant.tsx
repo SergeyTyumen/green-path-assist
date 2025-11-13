@@ -100,6 +100,7 @@ const AIConsultant = () => {
   const [nextAction, setNextAction] = useState('');
   const [nextActionDate, setNextActionDate] = useState('');
   const [isSavingComment, setIsSavingComment] = useState(false);
+  const [isGeneratingComment, setIsGeneratingComment] = useState(false);
   const [selectedRecipient, setSelectedRecipient] = useState<{
     clientId: string;
     clientName: string;
@@ -1282,13 +1283,94 @@ const AIConsultant = () => {
                           <CardDescription>Запишите результат общения с клиентом</CardDescription>
                         </CardHeader>
                         <CardContent className="space-y-3">
-                          <Textarea
-                            placeholder="Например: Обсудили проект ландшафтного дизайна. Клиент заинтересован в автополиве и газоне. Площадь участка 15 соток..."
-                            value={clientComment}
-                            onChange={(e) => setClientComment(e.target.value)}
-                            rows={4}
-                          />
-                          <Button 
+                          <div className="space-y-2">
+                            <div className="flex gap-2">
+                              <Textarea
+                                placeholder="Например: Обсудили проект ландшафтного дизайна. Клиент заинтересован в автополиве и газоне. Площадь участка 15 соток..."
+                                value={clientComment}
+                                onChange={(e) => setClientComment(e.target.value)}
+                                rows={4}
+                                className="flex-1"
+                              />
+                            </div>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={async () => {
+                                if (!selectedClientId || !user) return;
+                                
+                                setIsGeneratingComment(true);
+                                try {
+                                  // Получаем все сообщения выбранного клиента
+                                  const client = myClients.find(c => c.id === selectedClientId);
+                                  if (!client) return;
+                                  
+                                  const contactId = client.lead_source_details?.contact_id;
+                                  const clientMessages = messages.filter(m => m.clientId === contactId);
+                                  
+                                  if (clientMessages.length === 0) {
+                                    toast({
+                                      title: "Нет истории переписки",
+                                      description: "Недостаточно сообщений для генерации комментария",
+                                      variant: "destructive",
+                                    });
+                                    return;
+                                  }
+                                  
+                                  const { data, error } = await supabase.functions.invoke('generate-conversation-summary', {
+                                    body: {
+                                      messages: clientMessages.map(m => ({
+                                        type: m.type,
+                                        content: m.content
+                                      })),
+                                      clientName: client.name
+                                    }
+                                  });
+                                  
+                                  if (error) throw error;
+                                  
+                                  if (data.error) {
+                                    toast({
+                                      title: "Ошибка",
+                                      description: data.error,
+                                      variant: "destructive",
+                                    });
+                                    return;
+                                  }
+                                  
+                                  setClientComment(data.summary);
+                                  toast({
+                                    title: "Комментарий сгенерирован",
+                                    description: "ИИ создал комментарий на основе истории переписки",
+                                  });
+                                } catch (error) {
+                                  console.error('Error generating comment:', error);
+                                  toast({
+                                    title: "Ошибка",
+                                    description: "Не удалось сгенерировать комментарий",
+                                    variant: "destructive",
+                                  });
+                                } finally {
+                                  setIsGeneratingComment(false);
+                                }
+                              }}
+                              disabled={!selectedClientId || isGeneratingComment}
+                              className="w-full"
+                            >
+                              {isGeneratingComment ? (
+                                <>
+                                  <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin mr-2" />
+                                  Генерация...
+                                </>
+                              ) : (
+                                <>
+                                  <Brain className="h-4 w-4 mr-2" />
+                                  Сгенерировать с помощью ИИ
+                                </>
+                              )}
+                            </Button>
+                          </div>
+                          <Button
                             onClick={async () => {
                               if (!clientComment.trim() || !user) return;
                               
