@@ -93,6 +93,7 @@ const AIConsultant = () => {
   const [inputMessage, setInputMessage] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const [autoMode, setAutoMode] = useState(false);
+  const [createdLeads, setCreatedLeads] = useState<Set<string>>(new Set());
 
   // Загрузка настроек автоматического режима
   useEffect(() => {
@@ -195,7 +196,8 @@ const AIConsultant = () => {
               created_at,
               sent_at,
               provider,
-              status
+              status,
+              payload
             )
           `)
           .in('channel_id', channelIds)
@@ -395,7 +397,7 @@ const AIConsultant = () => {
         // Находим последнюю conversation для этого пользователя
         const { data: conversations, error: convError } = await supabase
           .from('conversations')
-          .select('id, channels!inner(id, type, user_id), contact_identities!inner(contact_id, external_user_id, meta)')
+          .select('id, channels!inner(id, type, user_id), messages!inner(payload, direction)')
           .eq('channels.user_id', user.id)
           .order('last_message_at', { ascending: false })
           .limit(1)
@@ -415,14 +417,15 @@ const AIConsultant = () => {
         const channelData = conversations.channels as any;
         provider = channelData?.type || 'telegram';
         
-        // Получаем chat_id из meta
-        const contactIdentity = conversations.contact_identities as any;
-        chatId = contactIdentity?.external_user_id || contactIdentity?.meta?.chat_id;
+        // Получаем chat_id из последнего входящего сообщения
+        const messages = (conversations as any).messages || [];
+        const incomingMessage = messages.find((m: any) => m.direction === 'in');
+        chatId = incomingMessage?.payload?.chat_id || incomingMessage?.payload?.from?.id;
       } else {
         // Получаем данные conversation
         const { data: conversation, error: convError } = await supabase
           .from('conversations')
-          .select('channels!inner(type), contact_identities!inner(external_user_id, meta)')
+          .select('channels!inner(type), messages!inner(payload, direction)')
           .eq('id', conversationId)
           .single();
 
@@ -430,8 +433,10 @@ const AIConsultant = () => {
           const channelData = conversation.channels as any;
           provider = channelData?.type || 'telegram';
           
-          const contactIdentity = conversation.contact_identities as any;
-          chatId = contactIdentity?.external_user_id || contactIdentity?.meta?.chat_id;
+          // Получаем chat_id из последнего входящего сообщения
+          const messages = (conversation as any).messages || [];
+          const incomingMessage = messages.find((m: any) => m.direction === 'in');
+          chatId = incomingMessage?.payload?.chat_id || incomingMessage?.payload?.from?.id;
         }
       }
 
@@ -641,6 +646,9 @@ const AIConsultant = () => {
         title: "Лид создан",
         description: `${newClient.name} добавлен в базу клиентов`,
       });
+
+      // Добавляем contactId в список созданных лидов
+      setCreatedLeads(prev => new Set(prev).add(contactId));
     } catch (error) {
       console.error('Ошибка создания лида:', error);
       toast({
@@ -840,12 +848,22 @@ const AIConsultant = () => {
                             {message.type === 'user' && message.clientId && (
                               <Button
                                 size="sm"
-                                variant="ghost"
+                                variant={createdLeads.has(message.clientId) ? "default" : "ghost"}
                                 className="mt-2 h-6 text-xs"
                                 onClick={() => createLeadFromContact(message.clientId!, message.clientName || 'Клиент', message.source || 'telegram')}
+                                disabled={createdLeads.has(message.clientId)}
                               >
-                                <Plus className="h-3 w-3 mr-1" />
-                                Создать лида
+                                {createdLeads.has(message.clientId) ? (
+                                  <>
+                                    <Check className="h-3 w-3 mr-1" />
+                                    Лид создан
+                                  </>
+                                ) : (
+                                  <>
+                                    <Plus className="h-3 w-3 mr-1" />
+                                    Создать лида
+                                  </>
+                                )}
                               </Button>
                             )}
                           </div>
