@@ -71,9 +71,15 @@ export function useKnowledgeBase() {
         .update(updates)
         .eq('id', id)
         .select()
-        .single();
+        .maybeSingle();
 
       if (error) throw error;
+      
+      if (!data) {
+        toast.error('Элемент не найден');
+        return;
+      }
+      
       setItems(prev => prev.map(item => item.id === id ? data : item));
       toast.success('Элемент базы знаний обновлен');
       return data;
