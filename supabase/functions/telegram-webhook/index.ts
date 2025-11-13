@@ -88,6 +88,33 @@ serve(async (req) => {
         });
       }
 
+      // 1.5. Найти или создать channel_account для бота
+      let { data: channelAccount } = await supabase
+        .from('channel_accounts')
+        .select('id')
+        .eq('channel_id', channel.id)
+        .single();
+
+      if (!channelAccount) {
+        const { data: newChannelAccount } = await supabase
+          .from('channel_accounts')
+          .insert({
+            channel_id: channel.id,
+            display_name: 'Telegram Bot',
+            external_account_id: botToken.split(':')[0]
+          })
+          .select('id')
+          .single();
+        channelAccount = newChannelAccount;
+      }
+
+      if (!channelAccount) {
+        console.error('Не удалось создать channel_account');
+        return new Response(JSON.stringify({ ok: true }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
       // 2. Найти или создать контакт
       let { data: contactIdentity } = await supabase
         .from('contact_identities')
@@ -146,7 +173,7 @@ serve(async (req) => {
           .insert({
             contact_id: contact.id,
             channel_id: channel.id,
-            channel_account_id: channel.id,
+            channel_account_id: channelAccount.id,
             status: 'open',
             last_message_at: new Date().toISOString()
           })
