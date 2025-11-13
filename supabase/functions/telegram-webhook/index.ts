@@ -64,10 +64,10 @@ serve(async (req) => {
         .select('id')
         .eq('user_id', crm_user_id)
         .eq('type', 'telegram')
-        .single();
+        .maybeSingle();
 
       if (!channel) {
-        const { data: newChannel } = await supabase
+        const { data: newChannel, error: channelError } = await supabase
           .from('channels')
           .insert({
             user_id: crm_user_id,
@@ -78,6 +78,10 @@ serve(async (req) => {
           })
           .select('id')
           .single();
+        
+        if (channelError) {
+          console.error('Ошибка создания канала:', channelError);
+        }
         channel = newChannel;
       }
 
@@ -88,15 +92,18 @@ serve(async (req) => {
         });
       }
 
+      console.log('Канал найден/создан:', channel.id);
+
       // 1.5. Найти или создать channel_account для бота
       let { data: channelAccount } = await supabase
         .from('channel_accounts')
         .select('id')
         .eq('channel_id', channel.id)
-        .single();
+        .maybeSingle();
 
       if (!channelAccount) {
-        const { data: newChannelAccount } = await supabase
+        console.log('Создаём channel_account для канала:', channel.id);
+        const { data: newChannelAccount, error: accountError } = await supabase
           .from('channel_accounts')
           .insert({
             channel_id: channel.id,
@@ -105,6 +112,10 @@ serve(async (req) => {
           })
           .select('id')
           .single();
+        
+        if (accountError) {
+          console.error('Ошибка создания channel_account:', accountError);
+        }
         channelAccount = newChannelAccount;
       }
 
@@ -115,13 +126,15 @@ serve(async (req) => {
         });
       }
 
+      console.log('Channel account найден/создан:', channelAccount.id);
+
       // 2. Найти или создать контакт
       let { data: contactIdentity } = await supabase
         .from('contact_identities')
         .select('contact_id, contacts(*)')
         .eq('channel_id', channel.id)
         .eq('external_user_id', userId)
-        .single();
+        .maybeSingle();
 
       let contact;
       if (!contactIdentity) {
@@ -165,7 +178,7 @@ serve(async (req) => {
         .select('id')
         .eq('contact_id', contact.id)
         .eq('channel_id', channel.id)
-        .single();
+        .maybeSingle();
 
       if (!conversation) {
         const { data: newConversation, error: convError } = await supabase
