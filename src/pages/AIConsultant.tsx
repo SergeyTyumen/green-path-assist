@@ -39,6 +39,7 @@ import { getAIConfigForAssistant } from '@/utils/getAPIKeys';
 import WhatsAppIntegrationDialog from '@/components/WhatsAppIntegrationDialog';
 import TelegramIntegrationDialog from '@/components/TelegramIntegrationDialog';
 import WebsiteWidgetIntegrationDialog from '@/components/WebsiteWidgetIntegrationDialog';
+import KnowledgeBaseForm from '@/components/KnowledgeBaseForm';
 
 interface ChatMessage {
   id: string;
@@ -565,9 +566,12 @@ const AIConsultant = () => {
         <TabsContent value="knowledge" className="space-y-6">
           <div className="flex justify-between items-center">
             <h2 className="text-2xl font-bold">База знаний</h2>
-            <Dialog open={isKnowledgeDialogOpen} onOpenChange={setIsKnowledgeDialogOpen}>
+            <Dialog open={isKnowledgeDialogOpen} onOpenChange={(open) => {
+              setIsKnowledgeDialogOpen(open);
+              if (!open) setEditingKnowledge(null);
+            }}>
               <DialogTrigger asChild>
-                <Button>
+                <Button onClick={() => setEditingKnowledge(null)}>
                   <Plus className="h-4 w-4 mr-2" />
                   Добавить элемент
                 </Button>
@@ -578,86 +582,22 @@ const AIConsultant = () => {
                     {editingKnowledge ? 'Редактировать элемент' : 'Добавить элемент'}
                   </DialogTitle>
                 </DialogHeader>
-                <div className="space-y-4">
-                  <div>
-                    <Label>Категория</Label>
-                    <Select defaultValue={editingKnowledge?.category || 'Услуги'}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Выберите категорию" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="Услуги">Услуги</SelectItem>
-                        <SelectItem value="Цены">Цены</SelectItem>
-                        <SelectItem value="Материалы">Материалы</SelectItem>
-                        <SelectItem value="Гарантии">Гарантии</SelectItem>
-                        <SelectItem value="Сроки">Сроки</SelectItem>
-                        <SelectItem value="Контакты">Контакты</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div>
-                    <Label>Тема/Название</Label>
-                    <Input 
-                      defaultValue={editingKnowledge?.topic || ''}
-                      placeholder="Название темы или услуги"
-                    />
-                  </div>
-                  <div>
-                    <Label>Содержание</Label>
-                    <Textarea 
-                      defaultValue={editingKnowledge?.content || ''}
-                      placeholder="Подробная информация по теме: описание, цены, особенности..."
-                      className="min-h-[120px]"
-                    />
-                  </div>
-                  <div>
-                    <Label>Ключевые слова</Label>
-                    <Input 
-                      defaultValue={editingKnowledge?.keywords?.join(', ') || ''}
-                      placeholder="ключевые слова через запятую"
-                    />
-                  </div>
-                  <div>
-                    <Label>Приоритет</Label>
-                    <Select defaultValue={editingKnowledge?.priority?.toString() || '1'}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Выберите приоритет" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="1">Высокий</SelectItem>
-                        <SelectItem value="2">Средний</SelectItem>
-                        <SelectItem value="3">Низкий</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="flex gap-2">
-                    <Button onClick={() => {
-                      // В реальном приложении здесь будет сохранение данных из формы
-                      if (editingKnowledge) {
-                        updateKnowledgeItem(editingKnowledge.id, editingKnowledge);
-                      } else {
-                        addKnowledgeItem({
-                          category: 'Услуги',
-                          topic: 'Новая тема',
-                          content: 'Новое содержание',
-                          keywords: [],
-                          priority: 1,
-                          is_active: true
-                        });
-                      }
-                      setEditingKnowledge(null);
-                      setIsKnowledgeDialogOpen(false);
-                    }}>
-                      Сохранить
-                    </Button>
-                    <Button variant="outline" onClick={() => {
-                      setEditingKnowledge(null);
-                      setIsKnowledgeDialogOpen(false);
-                    }}>
-                      Отмена
-                    </Button>
-                  </div>
-                </div>
+                <KnowledgeBaseForm 
+                  initialData={editingKnowledge}
+                  onSave={(data) => {
+                    if (editingKnowledge) {
+                      updateKnowledgeItem(editingKnowledge.id, data);
+                    } else {
+                      addKnowledgeItem({ ...data, is_active: true });
+                    }
+                    setEditingKnowledge(null);
+                    setIsKnowledgeDialogOpen(false);
+                  }}
+                  onCancel={() => {
+                    setEditingKnowledge(null);
+                    setIsKnowledgeDialogOpen(false);
+                  }}
+                />
               </DialogContent>
             </Dialog>
           </div>
