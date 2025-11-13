@@ -372,14 +372,92 @@ const AIConsultant = () => {
     }
   };
 
-  const approveMessage = (messageId: string) => {
+  const approveMessage = async (messageId: string) => {
     const message = pendingMessages.find(m => m.id === messageId);
-    if (message) {
+    if (!message || !user) return;
+
+    try {
+      // Находим conversation_id и channel_account_id для этого клиента
+      const { data: conversations, error: convError } = await supabase
+        .from('conversations')
+        .select('id, channels(id, type, channel_accounts(id, account_identifier))')
+        .eq('channels.user_id', user.id)
+        .limit(1)
+        .single();
+
+      if (convError || !conversations) {
+        console.error('Ошибка поиска conversation:', convError);
+        toast({
+          title: "Ошибка",
+          description: "Не удалось найти чат с клиентом",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      const channelData = conversations.channels as any;
+      const provider = channelData?.type || 'telegram';
+
+      // Сохраняем сообщение в базу данных
+      const { data: savedMessage, error: saveError } = await supabase
+        .from('messages')
+        .insert({
+          conversation_id: conversations.id,
+          direction: 'out',
+          text: message.content,
+          status: 'sent',
+          provider: provider,
+          sent_at: new Date().toISOString()
+        })
+        .select('id')
+        .single();
+
+      if (saveError) {
+        console.error('Ошибка сохранения сообщения:', saveError);
+        throw saveError;
+      }
+
+      console.log('Сообщение сохранено в БД:', savedMessage?.id);
+
+      // Отправляем в Telegram (если это Telegram канал)
+      if (provider === 'telegram') {
+        const channelAccount = channelData.channel_accounts as any;
+        const chatId = channelAccount?.account_identifier;
+
+        if (chatId) {
+          // Вызываем edge function для отправки в Telegram
+          const { error: telegramError } = await supabase.functions.invoke('telegram-send-message', {
+            body: {
+              chat_id: chatId,
+              text: message.content
+            }
+          });
+
+          if (telegramError) {
+            console.error('Ошибка отправки в Telegram:', telegramError);
+            toast({
+              title: "Предупреждение",
+              description: "Сообщение сохранено, но не отправлено в Telegram",
+              variant: "destructive",
+            });
+          }
+        }
+      }
+
+      // Обновляем UI
       setMessages(prev => [...prev, { ...message, status: 'sent' }]);
       setPendingMessages(prev => prev.filter(m => m.id !== messageId));
+      
       toast({
         title: "Сообщение отправлено",
         description: "Ответ отправлен клиенту",
+      });
+    } catch (error) {
+      console.error('Ошибка отправки сообщения:', error);
+      toast({
+        title: "Ошибка",
+        description: "Не удалось отправить сообщение",
+        variant: "destructive",
       });
     }
   };

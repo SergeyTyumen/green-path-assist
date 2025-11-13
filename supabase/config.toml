@@ -57,5 +57,8 @@ verify_jwt = false
 [functions.telegram-webhook]
 verify_jwt = false
 
+[functions.telegram-send-message]
+verify_jwt = true
+
 [functions.website-widget]
 verify_jwt = false
