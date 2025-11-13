@@ -1079,71 +1079,81 @@ const AIConsultant = () => {
                   <div className="border-t pt-4 space-y-2">
                     <Label className="text-sm font-medium">Ответить клиенту</Label>
                     
-                    {/* Селектор получателя */}
-                    <div className="space-y-2">
-                      <Label className="text-xs text-muted-foreground">Получатель</Label>
-                      <Select
-                        value={selectedRecipient?.clientId || ''}
-                        onValueChange={(value) => {
-                          const recipient = messages
-                            .filter(m => m.type === 'user' && m.clientId)
-                            .reverse()
-                            .find(m => m.clientId === value);
-                          if (recipient) {
-                            setSelectedRecipient({
-                              clientId: recipient.clientId!,
-                              clientName: recipient.clientName!,
-                              conversationId: recipient.conversationId!,
-                              source: recipient.source!
-                            });
-                          }
-                        }}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Выберите клиента для ответа">
-                            {selectedRecipient && (
-                              <div className="flex items-center gap-2">
-                                <User className="h-4 w-4" />
-                                <span>{selectedRecipient.clientName}</span>
-                                <Badge variant="outline" className="ml-auto text-xs">
-                                  {selectedRecipient.source === 'telegram' && '💬 Telegram'}
-                                  {selectedRecipient.source === 'whatsapp' && '📱 WhatsApp'}
-                                  {selectedRecipient.source === 'website' && '🌐 Сайт'}
-                                </Badge>
-                              </div>
-                            )}
-                          </SelectValue>
-                        </SelectTrigger>
-                        <SelectContent>
-                          {Array.from(new Map(
-                            messages
-                              .filter(m => {
-                                if (!m.clientId || m.type !== 'user') return false;
-                                // Показываем только клиентов из текущей вкладки
-                                if (chatFilter === 'new') {
-                                  return !createdLeads.has(m.clientId);
-                                } else {
-                                  return createdLeads.has(m.clientId);
-                                }
-                              })
+                    {/* Селектор получателя - только для вкладки "Новые обращения" */}
+                    {chatFilter === 'new' && (
+                      <div className="space-y-2">
+                        <Label className="text-xs text-muted-foreground">Получатель</Label>
+                        <Select
+                          value={selectedRecipient?.clientId || ''}
+                          onValueChange={(value) => {
+                            const recipient = messages
+                              .filter(m => m.type === 'user' && m.clientId)
                               .reverse()
-                              .map(m => [m.clientId, m])
-                          ).values()).map((message) => (
-                            <SelectItem key={message.clientId} value={message.clientId!}>
-                              <div className="flex items-center gap-2">
-                                <User className="h-4 w-4" />
-                                <span>{message.clientName}</span>
-                                <Badge variant="outline" className="ml-2 text-xs">
-                                  {message.source === 'telegram' && '💬 TG'}
-                                  {message.source === 'whatsapp' && '📱 WA'}
-                                  {message.source === 'website' && '🌐 Web'}
-                                </Badge>
-                              </div>
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
+                              .find(m => m.clientId === value);
+                            if (recipient) {
+                              setSelectedRecipient({
+                                clientId: recipient.clientId!,
+                                clientName: recipient.clientName!,
+                                conversationId: recipient.conversationId!,
+                                source: recipient.source!
+                              });
+                            }
+                          }}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Выберите клиента для ответа">
+                              {selectedRecipient && (
+                                <div className="flex items-center gap-2">
+                                  <User className="h-4 w-4" />
+                                  <span>{selectedRecipient.clientName}</span>
+                                  <Badge variant="outline" className="ml-auto text-xs">
+                                    {selectedRecipient.source === 'telegram' && '💬 Telegram'}
+                                    {selectedRecipient.source === 'whatsapp' && '📱 WhatsApp'}
+                                    {selectedRecipient.source === 'website' && '🌐 Сайт'}
+                                  </Badge>
+                                </div>
+                              )}
+                            </SelectValue>
+                          </SelectTrigger>
+                          <SelectContent>
+                            {Array.from(new Map(
+                              messages
+                                .filter(m => {
+                                  if (!m.clientId || m.type !== 'user') return false;
+                                  return !createdLeads.has(m.clientId);
+                                })
+                                .reverse()
+                                .map(m => [m.clientId, m])
+                            ).values()).map((message) => (
+                              <SelectItem key={message.clientId} value={message.clientId!}>
+                                <div className="flex items-center gap-2">
+                                  <User className="h-4 w-4" />
+                                  <span>{message.clientName}</span>
+                                  <Badge variant="outline" className="ml-2 text-xs">
+                                    {message.source === 'telegram' && '💬 TG'}
+                                    {message.source === 'whatsapp' && '📱 WA'}
+                                    {message.source === 'website' && '🌐 Web'}
+                                  </Badge>
+                                </div>
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    )}
+                    
+                    {/* Информация о получателе для вкладки "Мои клиенты" */}
+                    {chatFilter === 'my' && selectedRecipient && (
+                      <div className="bg-muted/50 rounded-md p-2 flex items-center gap-2">
+                        <User className="h-4 w-4 text-muted-foreground" />
+                        <span className="text-sm">Вы отвечаете: <span className="font-medium">{selectedRecipient.clientName}</span></span>
+                        <Badge variant="outline" className="ml-auto text-xs">
+                          {selectedRecipient.source === 'telegram' && '💬 Telegram'}
+                          {selectedRecipient.source === 'whatsapp' && '📱 WhatsApp'}
+                          {selectedRecipient.source === 'website' && '🌐 Сайт'}
+                        </Badge>
+                      </div>
+                    )}
 
                     <div className="flex gap-2">
                       <Textarea
@@ -1225,7 +1235,22 @@ const AIConsultant = () => {
                                   key={client.id}
                                   variant={selectedClientId === client.id ? "default" : "ghost"}
                                   className="w-full justify-start text-left h-auto p-3"
-                                  onClick={() => setSelectedClientId(client.id)}
+                                  onClick={() => {
+                                    setSelectedClientId(client.id);
+                                    // Автоматически устанавливаем получателя для ответа
+                                    const contactId = client.lead_source_details?.contact_id;
+                                    if (contactId) {
+                                      const message = messages.find(m => m.clientId === contactId && m.type === 'user');
+                                      if (message) {
+                                        setSelectedRecipient({
+                                          clientId: message.clientId!,
+                                          clientName: message.clientName!,
+                                          conversationId: message.conversationId!,
+                                          source: message.source!
+                                        });
+                                      }
+                                    }
+                                  }}
                                 >
                                   <div className="flex flex-col items-start w-full">
                                     <div className="flex items-center justify-between w-full">
