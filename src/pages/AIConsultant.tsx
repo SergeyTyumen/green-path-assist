@@ -94,6 +94,12 @@ const AIConsultant = () => {
   const [isTyping, setIsTyping] = useState(false);
   const [autoMode, setAutoMode] = useState(false);
   const [createdLeads, setCreatedLeads] = useState<Set<string>>(new Set());
+  const [selectedClientId, setSelectedClientId] = useState<string | null>(null);
+  const [myClients, setMyClients] = useState<any[]>([]);
+  const [clientComment, setClientComment] = useState('');
+  const [nextAction, setNextAction] = useState('');
+  const [nextActionDate, setNextActionDate] = useState('');
+  const [isSavingComment, setIsSavingComment] = useState(false);
   const [selectedRecipient, setSelectedRecipient] = useState<{
     clientId: string;
     clientName: string;
@@ -207,6 +213,20 @@ const AIConsultant = () => {
           }
         });
         setCreatedLeads(existingLeadContactIds);
+
+        // Загружаем клиентов для отображения в списке "Мои клиенты"
+        const { data: clientsList, error: clientsListError } = await supabase
+          .from('clients')
+          .select('*')
+          .or(`user_id.eq.${user.id},assigned_manager_id.eq.${user.id}`)
+          .not('lead_source_details', 'is', null)
+          .order('updated_at', { ascending: false });
+
+        if (clientsListError) {
+          console.error('Error loading clients list:', clientsListError);
+        } else {
+          setMyClients(clientsList || []);
+        }
 
         // Загружаем все conversations пользователя с последними сообщениями
         const { data: conversations, error } = await supabase
@@ -952,7 +972,15 @@ const AIConsultant = () => {
                             return !message.clientId || !createdLeads.has(message.clientId);
                           } else {
                             // Показываем только моих клиентов
-                            return message.clientId && createdLeads.has(message.clientId);
+                            const isMyClient = message.clientId && createdLeads.has(message.clientId);
+                            if (!isMyClient) return false;
+                            
+                            // Дополнительная фильтрация по выбранному клиенту
+                            if (selectedClientId) {
+                              const client = myClients.find(c => c.lead_source_details?.contact_id === message.clientId);
+                              return client?.id === selectedClientId;
+                            }
+                            return true;
                           }
                         })
                         .map((message) => (
@@ -1027,6 +1055,12 @@ const AIConsultant = () => {
                         } else {
                           return m.clientId && createdLeads.has(m.clientId);
                         }
+                      }).filter(m => {
+                        if (chatFilter === 'my' && selectedClientId) {
+                          const client = myClients.find(c => c.lead_source_details?.contact_id === m.clientId);
+                          return client?.id === selectedClientId;
+                        }
+                        return true;
                       }).length === 0 && (
                         <div className="flex flex-col items-center justify-center py-12 text-center">
                           <MessageCircle className="h-12 w-12 text-muted-foreground mb-4" />
@@ -1165,25 +1199,201 @@ const AIConsultant = () => {
             </div>
 
             <div className="space-y-4">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-lg">Быстрые ответы</CardTitle>
-                  <CardDescription>Готовые шаблоны ответов для клиентов</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-2">
-                  {quickReplies.map((reply, index) => (
-                    <Button
-                      key={index}
-                      variant="ghost"
-                      className="w-full justify-start text-left h-auto p-2"
-                      onClick={() => setInputMessage(reply)}
-                    >
-                      <MessageSquare className="h-3 w-3 mr-2 flex-shrink-0" />
-                      <span className="text-xs">{reply.substring(0, 50)}...</span>
-                    </Button>
-                  ))}
-                </CardContent>
-              </Card>
+              {chatFilter === 'my' ? (
+                <>
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="text-lg">Мои клиенты</CardTitle>
+                      <CardDescription>Выберите клиента для просмотра переписки</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <ScrollArea className="h-[300px]">
+                        <div className="space-y-2">
+                          {myClients.length === 0 ? (
+                            <p className="text-sm text-muted-foreground text-center py-4">
+                              Нет клиентов
+                            </p>
+                          ) : (
+                            myClients.map((client) => {
+                              const clientMessages = messages.filter(m => {
+                                return m.clientId && client.lead_source_details?.contact_id === m.clientId;
+                              });
+                              const unreadCount = clientMessages.filter(m => m.type === 'user').length;
+                              
+                              return (
+                                <Button
+                                  key={client.id}
+                                  variant={selectedClientId === client.id ? "default" : "ghost"}
+                                  className="w-full justify-start text-left h-auto p-3"
+                                  onClick={() => setSelectedClientId(client.id)}
+                                >
+                                  <div className="flex flex-col items-start w-full">
+                                    <div className="flex items-center justify-between w-full">
+                                      <span className="font-medium">{client.name}</span>
+                                      {unreadCount > 0 && (
+                                        <Badge variant="secondary" className="ml-2">
+                                          {unreadCount}
+                                        </Badge>
+                                      )}
+                                    </div>
+                                    <span className="text-xs text-muted-foreground">
+                                      {client.phone}
+                                    </span>
+                                  </div>
+                                </Button>
+                              );
+                            })
+                          )}
+                        </div>
+                      </ScrollArea>
+                    </CardContent>
+                  </Card>
+
+                  {selectedClientId && (
+                    <>
+                      <Card>
+                        <CardHeader>
+                          <CardTitle className="text-lg">Комментарий о переговорах</CardTitle>
+                          <CardDescription>Запишите результат общения с клиентом</CardDescription>
+                        </CardHeader>
+                        <CardContent className="space-y-3">
+                          <Textarea
+                            placeholder="Например: Обсудили проект ландшафтного дизайна. Клиент заинтересован в автополиве и газоне. Площадь участка 15 соток..."
+                            value={clientComment}
+                            onChange={(e) => setClientComment(e.target.value)}
+                            rows={4}
+                          />
+                          <Button 
+                            onClick={async () => {
+                              if (!clientComment.trim() || !user) return;
+                              
+                              setIsSavingComment(true);
+                              try {
+                                const { error } = await supabase
+                                  .from('client_comments')
+                                  .insert({
+                                    client_id: selectedClientId,
+                                    user_id: user.id,
+                                    content: clientComment.trim(),
+                                    comment_type: 'note',
+                                    author_name: user.email || 'Менеджер'
+                                  });
+
+                                if (error) throw error;
+                                
+                                toast({
+                                  title: "Комментарий сохранен",
+                                  description: "Комментарий добавлен в карточку клиента",
+                                });
+                                setClientComment('');
+                              } catch (error) {
+                                console.error('Error saving comment:', error);
+                                toast({
+                                  title: "Ошибка",
+                                  description: "Не удалось сохранить комментарий",
+                                  variant: "destructive",
+                                });
+                              } finally {
+                                setIsSavingComment(false);
+                              }
+                            }}
+                            disabled={!clientComment.trim() || isSavingComment}
+                            className="w-full"
+                          >
+                            {isSavingComment ? 'Сохранение...' : 'Сохранить комментарий'}
+                          </Button>
+                        </CardContent>
+                      </Card>
+
+                      <Card>
+                        <CardHeader>
+                          <CardTitle className="text-lg">Следующее действие</CardTitle>
+                          <CardDescription>Запланируйте следующий шаг</CardDescription>
+                        </CardHeader>
+                        <CardContent className="space-y-3">
+                          <div className="space-y-2">
+                            <Label>Описание действия</Label>
+                            <Textarea
+                              placeholder="Например: Позвонить клиенту для уточнения деталей проекта"
+                              value={nextAction}
+                              onChange={(e) => setNextAction(e.target.value)}
+                              rows={2}
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <Label>Дата выполнения</Label>
+                            <Input
+                              type="date"
+                              value={nextActionDate}
+                              onChange={(e) => setNextActionDate(e.target.value)}
+                            />
+                          </div>
+                          <Button 
+                            onClick={async () => {
+                              if (!nextAction.trim() || !user) return;
+                              
+                              try {
+                                const { error } = await supabase
+                                  .from('tasks')
+                                  .insert({
+                                    user_id: user.id,
+                                    client_id: selectedClientId,
+                                    title: nextAction.trim(),
+                                    description: `Следующее действие по клиенту ${myClients.find(c => c.id === selectedClientId)?.name}`,
+                                    due_date: nextActionDate || null,
+                                    status: 'pending',
+                                    priority: 'medium',
+                                    category: 'client_follow_up'
+                                  });
+
+                                if (error) throw error;
+                                
+                                toast({
+                                  title: "Задача создана",
+                                  description: "Следующее действие добавлено в задачи",
+                                });
+                                setNextAction('');
+                                setNextActionDate('');
+                              } catch (error) {
+                                console.error('Error creating task:', error);
+                                toast({
+                                  title: "Ошибка",
+                                  description: "Не удалось создать задачу",
+                                  variant: "destructive",
+                                });
+                              }
+                            }}
+                            disabled={!nextAction.trim()}
+                            className="w-full"
+                          >
+                            Создать задачу
+                          </Button>
+                        </CardContent>
+                      </Card>
+                    </>
+                  )}
+                </>
+              ) : (
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-lg">Быстрые ответы</CardTitle>
+                    <CardDescription>Готовые шаблоны ответов для клиентов</CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-2">
+                    {quickReplies.map((reply, index) => (
+                      <Button
+                        key={index}
+                        variant="ghost"
+                        className="w-full justify-start text-left h-auto p-2"
+                        onClick={() => setInputMessage(reply)}
+                      >
+                        <MessageSquare className="h-3 w-3 mr-2 flex-shrink-0" />
+                        <span className="text-xs">{reply.substring(0, 50)}...</span>
+                      </Button>
+                    ))}
+                  </CardContent>
+                </Card>
+              )}
 
               <Card>
                 <CardHeader>
