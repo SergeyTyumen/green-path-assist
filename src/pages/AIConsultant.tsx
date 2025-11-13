@@ -28,7 +28,9 @@ import {
   Check,
   X,
   Play,
-  Pause
+  Pause,
+  Sparkles,
+  User
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
@@ -50,6 +52,7 @@ interface ChatMessage {
   clientId?: string;
   status?: 'pending' | 'approved' | 'sent';
   originalContent?: string;
+  aiImproved?: boolean;
 }
 
 interface KnowledgeItem {
@@ -268,6 +271,8 @@ const AIConsultant = () => {
   }, [integrationStatus]);
 
   const [pendingMessages, setPendingMessages] = useState<ChatMessage[]>([]);
+  const [manualReply, setManualReply] = useState('');
+  const [isProcessingManualReply, setIsProcessingManualReply] = useState(false);
   const [editingKnowledge, setEditingKnowledge] = useState<KnowledgeItem | null>(null);
   const [isKnowledgeDialogOpen, setIsKnowledgeDialogOpen] = useState(false);
 
@@ -468,6 +473,71 @@ const AIConsultant = () => {
     );
   };
 
+  // Обработка ручного ответа с AI-ассистированием
+  const handleManualReply = async () => {
+    if (!manualReply.trim() || !user) return;
+
+    setIsProcessingManualReply(true);
+
+    try {
+      // Отправляем текст менеджера в AI для улучшения
+      const { data, error } = await supabase.functions.invoke('ai-consultant', {
+        body: {
+          question: `Улучши этот ответ клиенту, сделай его более профессиональным и информативным, но сохрани смысл. Если нужно, добавь недостающую информацию: "${manualReply}"`,
+          context: {
+            source: 'manual_review'
+          },
+          auto_send: false
+        }
+      });
+
+      if (error) {
+        console.error('Ошибка AI обработки:', error);
+        throw error;
+      }
+
+      const aiImprovedVersion = data?.response || manualReply;
+
+      // Создаем два варианта сообщения для модерации
+      const manualMessage: ChatMessage = {
+        id: Date.now().toString(),
+        type: 'assistant',
+        content: manualReply,
+        timestamp: new Date(),
+        status: 'pending',
+        originalContent: manualReply
+      };
+
+      const aiMessage: ChatMessage = {
+        id: (Date.now() + 1).toString(),
+        type: 'assistant',
+        content: aiImprovedVersion,
+        timestamp: new Date(),
+        status: 'pending',
+        originalContent: manualReply,
+        aiImproved: true
+      };
+
+      // Добавляем оба варианта в очередь модерации
+      setPendingMessages(prev => [...prev, manualMessage, aiMessage]);
+      setManualReply('');
+
+      toast({
+        title: "Варианты ответа готовы",
+        description: "Выберите версию для отправки клиенту",
+      });
+    } catch (error) {
+      console.error('Ошибка обработки ответа:', error);
+      toast({
+        title: "Ошибка",
+        description: "Не удалось обработать ответ",
+        variant: "destructive",
+      });
+    } finally {
+      setIsProcessingManualReply(false);
+    }
+  };
+
   const addKnowledgeItem = async (item: Omit<KnowledgeItem, 'id' | 'user_id' | 'created_at' | 'updated_at'>) => {
     await createItem(item);
   };
@@ -550,48 +620,62 @@ const AIConsultant = () => {
             <Card className="border-orange-200">
               <CardHeader>
                 <CardTitle className="text-orange-700">Ожидают модерации ({pendingMessages.length})</CardTitle>
+                <CardDescription>
+                  Выберите версию сообщения для отправки клиенту
+                </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 {pendingMessages.map((message) => (
                   <div key={message.id} className="border rounded-lg p-4 space-y-3">
-                    <div className="bg-muted p-3 rounded">
+                    <div className="flex items-start gap-2">
+                      {message.aiImproved ? (
+                        <Badge variant="default" className="mt-1">
+                          <Sparkles className="h-3 w-3 mr-1" />
+                          AI улучшенная версия
+                        </Badge>
+                      ) : (
+                        <Badge variant="outline" className="mt-1">
+                          <User className="h-3 w-3 mr-1" />
+                          Ваша версия
+                        </Badge>
+                      )}
+                    </div>
+                    {message.originalContent && message.originalContent !== message.content && (
+                      <div className="bg-muted/50 p-2 rounded text-xs">
+                        <span className="font-medium">Исходный текст:</span>
+                        <p className="mt-1 text-muted-foreground">{message.originalContent}</p>
+                      </div>
+                    )}
+                    <div className="bg-background border p-3 rounded">
                       <p className="text-sm">{message.content}</p>
                     </div>
                     <div className="flex gap-2">
                       <Button 
                         size="sm" 
-                        variant="default"
                         onClick={() => approveMessage(message.id)}
+                        className="flex-1"
                       >
                         <Check className="h-3 w-3 mr-1" />
-                        Отправить
+                        Отправить эту версию
                       </Button>
                       <Dialog>
                         <DialogTrigger asChild>
                           <Button size="sm" variant="outline">
-                            <Edit3 className="h-3 w-3 mr-1" />
-                            Редактировать
+                            <Edit3 className="h-3 w-3" />
                           </Button>
                         </DialogTrigger>
                         <DialogContent>
                           <DialogHeader>
-                            <DialogTitle>Редактирование ответа</DialogTitle>
+                            <DialogTitle>Редактировать сообщение</DialogTitle>
                           </DialogHeader>
-                          <div className="space-y-4">
-                            <Textarea 
-                              defaultValue={message.content}
-                              rows={6}
-                              onChange={(e) => editMessage(message.id, e.target.value)}
-                            />
-                            <div className="flex gap-2">
-                              <Button onClick={() => approveMessage(message.id)}>
-                                Отправить
-                              </Button>
-                              <Button variant="outline">
-                                Отмена
-                              </Button>
-                            </div>
-                          </div>
+                          <Textarea 
+                            defaultValue={message.content}
+                            rows={6}
+                            onChange={(e) => editMessage(message.id, e.target.value)}
+                          />
+                          <Button onClick={() => approveMessage(message.id)}>
+                            Отправить
+                          </Button>
                         </DialogContent>
                       </Dialog>
                       <Button 
@@ -610,41 +694,42 @@ const AIConsultant = () => {
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <div className="lg:col-span-2">
-              <Card className="h-[600px] flex flex-col">
+              {/* Единый чат клиентов */}
+              <Card>
                 <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Bot className="h-5 w-5" />
-                    Единый чат клиентов
-                  </CardTitle>
+                  <CardTitle>Единый чат клиентов</CardTitle>
+                  <CardDescription>
+                    Все обращения из Telegram, WhatsApp и сайта
+                  </CardDescription>
                 </CardHeader>
-                <CardContent className="flex-1 flex flex-col p-0">
-                  <ScrollArea className="flex-1 p-4">
+                <CardContent className="space-y-4">
+                  <ScrollArea className="h-[400px] pr-4">
                     <div className="space-y-4">
                       {messages.map((message) => (
-                        <div key={message.id} className="space-y-2">
-                          <div className={`flex ${message.type === 'user' ? 'justify-end' : 'justify-start'}`}>
-                            <div className={`max-w-[80%] p-3 rounded-lg ${
+                        <div
+                          key={message.id}
+                          className={`flex ${message.type === 'user' ? 'justify-start' : 'justify-end'}`}
+                        >
+                          <div
+                            className={`max-w-[80%] p-3 rounded-lg ${
                               message.type === 'user'
-                                ? 'bg-primary text-primary-foreground'
-                                : message.status === 'sent' 
-                                  ? 'bg-green-100 dark:bg-green-900' 
-                                  : 'bg-muted'
-                            }`}>
-                              <div className="flex items-center gap-2 mb-1">
-                                {message.source === 'whatsapp' && <MessageCircle className="h-3 w-3 text-green-600" />}
-                                {message.source === 'telegram' && <MessageCircle2 className="h-3 w-3 text-blue-600" />}
-                                {message.source === 'website' && <Globe className="h-3 w-3 text-gray-600" />}
-                                <span className="text-xs opacity-70">
-                                  {message.source === 'whatsapp' && 'WhatsApp'}
-                                  {message.source === 'telegram' && 'Telegram'}
-                                  {message.source === 'website' && 'Сайт'}
-                                </span>
-                              </div>
-                              <p className="text-sm">{message.content}</p>
-                              <p className="text-xs opacity-70 mt-1">
+                                ? 'bg-muted'
+                                : 'bg-primary text-primary-foreground'
+                            }`}
+                          >
+                            <div className="flex items-center gap-2 mb-1">
+                              {message.source && (
+                                <Badge variant="outline" className="text-xs">
+                                  {message.source === 'telegram' && '📱 Telegram'}
+                                  {message.source === 'whatsapp' && '💬 WhatsApp'}
+                                  {message.source === 'website' && '🌐 Сайт'}
+                                </Badge>
+                              )}
+                              <span className="text-xs opacity-70">
                                 {message.timestamp.toLocaleTimeString()}
-                              </p>
+                              </span>
                             </div>
+                            <p className="text-sm">{message.content}</p>
                           </div>
                         </div>
                       ))}
@@ -661,15 +746,54 @@ const AIConsultant = () => {
                       )}
                     </div>
                   </ScrollArea>
-                  <div className="p-4 border-t">
+                  
+                  {/* Поле для ручного ответа менеджера */}
+                  <div className="border-t pt-4 space-y-2">
+                    <Label className="text-sm font-medium">Ответить клиенту</Label>
                     <div className="flex gap-2">
+                      <Textarea
+                        value={manualReply}
+                        onChange={(e) => setManualReply(e.target.value)}
+                        placeholder="Напишите ответ клиенту... AI проверит и предложит улучшенную версию"
+                        rows={3}
+                        className="flex-1"
+                      />
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <p className="text-xs text-muted-foreground">
+                        {autoMode ? '🤖 Авто-режим: AI ответит автоматически' : '✋ Ручной режим: AI предложит варианты для модерации'}
+                      </p>
+                      <Button 
+                        onClick={handleManualReply} 
+                        disabled={!manualReply.trim() || isProcessingManualReply}
+                        size="sm"
+                      >
+                        {isProcessingManualReply ? (
+                          <>
+                            <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin mr-2" />
+                            Обработка...
+                          </>
+                        ) : (
+                          <>
+                            <Sparkles className="h-4 w-4 mr-2" />
+                            Подготовить ответ
+                          </>
+                        )}
+                      </Button>
+                    </div>
+                  </div>
+
+                  {/* Симуляция клиента (для тестирования) */}
+                  <div className="border-t pt-4">
+                    <Label className="text-sm font-medium text-muted-foreground">Симуляция клиента (тестирование)</Label>
+                    <div className="flex gap-2 mt-2">
                       <Input
                         value={inputMessage}
                         onChange={(e) => setInputMessage(e.target.value)}
                         placeholder="Симуляция сообщения клиента..."
                         onKeyPress={(e) => e.key === 'Enter' && sendMessage()}
                       />
-                      <Button onClick={sendMessage} disabled={!inputMessage.trim() || isTyping}>
+                      <Button onClick={sendMessage} disabled={!inputMessage.trim() || isTyping} variant="outline" size="sm">
                         <Send className="h-4 w-4" />
                       </Button>
                     </div>
