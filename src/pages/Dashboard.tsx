@@ -190,7 +190,7 @@ export default function Dashboard() {
       icon: MessageSquare,
       color: "text-orange-600",
       bgColor: "bg-orange-50",
-      onClick: () => navigate('/ai-assistants/consultant'),
+      onClick: () => navigate('/ai-consultant'),
       highlight: newRequestsCount > 0
     },
     {
@@ -200,7 +200,7 @@ export default function Dashboard() {
       icon: MessageCircle,
       color: "text-blue-600",
       bgColor: "bg-blue-50",
-      onClick: () => navigate('/ai-assistants/consultant'),
+      onClick: () => navigate('/ai-consultant'),
       highlight: newMessagesCount > 0
     },
     {
