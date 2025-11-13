@@ -250,8 +250,57 @@ const AIConsultant = () => {
         },
         async (payload) => {
           console.log('New message received:', payload);
-          // Перезагружаем сообщения
-          loadMessages();
+          // Добавляем только новое сообщение, не перезагружаем все
+          const newMsg = payload.new as any;
+          
+          // Проверяем, есть ли уже это сообщение в списке
+          setMessages(prev => {
+            if (prev.some(m => m.id === newMsg.id)) {
+              return prev; // Уже есть, не добавляем
+            }
+            
+            // Получаем дополнительные данные для отображения
+            const loadMessageDetails = async () => {
+              try {
+                const { data: conversation } = await supabase
+                  .from('conversations')
+                  .select(`
+                    contact_id,
+                    contacts (name),
+                    channels (type)
+                  `)
+                  .eq('id', newMsg.conversation_id)
+                  .single();
+                
+                const chatMessage: ChatMessage = {
+                  id: newMsg.id,
+                  type: newMsg.direction === 'in' ? 'user' : 'assistant',
+                  content: newMsg.text || '',
+                  timestamp: new Date(newMsg.sent_at || newMsg.created_at),
+                  source: conversation?.channels?.type as 'telegram' | 'whatsapp' | 'website',
+                  clientId: conversation?.contact_id,
+                  clientName: conversation?.contacts?.name || 'Неизвестный',
+                  conversationId: newMsg.conversation_id,
+                  status: newMsg.status === 'sent' ? 'sent' : 'pending'
+                };
+                
+                setMessages(prev => {
+                  // Проверяем еще раз перед добавлением
+                  if (prev.some(m => m.id === chatMessage.id)) {
+                    return prev;
+                  }
+                  return [...prev, chatMessage].sort((a, b) => 
+                    a.timestamp.getTime() - b.timestamp.getTime()
+                  );
+                });
+              } catch (error) {
+                console.error('Error loading message details:', error);
+              }
+            };
+            
+            loadMessageDetails();
+            return prev; // Вернем текущий массив, обновление произойдет в loadMessageDetails
+          });
         }
       )
       .subscribe();
@@ -481,8 +530,7 @@ const AIConsultant = () => {
         }
       }
 
-      // Обновляем UI
-      setMessages(prev => [...prev, { ...message, status: 'sent' }]);
+      // Обновляем UI - НЕ добавляем сообщение здесь, оно придет через realtime
       setPendingMessages(prev => prev.filter(m => m.id !== messageId));
       
       toast({
