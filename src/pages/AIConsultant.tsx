@@ -148,7 +148,7 @@ const AIConsultant = () => {
           conv.messages?.forEach((msg: any) => {
             allMessages.push({
               id: msg.id,
-              type: msg.direction === 'inbound' ? 'user' : 'assistant',
+              type: msg.direction === 'in' ? 'user' : 'assistant',
               content: msg.text || '',
               timestamp: new Date(msg.sent_at || msg.created_at),
               source: conv.channels?.type as 'telegram' | 'whatsapp' | 'website',

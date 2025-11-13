@@ -211,11 +211,11 @@ serve(async (req) => {
         .from('messages')
         .insert({
           conversation_id: conversation.id,
-          direction: 'inbound',
+          direction: 'in',
           provider: 'telegram',
           provider_message_id: update.message.message_id?.toString(),
           text: messageText,
-          status: 'received',
+          status: 'delivered',
           sent_at: new Date(update.message.date * 1000).toISOString(),
           payload: { chat_id: chatId, from: update.message.from }
         })
@@ -291,7 +291,7 @@ serve(async (req) => {
             .from('messages')
             .insert({
               conversation_id: conversation.id,
-              direction: 'outbound',
+              direction: 'out',
               provider: 'telegram',
               provider_message_id: result.result?.message_id?.toString(),
               text: responseText,
