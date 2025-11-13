@@ -141,16 +141,21 @@ serve(async (req) => {
         .single();
 
       if (!conversation) {
-        const { data: newConversation } = await supabase
+        const { data: newConversation, error: convError } = await supabase
           .from('conversations')
           .insert({
             contact_id: contact.id,
             channel_id: channel.id,
+            channel_account_id: channel.id,
             status: 'open',
             last_message_at: new Date().toISOString()
           })
           .select('id')
           .single();
+        
+        if (convError) {
+          console.error('Ошибка создания conversation:', convError);
+        }
         conversation = newConversation;
       }
 
