@@ -187,6 +187,27 @@ const AIConsultant = () => {
 
         const channelIds = userChannels.map(ch => ch.id);
 
+        // Загружаем существующих клиентов, чтобы определить какие контакты уже стали лидами
+        const { data: existingClients, error: clientsError } = await supabase
+          .from('clients')
+          .select('lead_source_details')
+          .or(`user_id.eq.${user.id},assigned_manager_id.eq.${user.id}`)
+          .not('lead_source_details', 'is', null);
+
+        if (clientsError) {
+          console.error('Error loading existing clients:', clientsError);
+        }
+
+        // Извлекаем contact_id из lead_source_details и заполняем Set
+        const existingLeadContactIds = new Set<string>();
+        existingClients?.forEach((client: any) => {
+          const contactId = client.lead_source_details?.contact_id;
+          if (contactId) {
+            existingLeadContactIds.add(contactId);
+          }
+        });
+        setCreatedLeads(existingLeadContactIds);
+
         // Загружаем все conversations пользователя с последними сообщениями
         const { data: conversations, error } = await supabase
           .from('conversations')
