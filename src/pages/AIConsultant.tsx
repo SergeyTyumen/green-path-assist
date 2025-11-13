@@ -100,6 +100,7 @@ const AIConsultant = () => {
     conversationId: string;
     source: 'website' | 'whatsapp' | 'telegram';
   } | null>(null);
+  const [chatFilter, setChatFilter] = useState<'new' | 'my'>('new');
 
   // Загрузка настроек автоматического режима
   useEffect(() => {
@@ -683,7 +684,7 @@ const AIConsultant = () => {
         return;
       }
 
-      // Создаем нового клиента
+      // Создаем нового клиента и автоматически назначаем текущего менеджера
       const { data: newClient, error: clientError } = await supabase
         .from('clients')
         .insert({
@@ -693,6 +694,7 @@ const AIConsultant = () => {
           email: contact.email,
           status: 'new',
           services: [],
+          assigned_manager_id: user.id, // Назначаем текущего менеджера
           lead_source_details: {
             source: source,
             contact_id: contactId
@@ -704,12 +706,15 @@ const AIConsultant = () => {
       if (clientError) throw clientError;
 
       toast({
-        title: "Лид создан",
-        description: `${newClient.name} добавлен в базу клиентов`,
+        title: "Лид создан и назначен вам",
+        description: `${newClient.name} добавлен в ваш список клиентов`,
       });
 
       // Добавляем contactId в список созданных лидов
       setCreatedLeads(prev => new Set(prev).add(contactId));
+      
+      // Переключаем на вкладку "Мои клиенты"
+      setChatFilter('my');
     } catch (error) {
       console.error('Ошибка создания лида:', error);
       toast({
@@ -782,6 +787,36 @@ const AIConsultant = () => {
                   : 'Каждое сообщение требует подтверждения перед отправкой'
                 }
               </p>
+            </CardContent>
+          </Card>
+
+          {/* Фильтр чата */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Users className="h-5 w-5" />
+                Фильтр клиентов
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <Tabs value={chatFilter} onValueChange={(v) => setChatFilter(v as 'new' | 'my')}>
+                <TabsList className="grid w-full grid-cols-2">
+                  <TabsTrigger value="new" className="flex items-center gap-2">
+                    <MessageCircle className="h-4 w-4" />
+                    Новые обращения
+                    <Badge variant="secondary" className="ml-auto">
+                      {messages.filter(m => m.type === 'user' && m.clientId && !createdLeads.has(m.clientId)).length}
+                    </Badge>
+                  </TabsTrigger>
+                  <TabsTrigger value="my" className="flex items-center gap-2">
+                    <User className="h-4 w-4" />
+                    Мои клиенты
+                    <Badge variant="secondary" className="ml-auto">
+                      {messages.filter(m => m.type === 'user' && m.clientId && createdLeads.has(m.clientId)).length}
+                    </Badge>
+                  </TabsTrigger>
+                </TabsList>
+              </Tabs>
             </CardContent>
           </Card>
 
@@ -888,7 +923,18 @@ const AIConsultant = () => {
                 <CardContent className="space-y-4">
                   <ScrollArea className="h-[400px] pr-4">
                     <div className="space-y-4">
-                      {messages.map((message) => (
+                      {messages
+                        .filter(message => {
+                          // Фильтруем сообщения в зависимости от выбранной вкладки
+                          if (chatFilter === 'new') {
+                            // Показываем только нераспределенных клиентов
+                            return !message.clientId || !createdLeads.has(message.clientId);
+                          } else {
+                            // Показываем только моих клиентов
+                            return message.clientId && createdLeads.has(message.clientId);
+                          }
+                        })
+                        .map((message) => (
                         <div
                           key={message.id}
                           className={`flex ${message.type === 'user' ? 'justify-start' : 'justify-end'}`}
@@ -919,7 +965,7 @@ const AIConsultant = () => {
                               </span>
                             </div>
                             <p className="text-sm">{message.content}</p>
-                            {message.type === 'user' && message.clientId && (
+                            {message.type === 'user' && message.clientId && chatFilter === 'new' && (
                               <Button
                                 size="sm"
                                 variant={createdLeads.has(message.clientId) ? "default" : "ghost"}
@@ -935,7 +981,7 @@ const AIConsultant = () => {
                                 ) : (
                                   <>
                                     <Plus className="h-3 w-3 mr-1" />
-                                    Создать лида
+                                    Создать лида и взять в работу
                                   </>
                                 )}
                               </Button>
@@ -952,6 +998,23 @@ const AIConsultant = () => {
                               <div className="w-2 h-2 bg-current rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
                             </div>
                           </div>
+                        </div>
+                      )}
+                      {messages.filter(m => {
+                        if (chatFilter === 'new') {
+                          return !m.clientId || !createdLeads.has(m.clientId);
+                        } else {
+                          return m.clientId && createdLeads.has(m.clientId);
+                        }
+                      }).length === 0 && (
+                        <div className="flex flex-col items-center justify-center py-12 text-center">
+                          <MessageCircle className="h-12 w-12 text-muted-foreground mb-4" />
+                          <p className="text-sm text-muted-foreground">
+                            {chatFilter === 'new' 
+                              ? 'Нет новых обращений' 
+                              : 'У вас пока нет клиентов. Создайте лида из новых обращений.'
+                            }
+                          </p>
                         </div>
                       )}
                     </div>
@@ -999,7 +1062,15 @@ const AIConsultant = () => {
                         <SelectContent>
                           {Array.from(new Map(
                             messages
-                              .filter(m => m.type === 'user' && m.clientId)
+                              .filter(m => {
+                                if (!m.clientId || m.type !== 'user') return false;
+                                // Показываем только клиентов из текущей вкладки
+                                if (chatFilter === 'new') {
+                                  return !createdLeads.has(m.clientId);
+                                } else {
+                                  return createdLeads.has(m.clientId);
+                                }
+                              })
                               .reverse()
                               .map(m => [m.clientId, m])
                           ).values()).map((message) => (

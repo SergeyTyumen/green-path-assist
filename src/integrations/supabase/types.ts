@@ -272,6 +272,7 @@ export type Database = {
       clients: {
         Row: {
           address: string | null
+          assigned_manager_id: string | null
           budget: number | null
           campaign_id: string | null
           conversion_stage: string | null
@@ -300,6 +301,7 @@ export type Database = {
         }
         Insert: {
           address?: string | null
+          assigned_manager_id?: string | null
           budget?: number | null
           campaign_id?: string | null
           conversion_stage?: string | null
@@ -328,6 +330,7 @@ export type Database = {
         }
         Update: {
           address?: string | null
+          assigned_manager_id?: string | null
           budget?: number | null
           campaign_id?: string | null
           conversion_stage?: string | null
