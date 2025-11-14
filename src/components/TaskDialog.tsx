@@ -63,8 +63,11 @@ export function TaskDialog({ task, trigger, onClose }: TaskDialogProps) {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
+    // Исключаем assignees из данных задачи (используется только для создания через task_assignees)
+    const { assignees, ...formDataWithoutAssignees } = formData;
+    
     const taskData = {
-      ...formData,
+      ...formDataWithoutAssignees,
       due_date: formData.due_date?.toISOString().split('T')[0],
       client_id: (formData.client_id === "none" || formData.client_id === "") ? null : formData.client_id,
       assignee: (formData.assignee === "none" || formData.assignee === "") ? "" : formData.assignee,
