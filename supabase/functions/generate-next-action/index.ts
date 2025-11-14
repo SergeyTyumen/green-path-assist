@@ -35,8 +35,12 @@ serve(async (req) => {
       hasCurrentComment: !!currentComment,
       currentCommentLength: currentComment?.length || 0,
       clientData,
-      fullRequestBody: requestBody
+      fullRequestBody: requestBody,
+      currentUserId: user.id
     });
+
+    // Получаем все комментарии клиента из истории
+    console.log('Attempting to fetch comments for client:', clientId, 'as user:', user.id);
 
     // Получаем все комментарии клиента из истории
     const { data: comments, error: commentsError } = await supabaseClient
