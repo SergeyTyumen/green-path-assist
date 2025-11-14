@@ -1496,6 +1496,17 @@ const AIConsultant = () => {
                                 return;
                               }
 
+                              // Проверяем наличие комментариев
+                              const hasCurrentComment = clientComment.trim().length > 0;
+                              if (!hasCurrentComment) {
+                                toast({
+                                  title: "Ошибка",
+                                  description: "Напишите комментарий о переговорах для генерации действий",
+                                  variant: "destructive",
+                                });
+                                return;
+                              }
+
                               console.log('Generating next actions with comment:', clientComment);
                               
                               setIsGeneratingNextActions(true);
