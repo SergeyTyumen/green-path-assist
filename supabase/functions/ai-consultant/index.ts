@@ -218,8 +218,8 @@ async function generateConsultationResponse(question: string, questionType: stri
   const customPrompt = userSettings?.settings?.system_prompt;
   console.log('Custom prompt:', customPrompt ? 'Используется кастомный промпт' : 'Используется дефолтный промпт');
 
-  // Получаем историю диалогов для контекста
-  const conversationHistory = await getConversationHistory(userId);
+  // Получаем историю диалогов для контекста (только если нет текущей истории в контексте)
+  const conversationHistory = context?.conversationHistory ? [] : await getConversationHistory(userId);
   
   // Формируем контекст из истории
   const historyContext = conversationHistory.map((h: any) => 
@@ -248,8 +248,8 @@ ${knowledgeBase.materials.map((m: any) => `${m.name} - ${m.price}₽ за ${m.un
 ПОСЛЕДНИЕ СМЕТЫ:
 ${knowledgeBase.recent_estimates.map((e: any) => `${e.title} - ${e.total_amount}₽ (${e.status})`).join('\n')}
 
-ИСТОРИЯ ПРЕДЫДУЩИХ ДИАЛОГОВ (для контекста):
-${historyContext}
+${historyContext ? `ИСТОРИЯ ПРЕДЫДУЩИХ ДИАЛОГОВ (для контекста):
+${historyContext}` : ''}
 
 ИНСТРУКЦИИ:
 - Используй информацию из базы знаний для ответов
@@ -268,6 +268,20 @@ ${context ? `Контекст: ${JSON.stringify(context)}` : ''}`;
   // Используем кастомный промпт если есть, иначе дефолтный с данными из БД
   const finalSystemPrompt = customPrompt || defaultSystemPrompt;
 
+  // Формируем массив сообщений с учетом истории текущей беседы
+  const messages: any[] = [
+    { role: 'system', content: finalSystemPrompt }
+  ];
+
+  // Если есть история текущей беседы - добавляем её
+  if (context?.conversationHistory && Array.isArray(context.conversationHistory)) {
+    console.log('Используется история текущей беседы:', context.conversationHistory.length, 'сообщений');
+    messages.push(...context.conversationHistory);
+  }
+
+  // Добавляем текущий вопрос
+  messages.push({ role: 'user', content: question });
+
   const response = await fetch('https://api.openai.com/v1/chat/completions', {
     method: 'POST',
     headers: {
@@ -276,10 +290,7 @@ ${context ? `Контекст: ${JSON.stringify(context)}` : ''}`;
     },
     body: JSON.stringify({
       model: userSettings?.settings?.model || 'gpt-4o-mini',
-      messages: [
-        { role: 'system', content: finalSystemPrompt },
-        { role: 'user', content: question }
-      ],
+      messages: messages,
       temperature: userSettings?.settings?.temperature || 0.7,
       max_tokens: userSettings?.settings?.max_tokens || 1000,
     }),
