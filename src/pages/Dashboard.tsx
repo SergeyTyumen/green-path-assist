@@ -231,8 +231,8 @@ export default function Dashboard() {
           // Берем последнее сообщение
           const lastMessage = sortedMessages[sortedMessages.length - 1];
 
-          // Проверяем, является ли последнее сообщение входящим от клиента
-          if (lastMessage.direction === 'in') {
+          // Проверяем, является ли последнее сообщение входящим от клиента И непрочитанным
+          if (lastMessage.direction === 'in' && !lastMessage.is_read) {
             const client = contactToClientMap.get(conv.contact_id);
 
             if (!client) {
