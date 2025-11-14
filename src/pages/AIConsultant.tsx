@@ -805,6 +805,194 @@ const AIConsultant = () => {
     return count;
   }, [messages, createdLeads]);
 
+  // Функция автоматической обработки неотвеченных сообщений
+  const processUnansweredMessages = async () => {
+    if (!user) return;
+
+    // Группируем сообщения по conversationId
+    const conversationGroups = new Map<string, ChatMessage[]>();
+    
+    messages.forEach(msg => {
+      if (!msg.conversationId) return;
+      
+      if (!conversationGroups.has(msg.conversationId)) {
+        conversationGroups.set(msg.conversationId, []);
+      }
+      conversationGroups.get(msg.conversationId)!.push(msg);
+    });
+
+    // Находим все беседы, где последнее сообщение от пользователя
+    const unansweredConversations: Array<{
+      conversationId: string;
+      lastUserMessage: ChatMessage;
+      history: ChatMessage[];
+    }> = [];
+
+    conversationGroups.forEach((msgs, conversationId) => {
+      const sortedMsgs = [...msgs].sort((a, b) => 
+        a.timestamp.getTime() - b.timestamp.getTime()
+      );
+      
+      const lastMsg = sortedMsgs[sortedMsgs.length - 1];
+      
+      // Если последнее сообщение от клиента и он еще не стал лидом
+      if (lastMsg.type === 'user' && lastMsg.clientId && !createdLeads.has(lastMsg.clientId)) {
+        unansweredConversations.push({
+          conversationId,
+          lastUserMessage: lastMsg,
+          history: sortedMsgs
+        });
+      }
+    });
+
+    if (unansweredConversations.length === 0) {
+      toast({
+        title: "Нет неотвеченных сообщений",
+        description: "Все беседы уже обработаны",
+      });
+      return;
+    }
+
+    toast({
+      title: "Обработка сообщений",
+      description: `Генерирую ответы на ${unansweredConversations.length} ${unansweredConversations.length === 1 ? 'сообщение' : 'сообщения'}...`,
+    });
+
+    // Обрабатываем каждую беседу
+    for (const conversation of unansweredConversations) {
+      try {
+        // Генерируем ответ AI на основе истории переписки
+        const { data, error } = await supabase.functions.invoke('ai-consultant', {
+          body: {
+            question: conversation.lastUserMessage.content,
+            context: {
+              source: conversation.lastUserMessage.source || 'website',
+              conversationHistory: conversation.history.map(m => ({
+                role: m.type === 'user' ? 'user' : 'assistant',
+                content: m.content
+              }))
+            },
+            auto_send: true
+          }
+        });
+
+        if (error) {
+          console.error('Ошибка генерации ответа:', error);
+          continue;
+        }
+
+        const aiResponseContent = data?.response || data?.answer || '';
+
+        // Получаем данные conversation для отправки
+        const { data: convData, error: convError } = await supabase
+          .from('conversations')
+          .select('channels!inner(type), messages!inner(payload, direction)')
+          .eq('id', conversation.conversationId)
+          .single();
+
+        if (convError || !convData) {
+          console.error('Ошибка получения данных беседы:', convError);
+          continue;
+        }
+
+        const channelData = convData.channels as any;
+        const provider = channelData?.type || 'telegram';
+        
+        // Получаем chat_id из последнего входящего сообщения
+        const messagesData = (convData as any).messages || [];
+        const incomingMessage = messagesData.find((m: any) => m.direction === 'in');
+        const chatId = incomingMessage?.payload?.chat_id || incomingMessage?.payload?.from?.id;
+
+        // Сохраняем сообщение в базу данных
+        const { data: savedMessage, error: saveError } = await supabase
+          .from('messages')
+          .insert({
+            conversation_id: conversation.conversationId,
+            direction: 'out',
+            provider: provider,
+            payload: { text: aiResponseContent },
+            status: 'sent',
+            sent_at: new Date().toISOString()
+          })
+          .select()
+          .single();
+
+        if (saveError) {
+          console.error('Ошибка сохранения сообщения:', saveError);
+          continue;
+        }
+
+        // Отправляем в мессенджер
+        if (provider === 'telegram' && chatId) {
+          await supabase.functions.invoke('telegram-send-message', {
+            body: {
+              chat_id: chatId,
+              text: aiResponseContent
+            }
+          });
+        } else if (provider === 'whatsapp' && chatId) {
+          await supabase.functions.invoke('whatsapp-send', {
+            body: {
+              to: chatId,
+              message: aiResponseContent
+            }
+          });
+        }
+
+        // Добавляем сообщение в интерфейс
+        const aiResponse: ChatMessage = {
+          id: savedMessage.id,
+          type: 'assistant',
+          content: aiResponseContent,
+          timestamp: new Date(savedMessage.sent_at || savedMessage.created_at),
+          conversationId: conversation.conversationId,
+          source: conversation.lastUserMessage.source,
+          clientId: conversation.lastUserMessage.clientId,
+          clientName: conversation.lastUserMessage.clientName,
+          status: 'sent'
+        };
+
+        setMessages(prev => [...prev, aiResponse].sort((a, b) => 
+          a.timestamp.getTime() - b.timestamp.getTime()
+        ));
+
+      } catch (error) {
+        console.error('Ошибка обработки беседы:', error);
+      }
+    }
+
+    toast({
+      title: "Обработка завершена",
+      description: `Отправлено ответов: ${unansweredConversations.length}`,
+    });
+  };
+
+  // Обработчик переключения автоматического режима
+  const handleAutoModeChange = async (checked: boolean) => {
+    setAutoMode(checked);
+    
+    // Сохраняем настройку в профиле
+    if (user) {
+      try {
+        await supabase
+          .from('profiles')
+          .update({
+            ai_settings: {
+              auto_send_enabled: checked
+            }
+          })
+          .eq('user_id', user.id);
+      } catch (error) {
+        console.error('Error saving auto mode:', error);
+      }
+    }
+
+    // Если включаем автоматический режим, обрабатываем неотвеченные сообщения
+    if (checked) {
+      await processUnansweredMessages();
+    }
+  };
+
   return (
     <div className="p-6 max-w-6xl mx-auto">
       <div className="mb-8">
@@ -855,7 +1043,7 @@ const AIConsultant = () => {
                 <span>Режим работы</span>
                 <div className="flex items-center gap-2">
                   {autoMode ? <Play className="h-4 w-4 text-green-500" /> : <Pause className="h-4 w-4 text-orange-500" />}
-                  <Switch checked={autoMode} onCheckedChange={setAutoMode} />
+                  <Switch checked={autoMode} onCheckedChange={handleAutoModeChange} />
                   <span className="text-sm">{autoMode ? 'Автоматический' : 'Ручной'}</span>
                 </div>
               </CardTitle>
