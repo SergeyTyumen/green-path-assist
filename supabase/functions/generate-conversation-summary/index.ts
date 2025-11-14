@@ -67,7 +67,7 @@ serve(async (req) => {
             content: `Создай комментарий о переговорах с клиентом "${clientName}" на основе следующей переписки:\n\n${conversationHistory}`
           }
         ],
-        max_completion_tokens: 500,
+        max_completion_tokens: 1500, // Увеличено для reasoning моделей
       }),
     });
 
