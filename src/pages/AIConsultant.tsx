@@ -1369,14 +1369,14 @@ const AIConsultant = () => {
                                     return;
                                   }
                                   
-                                  // Проверяем различные варианты структуры ответа
-                                  const summary = data?.summary || data;
+                                  // Получаем summary из ответа
+                                  const summary = data?.summary;
                                   
-                                  if (!summary || typeof summary !== 'string') {
-                                    console.error('Invalid summary format:', data);
+                                  if (!summary || summary.trim() === '') {
+                                    console.error('Empty summary received:', data);
                                     toast({
                                       title: "Ошибка",
-                                      description: "Получен некорректный формат ответа от ИИ",
+                                      description: "ИИ вернул пустой комментарий. Попробуйте еще раз.",
                                       variant: "destructive",
                                     });
                                     return;

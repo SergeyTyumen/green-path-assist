@@ -90,7 +90,7 @@ serve(async (req) => {
     const data = await response.json();
     const summary = data.choices[0].message.content;
 
-    console.log('Summary generated successfully');
+    console.log('Summary generated:', summary?.substring(0, 100));
 
     return new Response(
       JSON.stringify({ summary }),
