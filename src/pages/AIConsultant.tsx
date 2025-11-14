@@ -232,7 +232,7 @@ const AIConsultant = () => {
           setMyClients(clientsList || []);
         }
 
-        // Загружаем все conversations пользователя с последними сообщениями
+        // Загружаем все conversations пользователя с последними сообщениями (только неархивные)
         const { data: conversations, error } = await supabase
           .from('conversations')
           .select(`
@@ -253,6 +253,7 @@ const AIConsultant = () => {
               is_read
             )
           `)
+          .eq('archived', false)
           .in('channel_id', channelIds)
           .order('created_at', { ascending: true });
 
@@ -497,11 +498,12 @@ const AIConsultant = () => {
       let chatId: string | null = null;
 
       if (!conversationId) {
-        // Находим последнюю conversation для этого пользователя
+        // Находим последнюю неархивную conversation для этого пользователя
         const { data: conversations, error: convError } = await supabase
           .from('conversations')
           .select('id, channels!inner(id, type, user_id), messages!inner(payload, direction)')
           .eq('channels.user_id', user.id)
+          .eq('archived', false)
           .order('last_message_at', { ascending: false })
           .limit(1)
           .maybeSingle();
