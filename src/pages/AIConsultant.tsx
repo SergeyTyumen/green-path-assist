@@ -1255,10 +1255,16 @@ const AIConsultant = () => {
                                         
                                         // Помечаем сообщения как прочитанные
                                         try {
-                                          await supabase.rpc('mark_messages_as_read', {
-                                            p_conversation_id: message.conversationId,
-                                            p_user_id: user?.id
-                                          });
+                                          // Используем raw SQL для обновления is_read
+                                          const { error: markError } = await supabase
+                                            .rpc('mark_messages_as_read' as any, {
+                                              p_conversation_id: message.conversationId,
+                                              p_user_id: user?.id
+                                            } as any);
+                                          
+                                          if (markError) {
+                                            console.error('Error marking messages as read:', markError);
+                                          }
                                           
                                           // Обновляем локальное состояние
                                           setMessages(prev => prev.map(m => 
