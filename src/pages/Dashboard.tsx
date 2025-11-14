@@ -211,21 +211,29 @@ export default function Dashboard() {
         let newRequests = 0;
         let myClientMessages = 0;
 
+        // Группируем сообщения по conversation_id и проверяем последнее сообщение
         conversations.forEach((conv: any) => {
-          const hasUnreadMessages = conv.messages?.some(
-            (msg: any) => msg.direction === 'in' && !msg.is_read
+          if (!conv.messages || conv.messages.length === 0) return;
+
+          // Сортируем сообщения по времени создания
+          const sortedMessages = [...conv.messages].sort((a: any, b: any) => 
+            new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
           );
 
-          if (!hasUnreadMessages) return;
+          // Берем последнее сообщение
+          const lastMessage = sortedMessages[sortedMessages.length - 1];
 
-          const client = contactToClientMap.get(conv.contact_id);
+          // Проверяем, является ли последнее сообщение входящим от клиента
+          if (lastMessage.direction === 'in') {
+            const client = contactToClientMap.get(conv.contact_id);
 
-          if (!client) {
-            // Новое обращение - нет связанного клиента
-            newRequests++;
-          } else if (client.assigned_manager_id === user.id) {
-            // Сообщение от моего клиента
-            myClientMessages++;
+            if (!client) {
+              // Новое обращение - нет связанного клиента
+              newRequests++;
+            } else if (client.assigned_manager_id === user.id) {
+              // Сообщение от моего клиента
+              myClientMessages++;
+            }
           }
         });
 
