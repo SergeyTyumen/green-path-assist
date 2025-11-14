@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -772,6 +772,39 @@ const AIConsultant = () => {
     }
   };
 
+  // Подсчет реальных новых обращений (бесед с неотвеченным последним сообщением)
+  const newRequestsCount = useMemo(() => {
+    // Группируем сообщения по conversationId
+    const conversationGroups = new Map<string, ChatMessage[]>();
+    
+    messages.forEach(msg => {
+      if (!msg.conversationId) return;
+      
+      if (!conversationGroups.has(msg.conversationId)) {
+        conversationGroups.set(msg.conversationId, []);
+      }
+      conversationGroups.get(msg.conversationId)!.push(msg);
+    });
+    
+    // Считаем беседы, где последнее сообщение - входящее от клиента
+    let count = 0;
+    conversationGroups.forEach((msgs, conversationId) => {
+      // Сортируем по времени
+      const sortedMsgs = [...msgs].sort((a, b) => 
+        a.timestamp.getTime() - b.timestamp.getTime()
+      );
+      
+      const lastMsg = sortedMsgs[sortedMsgs.length - 1];
+      
+      // Если последнее сообщение от клиента и он еще не стал лидом
+      if (lastMsg.type === 'user' && lastMsg.clientId && !createdLeads.has(lastMsg.clientId)) {
+        count++;
+      }
+    });
+    
+    return count;
+  }, [messages, createdLeads]);
+
   return (
     <div className="p-6 max-w-6xl mx-auto">
       <div className="mb-8">
@@ -852,7 +885,7 @@ const AIConsultant = () => {
                     <MessageCircle className="h-4 w-4" />
                     Новые обращения
                     <Badge variant="secondary" className="ml-auto">
-                      {messages.filter(m => m.type === 'user' && m.clientId && !createdLeads.has(m.clientId)).length}
+                      {newRequestsCount}
                     </Badge>
                   </TabsTrigger>
                   <TabsTrigger value="my" className="flex items-center gap-2">
