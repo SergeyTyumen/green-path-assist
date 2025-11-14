@@ -245,7 +245,7 @@ export function ClientDetailDialog({ client, isOpen, onClose, onEdit, onClientUp
             </ScrollArea>
           </TabsContent>
 
-          <TabsContent value="history" className="mt-4 flex-1 overflow-auto">
+          <TabsContent value="history" className="mt-4 flex-1 overflow-hidden">
             <ScrollArea className="h-full pr-2 sm:pr-4">
               <ClientCommentManager
               clientId={client.id} 
