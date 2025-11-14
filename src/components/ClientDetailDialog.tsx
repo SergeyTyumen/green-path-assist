@@ -85,7 +85,7 @@ export function ClientDetailDialog({ client, isOpen, onClose, onEdit, onClientUp
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-4xl max-h-[95vh] h-[95vh] sm:h-auto sm:max-h-[90vh] w-[95vw] sm:w-auto flex flex-col overflow-hidden p-0">
+      <DialogContent className="max-w-4xl h-[95vh] sm:h-auto sm:max-h-[90vh] w-[95vw] sm:w-auto flex flex-col overflow-hidden p-0">
         <div className="p-6 pb-3 border-b shrink-0">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
