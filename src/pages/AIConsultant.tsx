@@ -1495,20 +1495,26 @@ const AIConsultant = () => {
                                 });
                                 return;
                               }
+
+                              console.log('Generating next actions with comment:', clientComment);
                               
                               setIsGeneratingNextActions(true);
                               try {
-                                const { data, error } = await supabase.functions.invoke('generate-next-action', {
-                                  body: {
-                                    clientId: selectedClientId,
-                                    currentComment: clientComment.trim(),
-                                    clientData: {
-                                      name: client?.name,
-                                      stage: client?.conversion_stage,
-                                      phone: client?.phone,
-                                      email: client?.email,
-                                    }
+                                const requestBody = {
+                                  clientId: selectedClientId,
+                                  currentComment: clientComment.trim(),
+                                  clientData: {
+                                    name: client?.name,
+                                    stage: client?.conversion_stage,
+                                    phone: client?.phone,
+                                    email: client?.email,
                                   }
+                                };
+
+                                console.log('Request body:', requestBody);
+
+                                const { data, error } = await supabase.functions.invoke('generate-next-action', {
+                                  body: requestBody
                                 });
 
                                 if (error) throw error;

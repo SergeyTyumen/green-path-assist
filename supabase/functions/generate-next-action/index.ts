@@ -28,8 +28,15 @@ serve(async (req) => {
       });
     }
 
-    const { clientId, currentComment, clientData } = await req.json();
-    console.log('Generate Next Action request:', { clientId, currentComment, clientData });
+    const requestBody = await req.json();
+    const { clientId, currentComment, clientData } = requestBody;
+    console.log('Generate Next Action request:', { 
+      clientId, 
+      hasCurrentComment: !!currentComment,
+      currentCommentLength: currentComment?.length || 0,
+      clientData,
+      fullRequestBody: requestBody
+    });
 
     // Получаем все комментарии клиента из истории
     const { data: comments, error: commentsError } = await supabaseClient
