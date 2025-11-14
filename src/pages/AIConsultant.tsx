@@ -1323,18 +1323,23 @@ const AIConsultant = () => {
                               variant="outline"
                               size="sm"
                               onClick={async () => {
-                                if (!selectedClientId || !user) return;
+                                if (!selectedRecipient || !user) {
+                                  toast({
+                                    title: "Выберите чат",
+                                    description: "Сначала откройте диалог с клиентом в центральной панели",
+                                    variant: "destructive",
+                                  });
+                                  return;
+                                }
                                 
                                 setIsGeneratingComment(true);
                                 try {
-                                  // Получаем все сообщения выбранного клиента
-                                  const client = myClients.find(c => c.id === selectedClientId);
-                                  if (!client) return;
+                                  // Получаем все сообщения открытого чата
+                                  const chatMessages = messages.filter(m => 
+                                    m.conversationId === selectedRecipient.conversationId
+                                  );
                                   
-                                  const contactId = client.lead_source_details?.contact_id;
-                                  const clientMessages = messages.filter(m => m.clientId === contactId);
-                                  
-                                  if (clientMessages.length === 0) {
+                                  if (chatMessages.length === 0) {
                                     toast({
                                       title: "Нет истории переписки",
                                       description: "Недостаточно сообщений для генерации комментария",
@@ -1343,13 +1348,19 @@ const AIConsultant = () => {
                                     return;
                                   }
                                   
+                                  console.log('Generating summary for:', {
+                                    clientName: selectedRecipient.clientName,
+                                    messagesCount: chatMessages.length,
+                                    conversationId: selectedRecipient.conversationId
+                                  });
+                                  
                                   const { data, error } = await supabase.functions.invoke('generate-conversation-summary', {
                                     body: {
-                                      messages: clientMessages.map(m => ({
+                                      messages: chatMessages.map(m => ({
                                         type: m.type,
                                         content: m.content
                                       })),
-                                      clientName: client.name
+                                      clientName: selectedRecipient.clientName
                                     }
                                   });
                                   
