@@ -44,11 +44,118 @@ export default function Dashboard() {
   });
   const [newRequestsCount, setNewRequestsCount] = useState(0);
   const [newMessagesCount, setNewMessagesCount] = useState(0);
+  const [statsChanges, setStatsChanges] = useState({
+    clientsChange: 0,
+    estimatesChange: 0,
+    proposalsChange: 0,
+    revenueChange: 0
+  });
 
   const { clients, loading: clientsLoading, createClient } = useClients();
   const { tasks, loading: tasksLoading } = useTasks();
   const { estimates, loading: estimatesLoading } = useEstimates();
   const { proposals, loading: proposalsLoading } = useProposals();
+
+  // Расчет изменений статистики
+  useEffect(() => {
+    if (!user || clientsLoading || estimatesLoading || proposalsLoading) return;
+
+    const calculateChanges = async () => {
+      const now = new Date();
+      const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+      const sixtyDaysAgo = new Date(now.getTime() - 60 * 24 * 60 * 60 * 1000);
+
+      try {
+        // Клиенты: сравниваем последние 30 дней с предыдущими 30 днями
+        const { data: currentClients } = await supabase
+          .from('clients')
+          .select('id')
+          .eq('user_id', user.id)
+          .gte('created_at', thirtyDaysAgo.toISOString());
+
+        const { data: previousClients } = await supabase
+          .from('clients')
+          .select('id')
+          .eq('user_id', user.id)
+          .gte('created_at', sixtyDaysAgo.toISOString())
+          .lt('created_at', thirtyDaysAgo.toISOString());
+
+        const clientsChange = previousClients?.length 
+          ? Math.round(((currentClients?.length || 0) - previousClients.length) / previousClients.length * 100)
+          : 0;
+
+        // Сметы в работе: сравниваем текущие с месячной давности
+        const { data: currentEstimates } = await supabase
+          .from('estimates')
+          .select('id')
+          .eq('user_id', user.id)
+          .in('status', ['draft', 'sent'])
+          .gte('created_at', thirtyDaysAgo.toISOString());
+
+        const { data: previousEstimates } = await supabase
+          .from('estimates')
+          .select('id')
+          .eq('user_id', user.id)
+          .in('status', ['draft', 'sent'])
+          .gte('created_at', sixtyDaysAgo.toISOString())
+          .lt('created_at', thirtyDaysAgo.toISOString());
+
+        const estimatesChange = (currentEstimates?.length || 0) - (previousEstimates?.length || 0);
+
+        // Отправленные КП: сравниваем за период
+        const { data: currentProposals } = await supabase
+          .from('proposals')
+          .select('id')
+          .eq('user_id', user.id)
+          .eq('status', 'sent')
+          .gte('created_at', thirtyDaysAgo.toISOString());
+
+        const { data: previousProposals } = await supabase
+          .from('proposals')
+          .select('id')
+          .eq('user_id', user.id)
+          .eq('status', 'sent')
+          .gte('created_at', sixtyDaysAgo.toISOString())
+          .lt('created_at', thirtyDaysAgo.toISOString());
+
+        const proposalsChange = (currentProposals?.length || 0) - (previousProposals?.length || 0);
+
+        // Оборот: сравниваем одобренные КП за период
+        const { data: currentRevenue } = await supabase
+          .from('proposals')
+          .select('amount')
+          .eq('user_id', user.id)
+          .eq('status', 'approved')
+          .gte('created_at', thirtyDaysAgo.toISOString());
+
+        const { data: previousRevenue } = await supabase
+          .from('proposals')
+          .select('amount')
+          .eq('user_id', user.id)
+          .eq('status', 'approved')
+          .gte('created_at', sixtyDaysAgo.toISOString())
+          .lt('created_at', thirtyDaysAgo.toISOString());
+
+        const currentRevenueTotal = currentRevenue?.reduce((sum, p) => sum + p.amount, 0) || 0;
+        const previousRevenueTotal = previousRevenue?.reduce((sum, p) => sum + p.amount, 0) || 0;
+        
+        const revenueChange = previousRevenueTotal 
+          ? Math.round((currentRevenueTotal - previousRevenueTotal) / previousRevenueTotal * 100)
+          : 0;
+
+        setStatsChanges({
+          clientsChange,
+          estimatesChange,
+          proposalsChange,
+          revenueChange
+        });
+      } catch (error) {
+        console.error('Error calculating stats changes:', error);
+      }
+    };
+
+    calculateChanges();
+  }, [user, clientsLoading, estimatesLoading, proposalsLoading]);
 
   // Загрузка уведомлений о новых сообщениях
   useEffect(() => {
@@ -206,7 +313,9 @@ export default function Dashboard() {
     {
       title: "Активные клиенты",
       value: clients.length.toString(),
-      description: "+12%",
+      description: statsChanges.clientsChange !== 0 
+        ? `${statsChanges.clientsChange > 0 ? '+' : ''}${statsChanges.clientsChange}%`
+        : 'Нет изменений',
       icon: Users,
       color: "text-indigo-600",
       bgColor: "bg-indigo-50",
@@ -215,7 +324,9 @@ export default function Dashboard() {
     {
       title: "Сметы в работе",
       value: estimates.filter(e => e.status === 'draft' || e.status === 'sent').length.toString(),
-      description: "+3",
+      description: statsChanges.estimatesChange !== 0
+        ? `${statsChanges.estimatesChange > 0 ? '+' : ''}${statsChanges.estimatesChange}`
+        : 'Нет изменений',
       icon: Calculator,
       color: "text-green-600",
       bgColor: "bg-green-50",
@@ -224,7 +335,9 @@ export default function Dashboard() {
     {
       title: "Отправленные КП",
       value: proposals.filter(p => p.status === 'sent').length.toString(),
-      description: "+5",
+      description: statsChanges.proposalsChange !== 0
+        ? `${statsChanges.proposalsChange > 0 ? '+' : ''}${statsChanges.proposalsChange}`
+        : 'Нет изменений',
       icon: FileText,
       color: "text-purple-600",
       bgColor: "bg-purple-50",
@@ -233,7 +346,9 @@ export default function Dashboard() {
     {
       title: "Общий оборот",
       value: `₽${(proposals.filter(p => p.status === 'approved').reduce((sum, p) => sum + p.amount, 0) / 1000000).toFixed(1)}М`,
-      description: "+18%",
+      description: statsChanges.revenueChange !== 0
+        ? `${statsChanges.revenueChange > 0 ? '+' : ''}${statsChanges.revenueChange}%`
+        : 'Нет изменений',
       icon: TrendingUp,
       color: "text-emerald-600",
       bgColor: "bg-emerald-50",
