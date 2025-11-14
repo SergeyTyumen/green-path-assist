@@ -91,6 +91,15 @@ export function ClientCommentManager({ clientId, clientName, clientData }: Clien
   };
 
   const handleGenerateNextActions = async () => {
+    // Проверяем наличие комментариев (текущего или сохранённых)
+    const hasCurrentComment = newComment.trim().length > 0;
+    const hasSavedComments = comments.length > 0;
+    
+    if (!hasCurrentComment && !hasSavedComments) {
+      toast.error('Напишите комментарий о переговорах для генерации действий');
+      return;
+    }
+
     setIsGeneratingNextActions(true);
     try {
       const requestBody = {
