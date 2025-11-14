@@ -28,8 +28,8 @@ serve(async (req) => {
       });
     }
 
-    const { clientId, clientData } = await req.json();
-    console.log('Generate Next Action request:', { clientId, clientData });
+    const { clientId, currentComment, clientData } = await req.json();
+    console.log('Generate Next Action request:', { clientId, currentComment, clientData });
 
     // Получаем все комментарии клиента из истории
     const { data: comments, error: commentsError } = await supabaseClient
@@ -48,16 +48,20 @@ serve(async (req) => {
       });
     }
 
-    if (!comments || comments.length === 0) {
+    // Проверяем наличие комментариев (сохраненных или текущего)
+    const hasCurrentComment = currentComment && currentComment.trim().length > 0;
+    const hasSavedComments = comments && comments.length > 0;
+
+    if (!hasCurrentComment && !hasSavedComments) {
       return new Response(JSON.stringify({ 
-        error: 'Сначала сохраните комментарий о переговорах' 
+        error: 'Напишите комментарий о переговорах для генерации действий' 
       }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
-    console.log(`Found ${comments.length} comments for client ${clientId}`);
+    console.log(`Found ${comments?.length || 0} saved comments, current comment: ${hasCurrentComment ? 'yes' : 'no'}`);
 
     // Get OpenAI API key
     const { data: apiKeyData } = await supabaseClient
@@ -77,9 +81,22 @@ serve(async (req) => {
     }
 
     // Формируем текст всех комментариев для анализа
-    const commentsHistory = comments.map((comment, index) => 
-      `Комментарий ${index + 1} (${new Date(comment.created_at).toLocaleDateString('ru-RU')}):\n${comment.content}`
-    ).join('\n\n---\n\n');
+    let commentsHistory = '';
+    
+    if (hasSavedComments && comments) {
+      commentsHistory = comments.map((comment, index) => 
+        `Комментарий ${index + 1} (${new Date(comment.created_at).toLocaleDateString('ru-RU')}):\n${comment.content}`
+      ).join('\n\n---\n\n');
+    }
+
+    // Добавляем текущий комментарий, если есть
+    if (hasCurrentComment) {
+      if (commentsHistory) {
+        commentsHistory = `Текущий комментарий (еще не сохранен):\n${currentComment}\n\n---\n\n${commentsHistory}`;
+      } else {
+        commentsHistory = `Текущий комментарий:\n${currentComment}`;
+      }
+    }
 
     const systemPrompt = `Вы - AI Система Генерации Следующих Действий. Ваша задача - проанализировать всю историю взаимодействия с клиентом и предложить 3-5 конкретных следующих действий для менеджера.
 
@@ -87,7 +104,7 @@ serve(async (req) => {
 1. Конкретным и выполнимым
 2. Логичным продолжением текущего этапа
 3. Ориентированным на результат
-4. Основанным на всей истории переговоров, а не только на последнем комментарии
+4. Основанным на всей истории переговоров
 
 Информация о клиенте:
 - Имя: ${clientData?.name || 'Неизвестно'}
@@ -120,7 +137,7 @@ serve(async (req) => {
         model: 'gpt-4o-mini',
         messages: [
           { role: 'system', content: systemPrompt },
-          { role: 'user', content: `История переговоров с клиентом (всего комментариев: ${comments.length}):\n\n${commentsHistory}` }
+          { role: 'user', content: `История переговоров с клиентом:\n\n${commentsHistory}` }
         ],
         max_tokens: 1000,
         temperature: 0.7,
