@@ -184,7 +184,7 @@ export default function Dashboard() {
               id,
               direction,
               created_at,
-              read_at
+              is_read
             )
           `)
           .in('channel_id', channelIds)
@@ -213,7 +213,7 @@ export default function Dashboard() {
 
         conversations.forEach((conv: any) => {
           const hasUnreadMessages = conv.messages?.some(
-            (msg: any) => msg.direction === 'in' && !msg.read_at
+            (msg: any) => msg.direction === 'in' && !msg.is_read
           );
 
           if (!hasUnreadMessages) return;
