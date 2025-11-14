@@ -173,7 +173,7 @@ export default function Dashboard() {
 
         const channelIds = channels.map(c => c.id);
 
-        // Получаем все conversations с последними сообщениями
+        // Получаем все неархивные conversations с последними сообщениями
         const { data: conversations } = await supabase
           .from('conversations')
           .select(`
@@ -187,6 +187,7 @@ export default function Dashboard() {
               is_read
             )
           `)
+          .eq('archived', false)
           .in('channel_id', channelIds)
           .order('created_at', { ascending: false });
 
