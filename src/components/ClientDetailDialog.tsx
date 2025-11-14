@@ -85,21 +85,24 @@ export function ClientDetailDialog({ client, isOpen, onClose, onEdit, onClientUp
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-4xl max-h-[95vh] h-[95vh] sm:h-auto sm:max-h-[90vh] w-[95vw] sm:w-auto overflow-hidden">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <User className="h-5 w-5" />
-            {client.name}
-          </DialogTitle>
-          {onEdit && (
-            <Button variant="outline" size="sm" onClick={() => onEdit(client)}>
-              <Edit className="h-4 w-4 mr-1" />
-              Редактировать
-            </Button>
-          )}
-        </DialogHeader>
+      <DialogContent className="max-w-4xl max-h-[95vh] h-[95vh] sm:h-auto sm:max-h-[90vh] w-[95vw] sm:w-auto flex flex-col overflow-hidden p-0">
+        <div className="p-6 pb-3 border-b shrink-0">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <User className="h-5 w-5" />
+              {client.name}
+            </DialogTitle>
+            {onEdit && (
+              <Button variant="outline" size="sm" onClick={() => onEdit(client)}>
+                <Edit className="h-4 w-4 mr-1" />
+                Редактировать
+              </Button>
+            )}
+          </DialogHeader>
+        </div>
 
-        <Tabs defaultValue="overview" className="flex-1 flex flex-col overflow-hidden">
+        <div className="flex-1 overflow-hidden px-6">
+          <Tabs defaultValue="overview" className="h-full flex flex-col">
           <TabsList className="grid w-full grid-cols-3 h-auto">
             <TabsTrigger value="overview" className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm py-2">
               <User className="h-3 w-3 sm:h-4 sm:w-4" />
@@ -259,16 +262,19 @@ export function ClientDetailDialog({ client, isOpen, onClose, onEdit, onClientUp
             </ScrollArea>
           </TabsContent>
         </Tabs>
+        </div>
 
-        <div className="flex flex-col sm:flex-row gap-2 pt-4 border-t shrink-0">
-          <Button className="flex-1 min-h-[44px]">
-            <FileText className="h-4 w-4 mr-2" />
-            Создать смету
-          </Button>
-          <Button variant="outline" className="flex-1 min-h-[44px]">
-            <Phone className="h-4 w-4 mr-2" />
-            Позвонить
-          </Button>
+        <div className="p-6 pt-4 border-t shrink-0">
+          <div className="flex flex-col sm:flex-row gap-2">
+            <Button className="flex-1 min-h-[44px]">
+              <FileText className="h-4 w-4 mr-2" />
+              Создать смету
+            </Button>
+            <Button variant="outline" className="flex-1 min-h-[44px]">
+              <Phone className="h-4 w-4 mr-2" />
+              Позвонить
+            </Button>
+          </div>
         </div>
       </DialogContent>
     </Dialog>
