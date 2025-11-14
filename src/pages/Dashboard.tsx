@@ -238,13 +238,24 @@ export default function Dashboard() {
 
     loadNotifications();
 
-    // Подписка на новые сообщения
+    // Подписка на новые сообщения и изменения статуса прочтения
     const channel = supabase
       .channel('dashboard-messages')
       .on(
         'postgres_changes',
         {
           event: 'INSERT',
+          schema: 'public',
+          table: 'messages'
+        },
+        () => {
+          loadNotifications();
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
           schema: 'public',
           table: 'messages'
         },
