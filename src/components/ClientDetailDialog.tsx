@@ -246,15 +246,17 @@ export function ClientDetailDialog({ client, isOpen, onClose, onEdit, onClientUp
           </TabsContent>
 
           <TabsContent value="history" className="mt-4 flex-1 overflow-auto">
-            <ClientCommentManager 
+            <ScrollArea className="h-full pr-2 sm:pr-4">
+              <ClientCommentManager
               clientId={client.id} 
               clientName={client.name}
               clientData={{
                 stage: client.status,
                 phone: client.phone,
                 email: client.email
-              }}
-            />
+                }}
+              />
+            </ScrollArea>
           </TabsContent>
         </Tabs>
 

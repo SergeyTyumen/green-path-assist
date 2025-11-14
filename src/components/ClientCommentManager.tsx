@@ -226,7 +226,7 @@ export function ClientCommentManager({ clientId, clientName, clientData }: Clien
           <CardTitle className="text-base">История взаимодействий</CardTitle>
         </CardHeader>
         <CardContent className="p-0">
-          <ScrollArea className="h-[300px]">
+          <div className="max-h-[400px] overflow-y-auto">
             {loading ? (
               <div className="p-4 text-center text-muted-foreground">
                 Загрузка истории...
@@ -264,7 +264,7 @@ export function ClientCommentManager({ clientId, clientName, clientData }: Clien
                 ))}
               </div>
             )}
-          </ScrollArea>
+          </div>
         </CardContent>
       </Card>
 
