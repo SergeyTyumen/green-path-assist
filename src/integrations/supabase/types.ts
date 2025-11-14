@@ -1146,6 +1146,7 @@ export type Database = {
           preferred_ai_model: string | null
           status: string | null
           telegram_username: string | null
+          ui_preferences: Json | null
           updated_at: string
           user_id: string
           user_type: string | null
@@ -1173,6 +1174,7 @@ export type Database = {
           preferred_ai_model?: string | null
           status?: string | null
           telegram_username?: string | null
+          ui_preferences?: Json | null
           updated_at?: string
           user_id: string
           user_type?: string | null
@@ -1200,6 +1202,7 @@ export type Database = {
           preferred_ai_model?: string | null
           status?: string | null
           telegram_username?: string | null
+          ui_preferences?: Json | null
           updated_at?: string
           user_id?: string
           user_type?: string | null
