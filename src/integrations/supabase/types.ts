@@ -574,6 +574,8 @@ export type Database = {
       }
       conversations: {
         Row: {
+          archived: boolean | null
+          archived_at: string | null
           assigned_to: string | null
           channel_account_id: string
           channel_id: string
@@ -586,6 +588,8 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          archived?: boolean | null
+          archived_at?: string | null
           assigned_to?: string | null
           channel_account_id: string
           channel_id: string
@@ -598,6 +602,8 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          archived?: boolean | null
+          archived_at?: string | null
           assigned_to?: string | null
           channel_account_id?: string
           channel_id?: string
@@ -976,6 +982,7 @@ export type Database = {
           delivered_at: string | null
           direction: string
           id: string
+          is_read: boolean | null
           payload: Json | null
           provider: string
           provider_message_id: string | null
@@ -992,6 +999,7 @@ export type Database = {
           delivered_at?: string | null
           direction: string
           id?: string
+          is_read?: boolean | null
           payload?: Json | null
           provider: string
           provider_message_id?: string | null
@@ -1008,6 +1016,7 @@ export type Database = {
           delivered_at?: string | null
           direction?: string
           id?: string
+          is_read?: boolean | null
           payload?: Json | null
           provider?: string
           provider_message_id?: string | null
@@ -1856,6 +1865,7 @@ export type Database = {
           created_at: string
           execution_result: Json | null
           id: string
+          is_read: boolean | null
           parsed_entities: Json | null
           response: string | null
           status: string
@@ -1871,6 +1881,7 @@ export type Database = {
           created_at?: string
           execution_result?: Json | null
           id?: string
+          is_read?: boolean | null
           parsed_entities?: Json | null
           response?: string | null
           status?: string
@@ -1886,6 +1897,7 @@ export type Database = {
           created_at?: string
           execution_result?: Json | null
           id?: string
+          is_read?: boolean | null
           parsed_entities?: Json | null
           response?: string | null
           status?: string
@@ -1928,6 +1940,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      auto_archive_old_conversations: {
+        Args: { days_threshold?: number }
+        Returns: number
+      }
       can_user_create_tasks: { Args: { _user_id: string }; Returns: boolean }
       can_user_delete_tasks: { Args: { _user_id: string }; Returns: boolean }
       can_user_edit_tasks: { Args: { _user_id: string }; Returns: boolean }
@@ -1949,6 +1965,10 @@ export type Database = {
       }
       is_admin: { Args: never; Returns: boolean }
       is_contacts_owner: { Args: { contact_user_id: string }; Returns: boolean }
+      mark_messages_as_read: {
+        Args: { p_conversation_id: string; p_user_id: string }
+        Returns: undefined
+      }
     }
     Enums: {
       app_role: "admin" | "manager" | "employee"
