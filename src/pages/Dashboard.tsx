@@ -468,6 +468,35 @@ export default function Dashboard() {
       color: "text-emerald-600",
       bgColor: "bg-emerald-50",
       onClick: () => navigate('/proposals')
+    },
+    {
+      title: "Обращений сегодня",
+      value: consultantStats.todayConversations.toString(),
+      description: "AI Консультант",
+      icon: Activity,
+      color: "text-cyan-600",
+      bgColor: "bg-cyan-50",
+      onClick: () => navigate('/ai-consultant')
+    },
+    {
+      title: "Сообщений обработано",
+      value: consultantStats.totalMessages.toString(),
+      description: "Всего за сегодня",
+      icon: MessageCircle,
+      color: "text-teal-600",
+      bgColor: "bg-teal-50",
+      onClick: () => navigate('/ai-consultant')
+    },
+    {
+      title: "Время ответа",
+      value: consultantStats.averageResponseTime > 0 
+        ? `${consultantStats.averageResponseTime} сек`
+        : '-',
+      description: "Среднее время",
+      icon: Clock,
+      color: "text-rose-600",
+      bgColor: "bg-rose-50",
+      onClick: () => navigate('/ai-consultant')
     }
   ];
 
@@ -683,49 +712,6 @@ export default function Dashboard() {
             </div>
             <Button variant="outline" className="w-full mt-4" onClick={() => navigate('/tasks')}>
               Посмотреть все задачи
-            </Button>
-          </CardContent>
-        </Card>
-
-        {/* Статистика AI Консультанта */}
-        <Card className="bg-gradient-to-br from-card to-card/50">
-          <CardHeader 
-            className="cursor-pointer hover:bg-accent/20 transition-colors rounded-t-lg"
-            onClick={() => navigate('/ai-consultant')}
-          >
-            <CardTitle className="flex items-center gap-2">
-              <Activity className="h-5 w-5 text-primary" />
-              Статистика AI Консультанта
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="flex justify-between items-center p-3 rounded-lg bg-accent/30">
-              <span className="text-sm font-medium">Обращений сегодня</span>
-              <Badge variant="secondary" className="text-base font-semibold">
-                {consultantStats.todayConversations}
-              </Badge>
-            </div>
-            <div className="flex justify-between items-center p-3 rounded-lg bg-accent/30">
-              <span className="text-sm font-medium">Сообщений обработано</span>
-              <Badge variant="secondary" className="text-base font-semibold">
-                {consultantStats.totalMessages}
-              </Badge>
-            </div>
-            <div className="flex justify-between items-center p-3 rounded-lg bg-accent/30">
-              <span className="text-sm font-medium">Время ответа</span>
-              <Badge variant="secondary" className="text-base font-semibold">
-                {consultantStats.averageResponseTime > 0 
-                  ? `${consultantStats.averageResponseTime} сек`
-                  : 'Нет данных'
-                }
-              </Badge>
-            </div>
-            <Button 
-              variant="outline" 
-              className="w-full mt-4" 
-              onClick={() => navigate('/ai-consultant')}
-            >
-              Открыть консультанта
             </Button>
           </CardContent>
         </Card>
