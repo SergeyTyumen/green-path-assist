@@ -87,8 +87,8 @@ export function AddClientDialog({ isOpen, onClose, onSave, client }: AddClientDi
       return;
     }
 
-    // Проверяем наличие комментариев или заметок
-    if (!formData.notes?.trim() && !client?.notes?.trim()) {
+    // Для генерации нужен либо существующий клиент с историей, либо текущие заметки
+    if (!client?.id && !formData.notes?.trim()) {
       toast.error('Добавьте заметки о клиенте для генерации следующего действия');
       return;
     }
@@ -98,7 +98,7 @@ export function AddClientDialog({ isOpen, onClose, onSave, client }: AddClientDi
       const { data, error } = await supabase.functions.invoke('generate-next-action', {
         body: {
           clientId: client?.id,
-          currentComment: formData.notes || '',
+          currentComment: formData.notes?.trim() || '',
           clientData: {
             ...formData,
             id: client?.id,
@@ -116,9 +116,11 @@ export function AddClientDialog({ isOpen, onClose, onSave, client }: AddClientDi
           ...prev,
           next_action: data.nextAction
         }));
+        toast.success('Следующее действие сгенерировано');
       }
     } catch (error) {
       console.error('Error generating next action:', error);
+      toast.error('Ошибка при генерации следующего действия');
     } finally {
       setGeneratingAction(false);
     }
