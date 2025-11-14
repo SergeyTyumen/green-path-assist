@@ -121,7 +121,7 @@ export function ClientDetailDialog({ client, isOpen, onClose, onEdit, onClientUp
             </TabsTrigger>
           </TabsList>
 
-          <TabsContent value="overview" className="mt-4 flex-1 overflow-hidden">
+          <TabsContent value="overview" className="mt-4 flex-1 overflow-hidden flex flex-col">
             <ScrollArea className="h-full pr-2 sm:pr-4">
               <div className="space-y-6">
                 {/* Статус и основная информация */}
@@ -239,7 +239,7 @@ export function ClientDetailDialog({ client, isOpen, onClose, onEdit, onClientUp
             </ScrollArea>
           </TabsContent>
 
-          <TabsContent value="status" className="mt-4 flex-1 overflow-hidden">
+          <TabsContent value="status" className="mt-4 flex-1 overflow-hidden flex flex-col">
             <ScrollArea className="h-full pr-2 sm:pr-4">
               <ClientStatusManager 
                 client={client} 
@@ -248,7 +248,7 @@ export function ClientDetailDialog({ client, isOpen, onClose, onEdit, onClientUp
             </ScrollArea>
           </TabsContent>
 
-          <TabsContent value="history" className="mt-4 flex-1 overflow-hidden">
+          <TabsContent value="history" className="mt-4 flex-1 overflow-hidden flex flex-col">
             <ScrollArea className="h-full pr-2 sm:pr-4">
               <ClientCommentManager
               clientId={client.id} 
