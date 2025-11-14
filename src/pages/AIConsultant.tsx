@@ -1418,21 +1418,6 @@ const AIConsultant = () => {
                     </div>
                   </div>
 
-                  {/* Симуляция клиента (для тестирования) */}
-                  <div className="border-t pt-4">
-                    <Label className="text-sm font-medium text-muted-foreground">Симуляция клиента (тестирование)</Label>
-                    <div className="flex gap-2 mt-2">
-                      <Input
-                        value={inputMessage}
-                        onChange={(e) => setInputMessage(e.target.value)}
-                        placeholder="Симуляция сообщения клиента..."
-                        onKeyPress={(e) => e.key === 'Enter' && sendMessage()}
-                      />
-                      <Button onClick={sendMessage} disabled={!inputMessage.trim() || isTyping} variant="outline" size="sm">
-                        <Send className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </div>
                 </CardContent>
               </Card>
             </div>
@@ -1717,25 +1702,6 @@ const AIConsultant = () => {
                 </Card>
               )}
 
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-lg">Статистика</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="flex justify-between">
-                    <span className="text-sm">Обращений сегодня</span>
-                    <Badge variant="secondary">24</Badge>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-sm">Средний рейтинг</span>
-                    <Badge variant="secondary">4.8/5</Badge>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-sm">Время ответа</span>
-                    <Badge variant="secondary">2 сек</Badge>
-                  </div>
-                </CardContent>
-              </Card>
             </div>
           </div>
         </TabsContent>

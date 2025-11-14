@@ -1,5 +1,6 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { 
   Users, 
   Calculator, 
@@ -10,7 +11,8 @@ import {
   Plus,
   Loader2,
   MessageSquare,
-  MessageCircle
+  MessageCircle,
+  Activity
 } from "lucide-react";
 import { useClients } from "@/hooks/useClients";
 import { useTasks } from "@/hooks/useTasks";
@@ -49,6 +51,11 @@ export default function Dashboard() {
     estimatesChange: 0,
     proposalsChange: 0,
     revenueChange: 0
+  });
+  const [consultantStats, setConsultantStats] = useState({
+    todayConversations: 0,
+    averageResponseTime: 0,
+    totalMessages: 0
   });
 
   const { clients, loading: clientsLoading, createClient } = useClients();
@@ -277,6 +284,94 @@ export default function Dashboard() {
     return () => {
       supabase.removeChannel(channel);
     };
+  }, [user]);
+
+  // Загрузка статистики AI консультанта
+  useEffect(() => {
+    if (!user) return;
+
+    const loadConsultantStats = async () => {
+      try {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+
+        // Получаем каналы пользователя
+        const { data: channels } = await supabase
+          .from('channels')
+          .select('id')
+          .eq('user_id', user.id);
+
+        if (!channels || channels.length === 0) return;
+
+        const channelIds = channels.map(c => c.id);
+
+        // Получаем разговоры за сегодня (неархивные)
+        const { data: todayConversations } = await supabase
+          .from('conversations')
+          .select('id, created_at')
+          .eq('archived', false)
+          .in('channel_id', channelIds)
+          .gte('created_at', today.toISOString());
+
+        // Получаем все сообщения за сегодня
+        const { data: todayMessages } = await supabase
+          .from('messages')
+          .select('id, created_at, direction, conversation_id')
+          .gte('created_at', today.toISOString());
+
+        // Фильтруем сообщения, которые относятся к нашим разговорам
+        const conversationIds = todayConversations?.map(c => c.id) || [];
+        const relevantMessages = todayMessages?.filter(m => 
+          conversationIds.includes(m.conversation_id)
+        ) || [];
+
+        // Рассчитываем среднее время ответа
+        let totalResponseTime = 0;
+        let responseCount = 0;
+
+        // Группируем сообщения по conversation_id
+        const messagesByConv = relevantMessages.reduce((acc: any, msg: any) => {
+          if (!acc[msg.conversation_id]) acc[msg.conversation_id] = [];
+          acc[msg.conversation_id].push(msg);
+          return acc;
+        }, {});
+
+        // Для каждого разговора находим пары входящее->исходящее
+        Object.values(messagesByConv).forEach((messages: any) => {
+          const sorted = [...messages].sort((a, b) => 
+            new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+          );
+
+          for (let i = 0; i < sorted.length - 1; i++) {
+            if (sorted[i].direction === 'in' && sorted[i + 1].direction === 'out') {
+              const inTime = new Date(sorted[i].created_at).getTime();
+              const outTime = new Date(sorted[i + 1].created_at).getTime();
+              const responseTime = (outTime - inTime) / 1000; // в секундах
+              
+              if (responseTime > 0 && responseTime < 3600) { // игнорируем ответы > 1 часа
+                totalResponseTime += responseTime;
+                responseCount++;
+              }
+            }
+          }
+        });
+
+        const avgResponseTime = responseCount > 0 
+          ? Math.round(totalResponseTime / responseCount)
+          : 0;
+
+        setConsultantStats({
+          todayConversations: todayConversations?.length || 0,
+          averageResponseTime: avgResponseTime,
+          totalMessages: relevantMessages.length
+        });
+
+      } catch (error) {
+        console.error('Error loading consultant stats:', error);
+      }
+    };
+
+    loadConsultantStats();
   }, [user]);
 
   const handleAddClient = async () => {
@@ -588,6 +683,49 @@ export default function Dashboard() {
             </div>
             <Button variant="outline" className="w-full mt-4" onClick={() => navigate('/tasks')}>
               Посмотреть все задачи
+            </Button>
+          </CardContent>
+        </Card>
+
+        {/* Статистика AI Консультанта */}
+        <Card className="bg-gradient-to-br from-card to-card/50">
+          <CardHeader 
+            className="cursor-pointer hover:bg-accent/20 transition-colors rounded-t-lg"
+            onClick={() => navigate('/ai-consultant')}
+          >
+            <CardTitle className="flex items-center gap-2">
+              <Activity className="h-5 w-5 text-primary" />
+              Статистика AI Консультанта
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex justify-between items-center p-3 rounded-lg bg-accent/30">
+              <span className="text-sm font-medium">Обращений сегодня</span>
+              <Badge variant="secondary" className="text-base font-semibold">
+                {consultantStats.todayConversations}
+              </Badge>
+            </div>
+            <div className="flex justify-between items-center p-3 rounded-lg bg-accent/30">
+              <span className="text-sm font-medium">Сообщений обработано</span>
+              <Badge variant="secondary" className="text-base font-semibold">
+                {consultantStats.totalMessages}
+              </Badge>
+            </div>
+            <div className="flex justify-between items-center p-3 rounded-lg bg-accent/30">
+              <span className="text-sm font-medium">Время ответа</span>
+              <Badge variant="secondary" className="text-base font-semibold">
+                {consultantStats.averageResponseTime > 0 
+                  ? `${consultantStats.averageResponseTime} сек`
+                  : 'Нет данных'
+                }
+              </Badge>
+            </div>
+            <Button 
+              variant="outline" 
+              className="w-full mt-4" 
+              onClick={() => navigate('/ai-consultant')}
+            >
+              Открыть консультанта
             </Button>
           </CardContent>
         </Card>
