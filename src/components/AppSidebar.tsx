@@ -17,6 +17,7 @@ import {
   User
 } from "lucide-react";
 import { NavLink, useLocation } from "react-router-dom";
+import { useProfiles } from "@/hooks/useProfiles";
 
 import {
   Sidebar,
@@ -32,29 +33,35 @@ import {
 } from "@/components/ui/sidebar";
 
 const navigationItems = [
-  { title: "Дашборд", url: "/", icon: LayoutDashboard },
-  { title: "Клиенты и заявки", url: "/clients", icon: Users },
-  { title: "AI-Технолог", url: "/ai-technical-specialist", icon: HardHat },
-  { title: "Технические задания", url: "/technical-specifications", icon: FileText },
-  { title: "Сметы", url: "/estimates", icon: Calculator },
-  { title: "Коммерческие предложения", url: "/proposals", icon: FileText },
-  { title: "Подрядчики", url: "/contractors", icon: Wrench },
-  { title: "Поставщики", url: "/suppliers", icon: Truck },
-  { title: "Номенклатура", url: "/nomenclature", icon: Package },
-  { title: "Задачи", url: "/tasks", icon: CheckSquare },
-  { title: "Архив проектов", url: "/archive", icon: Archive },
-  { title: "ИИ-помощники", url: "/ai-assistants", icon: Bot },
-  { title: "Голосовой помощник", url: "/voice-chat", icon: Mic },
-  
-  { title: "Профили пользователей", url: "/user-profile", icon: User },
-  { title: "Управление пользователями", url: "/user-management", icon: UserCog },
+  { id: "dashboard", title: "Дашборд", url: "/", icon: LayoutDashboard },
+  { id: "clients", title: "Клиенты и заявки", url: "/clients", icon: Users },
+  { id: "ai-technical-specialist", title: "AI-Технолог", url: "/ai-technical-specialist", icon: HardHat },
+  { id: "technical-specifications", title: "Технические задания", url: "/technical-specifications", icon: FileText },
+  { id: "estimates", title: "Сметы", url: "/estimates", icon: Calculator },
+  { id: "proposals", title: "Коммерческие предложения", url: "/proposals", icon: FileText },
+  { id: "contractors", title: "Подрядчики", url: "/contractors", icon: Wrench },
+  { id: "suppliers", title: "Поставщики", url: "/suppliers", icon: Truck },
+  { id: "nomenclature", title: "Номенклатура", url: "/nomenclature", icon: Package },
+  { id: "tasks", title: "Задачи", url: "/tasks", icon: CheckSquare },
+  { id: "archive", title: "Архив проектов", url: "/archive", icon: Archive },
+  { id: "ai-assistants", title: "ИИ-помощники", url: "/ai-assistants", icon: Bot },
+  { id: "voice-chat", title: "Голосовой помощник", url: "/voice-chat", icon: Mic },
+  { id: "user-profile", title: "Профили пользователей", url: "/user-profile", icon: User },
+  { id: "user-management", title: "Управление пользователями", url: "/user-management", icon: UserCog },
 ];
 
 export function AppSidebar() {
   const { state, setOpen, isMobile } = useSidebar();
+  const { currentProfile } = useProfiles();
   const location = useLocation();
   const currentPath = location.pathname;
   const collapsed = state === "collapsed";
+
+  // Фильтруем пункты меню на основе настроек пользователя
+  const visibleMenuItems = currentProfile?.ui_preferences?.visible_menu_items;
+  const filteredNavigationItems = visibleMenuItems && visibleMenuItems.length > 0
+    ? navigationItems.filter(item => visibleMenuItems.includes(item.id))
+    : navigationItems; // Если настройки не заданы, показываем все
 
   const handleNavClick = () => {
     // Auto-collapse sidebar when navigation item is clicked on mobile
@@ -112,7 +119,7 @@ export function AppSidebar() {
           </SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu className="gap-1">
-              {navigationItems.map((item) => (
+              {filteredNavigationItems.map((item) => (
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton asChild className="h-10">
                     <NavLink 

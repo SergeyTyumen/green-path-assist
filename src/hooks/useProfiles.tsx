@@ -22,6 +22,7 @@ export interface Profile {
   telegram_username: string | null;
   whatsapp_phone: string | null;
   avatar_url: string | null;
+  ui_preferences: any;
 }
 
 export function useProfiles() {
