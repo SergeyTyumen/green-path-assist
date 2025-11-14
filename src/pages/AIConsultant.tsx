@@ -102,6 +102,8 @@ const AIConsultant = () => {
   const [nextActionDate, setNextActionDate] = useState('');
   const [isSavingComment, setIsSavingComment] = useState(false);
   const [isGeneratingComment, setIsGeneratingComment] = useState(false);
+  const [isGeneratingNextActions, setIsGeneratingNextActions] = useState(false);
+  const [suggestedNextActions, setSuggestedNextActions] = useState<Array<{title: string, priority: string, category: string}>>([]);
   const [selectedRecipient, setSelectedRecipient] = useState<{
     clientId: string;
     clientName: string;
@@ -1473,6 +1475,91 @@ const AIConsultant = () => {
                           <CardDescription>Запланируйте следующий шаг</CardDescription>
                         </CardHeader>
                         <CardContent className="space-y-3">
+                          <Button 
+                            onClick={async () => {
+                              if (!selectedClientId || !user) {
+                                toast({
+                                  title: "Ошибка",
+                                  description: "Выберите клиента",
+                                  variant: "destructive",
+                                });
+                                return;
+                              }
+
+                              const client = myClients.find(c => c.id === selectedClientId);
+                              if (!client?.comment) {
+                                toast({
+                                  title: "Ошибка",
+                                  description: "Сначала сохраните комментарий о переговорах",
+                                  variant: "destructive",
+                                });
+                                return;
+                              }
+                              
+                              setIsGeneratingNextActions(true);
+                              try {
+                                const { data, error } = await supabase.functions.invoke('generate-next-action', {
+                                  body: {
+                                    clientComment: client.comment,
+                                    clientData: {
+                                      name: client.name,
+                                      stage: client.conversion_stage,
+                                      phone: client.phone,
+                                      email: client.email,
+                                    }
+                                  }
+                                });
+
+                                if (error) throw error;
+                                
+                                if (data?.suggestions) {
+                                  setSuggestedNextActions(data.suggestions);
+                                  toast({
+                                    title: "Готово",
+                                    description: `Предложено ${data.suggestions.length} действий`,
+                                  });
+                                }
+                              } catch (error) {
+                                console.error('Error generating next actions:', error);
+                                toast({
+                                  title: "Ошибка",
+                                  description: "Не удалось сгенерировать действия",
+                                  variant: "destructive",
+                                });
+                              } finally {
+                                setIsGeneratingNextActions(false);
+                              }
+                            }}
+                            disabled={isGeneratingNextActions || !selectedClientId}
+                            className="w-full"
+                          >
+                            <Sparkles className="mr-2 h-4 w-4" />
+                            {isGeneratingNextActions ? 'Генерация...' : 'Сгенерировать с помощью ИИ'}
+                          </Button>
+
+                          {suggestedNextActions.length > 0 && (
+                            <div className="space-y-2">
+                              <Label>Предложенные действия</Label>
+                              {suggestedNextActions.map((action, index) => (
+                                <Card key={index} className="p-3 cursor-pointer hover:bg-accent transition-colors" onClick={() => {
+                                  setNextAction(action.title);
+                                }}>
+                                  <div className="flex items-start justify-between gap-2">
+                                    <div className="flex-1">
+                                      <p className="text-sm font-medium">{action.title}</p>
+                                      <div className="flex gap-2 mt-1">
+                                        <Badge variant={action.priority === 'high' ? 'destructive' : action.priority === 'medium' ? 'default' : 'secondary'} className="text-xs">
+                                          {action.priority === 'high' ? 'Высокий' : action.priority === 'medium' ? 'Средний' : 'Низкий'}
+                                        </Badge>
+                                        <Badge variant="outline" className="text-xs">{action.category}</Badge>
+                                      </div>
+                                    </div>
+                                  </div>
+                                </Card>
+                              ))}
+                            </div>
+                          )}
+                          
                           <div className="space-y-2">
                             <Label>Описание действия</Label>
                             <Textarea
@@ -1516,6 +1603,7 @@ const AIConsultant = () => {
                                 });
                                 setNextAction('');
                                 setNextActionDate('');
+                                setSuggestedNextActions([]);
                               } catch (error) {
                                 console.error('Error creating task:', error);
                                 toast({

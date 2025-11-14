@@ -28,8 +28,8 @@ serve(async (req) => {
       });
     }
 
-    const { context, currentStage, clientData, projectData } = await req.json();
-    console.log('Generate Next Action request:', { context, currentStage });
+    const { clientComment, clientData } = await req.json();
+    console.log('Generate Next Action request:', { clientComment, clientData });
 
     // Get OpenAI API key
     const { data: apiKeyData } = await supabaseClient
@@ -48,50 +48,33 @@ serve(async (req) => {
       });
     }
 
-    // Get recent client activity and history
-    const { data: recentHistory } = await supabaseClient
-      .from('voice_command_history')
-      .select('*')
-      .eq('user_id', user.id)
-      .order('created_at', { ascending: false })
-      .limit(10);
+    const systemPrompt = `Вы - AI Система Генерации Следующих Действий. Ваша задача - проанализировать комментарий о переговорах с клиентом и предложить 3-5 конкретных следующих действий для менеджера.
 
-    const { data: clientTasks } = await supabaseClient
-      .from('tasks')
-      .select('*')
-      .eq('user_id', user.id)
-      .eq('client_id', clientData?.id || null)
-      .order('created_at', { ascending: false })
-      .limit(5);
+Каждое действие должно быть:
+1. Конкретным и выполнимым
+2. Логичным продолжением текущего этапа
+3. Ориентированным на результат
 
-    const systemPrompt = `Вы - AI Система Генерации Следующих Действий, которая анализирует текущий контекст и предлагает оптимальные следующие шаги в работе с клиентами и проектами.
+Информация о клиенте:
+- Имя: ${clientData?.name || 'Неизвестно'}
+- Этап: ${clientData?.stage || 'Неизвестно'}
+- Телефон: ${clientData?.phone || 'Не указан'}
+- Email: ${clientData?.email || 'Не указан'}
 
-Ваши основные функции:
-1. Анализ текущего этапа взаимодействия с клиентом
-2. Предложение следующих логических действий
-3. Приоритизация задач по важности и срочности
-4. Автоматизация рутинных процессов
-5. Оптимизация воронки продаж
+Верните ТОЛЬКО массив JSON без дополнительного текста в следующем формате:
+[
+  {
+    "title": "Краткое описание действия",
+    "priority": "high|medium|low",
+    "category": "Категория действия"
+  }
+]
 
-Стадии клиента и возможные действия:
-- new: Первый звонок, квалификация лида
-- qualified: Назначение замера, техническое ТЗ
-- measured: Подготовка сметы, расчет материалов
-- estimated: Подготовка КП, презентация предложения
-- negotiating: Корректировка условий, работа с возражениями
-- contracted: Подписание договора, планирование работ
-- in_progress: Контроль выполнения, промежуточные отчеты
-- completed: Закрытие проекта, получение отзыва
-
-История активности: ${JSON.stringify(recentHistory, null, 2)}
-Текущие задачи: ${JSON.stringify(clientTasks, null, 2)}
-
-Формат ответа должен содержать:
-1. Рекомендуемые действия (приоритетные)
-2. Временные рамки выполнения
-3. Ответственного исполнителя или AI-ассистента
-4. Автоматизируемые задачи
-5. Потенциальные риски и их предотвращение`;
+Примеры категорий: "Звонок", "Email", "Встреча", "Подготовка документов", "Расчет", "Консультация"
+Примеры приоритетов: 
+- "high" - срочные действия (звонки, срочные согласования)
+- "medium" - важные плановые действия (подготовка КП, замеры)
+- "low" - отложенные действия (отправка доп. информации)`;
 
     const openAIResponse = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
@@ -100,12 +83,12 @@ serve(async (req) => {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'gpt-4.1-2025-04-14',
+        model: 'gpt-4o-mini',
         messages: [
           { role: 'system', content: systemPrompt },
-          { role: 'user', content: `Контекст: ${context}\n\nТекущий этап: ${currentStage}\n\nДанные клиента: ${JSON.stringify(clientData)}\n\nДанные проекта: ${JSON.stringify(projectData)}` }
+          { role: 'user', content: `Комментарий о переговорах:\n\n${clientComment}` }
         ],
-        max_tokens: 2000,
+        max_tokens: 1000,
         temperature: 0.7,
       }),
     });
@@ -117,37 +100,32 @@ serve(async (req) => {
     }
 
     const openAIData = await openAIResponse.json();
-    const recommendations = openAIData.choices[0].message.content;
+    const content = openAIData.choices[0].message.content;
+    
+    console.log('OpenAI Response:', content);
 
-    // Structure the response
-    const nextActions = {
-      immediate: [], // Действия на сегодня
-      shortTerm: [], // Действия на неделю
-      longTerm: [], // Долгосрочные действия
-      automated: [], // Автоматизируемые задачи
-      assistantTasks: [], // Задачи для AI-ассистентов
-      risks: [] // Потенциальные риски
-    };
+    // Parse JSON from AI response
+    let suggestions = [];
+    try {
+      // Try to extract JSON from response (AI might add extra text)
+      const jsonMatch = content.match(/\[[\s\S]*\]/);
+      if (jsonMatch) {
+        suggestions = JSON.parse(jsonMatch[0]);
+      } else {
+        suggestions = JSON.parse(content);
+      }
+    } catch (parseError) {
+      console.error('Failed to parse AI response:', parseError);
+      throw new Error('AI вернул невалидный формат данных');
+    }
 
-    // Save recommendations to database
-    await supabaseClient
-      .from('voice_command_history')
-      .insert({
-        user_id: user.id,
-        transcript: `Генерация следующих действий для этапа: ${currentStage}`,
-        actions: [{ 
-          type: 'next_action_generation', 
-          context,
-          currentStage,
-          recommendations: nextActions 
-        }],
-        status: 'completed'
-      });
+    // Validate suggestions format
+    if (!Array.isArray(suggestions) || suggestions.length === 0) {
+      throw new Error('AI не смог предложить действия');
+    }
 
     return new Response(JSON.stringify({ 
-      nextActions,
-      rawRecommendations: recommendations,
-      currentStage,
+      suggestions,
       timestamp: new Date().toISOString()
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
