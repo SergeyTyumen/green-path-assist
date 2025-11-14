@@ -1501,6 +1501,7 @@ const AIConsultant = () => {
                                 const { data, error } = await supabase.functions.invoke('generate-next-action', {
                                   body: {
                                     clientId: selectedClientId,
+                                    currentComment: clientComment.trim(),
                                     clientData: {
                                       name: client?.name,
                                       stage: client?.conversion_stage,
