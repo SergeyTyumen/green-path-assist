@@ -13,12 +13,21 @@ serve(async (req) => {
   }
 
   try {
+    const authHeader = req.headers.get('Authorization')!;
+    
+    // Создаем клиент с токеном пользователя для соблюдения RLS политик
     const supabaseClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_ANON_KEY') ?? '',
+      {
+        global: {
+          headers: {
+            Authorization: authHeader
+          }
+        }
+      }
     );
 
-    const authHeader = req.headers.get('Authorization')!;
     const { data: { user } } = await supabaseClient.auth.getUser(authHeader.replace('Bearer ', ''));
 
     if (!user) {
@@ -35,12 +44,8 @@ serve(async (req) => {
       hasCurrentComment: !!currentComment,
       currentCommentLength: currentComment?.length || 0,
       clientData,
-      fullRequestBody: requestBody,
-      currentUserId: user.id
+      userId: user.id
     });
-
-    // Получаем все комментарии клиента из истории
-    console.log('Attempting to fetch comments for client:', clientId, 'as user:', user.id);
 
     // Получаем все комментарии клиента из истории
     const { data: comments, error: commentsError } = await supabaseClient
