@@ -34,7 +34,12 @@ serve(async (req) => {
       })
       .join('\n');
 
-    console.log('Generating summary for conversation with', clientName);
+    console.log('Conversation history:', {
+      messagesCount: messages.length,
+      historyLength: conversationHistory.length,
+      firstMessage: messages[0],
+      conversationPreview: conversationHistory.substring(0, 200)
+    });
 
     const response = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
@@ -88,9 +93,19 @@ serve(async (req) => {
     }
 
     const data = await response.json();
-    const summary = data.choices[0].message.content;
+    console.log('OpenAI Response:', JSON.stringify(data, null, 2));
+    
+    const summary = data.choices?.[0]?.message?.content;
 
-    console.log('Summary generated:', summary?.substring(0, 100));
+    if (!summary) {
+      console.error('No summary in OpenAI response:', data);
+      return new Response(
+        JSON.stringify({ error: "OpenAI вернул пустой ответ" }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    console.log('Summary generated:', summary.substring(0, 100));
 
     return new Response(
       JSON.stringify({ summary }),
