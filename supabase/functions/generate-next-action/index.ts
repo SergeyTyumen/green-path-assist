@@ -45,6 +45,13 @@ serve(async (req) => {
       .eq('client_id', clientId)
       .order('created_at', { ascending: false });
 
+    console.log('Comments query result:', { 
+      hasError: !!commentsError, 
+      error: commentsError,
+      commentsCount: comments?.length || 0,
+      comments: comments?.map(c => ({ length: c.content?.length, type: c.comment_type }))
+    });
+
     if (commentsError) {
       console.error('Error fetching client comments:', commentsError);
       return new Response(JSON.stringify({ 
@@ -58,6 +65,8 @@ serve(async (req) => {
     // Проверяем наличие комментариев (сохраненных или текущего)
     const hasCurrentComment = currentComment && currentComment.trim().length > 0;
     const hasSavedComments = comments && comments.length > 0;
+
+    console.log('Comments check:', { hasCurrentComment, hasSavedComments, willFail: !hasCurrentComment && !hasSavedComments });
 
     if (!hasCurrentComment && !hasSavedComments) {
       return new Response(JSON.stringify({ 
