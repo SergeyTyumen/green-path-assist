@@ -28,8 +28,36 @@ serve(async (req) => {
       });
     }
 
-    const { clientComment, clientData } = await req.json();
-    console.log('Generate Next Action request:', { clientComment, clientData });
+    const { clientId, clientData } = await req.json();
+    console.log('Generate Next Action request:', { clientId, clientData });
+
+    // Получаем все комментарии клиента из истории
+    const { data: comments, error: commentsError } = await supabaseClient
+      .from('client_comments')
+      .select('content, created_at, comment_type')
+      .eq('client_id', clientId)
+      .order('created_at', { ascending: false });
+
+    if (commentsError) {
+      console.error('Error fetching client comments:', commentsError);
+      return new Response(JSON.stringify({ 
+        error: 'Ошибка загрузки истории переговоров' 
+      }), {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    if (!comments || comments.length === 0) {
+      return new Response(JSON.stringify({ 
+        error: 'Сначала сохраните комментарий о переговорах' 
+      }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    console.log(`Found ${comments.length} comments for client ${clientId}`);
 
     // Get OpenAI API key
     const { data: apiKeyData } = await supabaseClient
@@ -48,12 +76,18 @@ serve(async (req) => {
       });
     }
 
-    const systemPrompt = `Вы - AI Система Генерации Следующих Действий. Ваша задача - проанализировать комментарий о переговорах с клиентом и предложить 3-5 конкретных следующих действий для менеджера.
+    // Формируем текст всех комментариев для анализа
+    const commentsHistory = comments.map((comment, index) => 
+      `Комментарий ${index + 1} (${new Date(comment.created_at).toLocaleDateString('ru-RU')}):\n${comment.content}`
+    ).join('\n\n---\n\n');
+
+    const systemPrompt = `Вы - AI Система Генерации Следующих Действий. Ваша задача - проанализировать всю историю взаимодействия с клиентом и предложить 3-5 конкретных следующих действий для менеджера.
 
 Каждое действие должно быть:
 1. Конкретным и выполнимым
 2. Логичным продолжением текущего этапа
 3. Ориентированным на результат
+4. Основанным на всей истории переговоров, а не только на последнем комментарии
 
 Информация о клиенте:
 - Имя: ${clientData?.name || 'Неизвестно'}
@@ -86,7 +120,7 @@ serve(async (req) => {
         model: 'gpt-4o-mini',
         messages: [
           { role: 'system', content: systemPrompt },
-          { role: 'user', content: `Комментарий о переговорах:\n\n${clientComment}` }
+          { role: 'user', content: `История переговоров с клиентом (всего комментариев: ${comments.length}):\n\n${commentsHistory}` }
         ],
         max_tokens: 1000,
         temperature: 0.7,

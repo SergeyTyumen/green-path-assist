@@ -1487,10 +1487,10 @@ const AIConsultant = () => {
                               }
 
                               const client = myClients.find(c => c.id === selectedClientId);
-                              if (!client?.comment) {
+                              if (!selectedClientId) {
                                 toast({
                                   title: "Ошибка",
-                                  description: "Сначала сохраните комментарий о переговорах",
+                                  description: "Выберите клиента",
                                   variant: "destructive",
                                 });
                                 return;
@@ -1500,12 +1500,12 @@ const AIConsultant = () => {
                               try {
                                 const { data, error } = await supabase.functions.invoke('generate-next-action', {
                                   body: {
-                                    clientComment: client.comment,
+                                    clientId: selectedClientId,
                                     clientData: {
-                                      name: client.name,
-                                      stage: client.conversion_stage,
-                                      phone: client.phone,
-                                      email: client.email,
+                                      name: client?.name,
+                                      stage: client?.conversion_stage,
+                                      phone: client?.phone,
+                                      email: client?.email,
                                     }
                                   }
                                 });
