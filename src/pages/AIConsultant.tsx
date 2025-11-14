@@ -1353,9 +1353,14 @@ const AIConsultant = () => {
                                     }
                                   });
                                   
-                                  if (error) throw error;
+                                  console.log('AI Response:', { data, error });
                                   
-                                  if (data.error) {
+                                  if (error) {
+                                    console.error('Function error:', error);
+                                    throw error;
+                                  }
+                                  
+                                  if (data?.error) {
                                     toast({
                                       title: "Ошибка",
                                       description: data.error,
@@ -1364,10 +1369,23 @@ const AIConsultant = () => {
                                     return;
                                   }
                                   
-                                  setClientComment(data.summary);
+                                  // Проверяем различные варианты структуры ответа
+                                  const summary = data?.summary || data;
+                                  
+                                  if (!summary || typeof summary !== 'string') {
+                                    console.error('Invalid summary format:', data);
+                                    toast({
+                                      title: "Ошибка",
+                                      description: "Получен некорректный формат ответа от ИИ",
+                                      variant: "destructive",
+                                    });
+                                    return;
+                                  }
+                                  
+                                  setClientComment(summary);
                                   toast({
                                     title: "Комментарий сгенерирован",
-                                    description: "ИИ создал комментарий на основе истории переписки",
+                                    description: "Проверьте и отредактируйте комментарий перед сохранением",
                                   });
                                 } catch (error) {
                                   console.error('Error generating comment:', error);
