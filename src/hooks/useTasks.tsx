@@ -97,6 +97,21 @@ export function useTasks() {
 
   const updateTask = async (id: string, updates: Partial<Task>) => {
     try {
+      // Если обновляется due_date и задача просрочена, пересчитываем статус
+      if (updates.due_date) {
+        const task = tasks.find(t => t.id === id);
+        if (task && task.status === 'overdue') {
+          const newDueDate = new Date(updates.due_date);
+          const today = new Date();
+          today.setHours(0, 0, 0, 0);
+          
+          // Если новая дата в будущем или сегодня, меняем статус на pending
+          if (newDueDate >= today) {
+            updates.status = 'pending';
+          }
+        }
+      }
+
       const { data, error } = await supabase
         .from('tasks')
         .update(updates)
