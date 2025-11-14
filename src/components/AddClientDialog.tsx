@@ -11,6 +11,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Plus, Bot, Loader2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
+import { toast } from 'sonner';
 
 interface Client {
   id: string;
@@ -86,10 +87,18 @@ export function AddClientDialog({ isOpen, onClose, onSave, client }: AddClientDi
       return;
     }
 
+    // Проверяем наличие комментариев или заметок
+    if (!formData.notes?.trim() && !client?.notes?.trim()) {
+      toast.error('Добавьте заметки о клиенте для генерации следующего действия');
+      return;
+    }
+
     setGeneratingAction(true);
     try {
       const { data, error } = await supabase.functions.invoke('generate-next-action', {
         body: {
+          clientId: client?.id,
+          currentComment: formData.notes || '',
           clientData: {
             ...formData,
             id: client?.id,
