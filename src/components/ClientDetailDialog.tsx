@@ -250,6 +250,11 @@ export function ClientDetailDialog({ client, isOpen, onClose, onEdit, onClientUp
               <ClientCommentManager 
                 clientId={client.id} 
                 clientName={client.name}
+                clientData={{
+                  stage: client.status,
+                  phone: client.phone,
+                  email: client.email
+                }}
               />
             </ScrollArea>
           </TabsContent>
