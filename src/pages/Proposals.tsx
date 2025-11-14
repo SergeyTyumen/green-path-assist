@@ -13,7 +13,8 @@ import {
   Download,
   Send,
   Bot,
-  Loader2
+  Loader2,
+  Trash2
 } from "lucide-react";
 import { useProposals } from "@/hooks/useProposals";
 import { useClients } from "@/hooks/useClients";
@@ -25,7 +26,7 @@ export default function Proposals() {
   const [searchTerm, setSearchTerm] = useState("");
   const [viewingProposal, setViewingProposal] = useState<any | null>(null);
   
-  const { proposals, loading, updateProposal } = useProposals();
+  const { proposals, loading, updateProposal, deleteProposal } = useProposals();
   const { clients } = useClients();
 
   const getStatusBadge = (status: string) => {
@@ -68,6 +69,12 @@ export default function Proposals() {
       window.open(proposal.template_url, '_blank');
     } else {
       toast.error("Документ КП не найден");
+    }
+  };
+
+  const handleDeleteProposal = async (proposalId: string) => {
+    if (window.confirm("Вы уверены, что хотите удалить это коммерческое предложение?")) {
+      await deleteProposal(proposalId);
     }
   };
 
@@ -219,6 +226,17 @@ export default function Proposals() {
                         <Send className="h-4 w-4" />
                       </Button>
                     )}
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      className="min-touch-target text-destructive hover:text-destructive hover:bg-destructive/10"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDeleteProposal(proposal.id);
+                      }}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
                   </div>
                 </div>
               </div>
