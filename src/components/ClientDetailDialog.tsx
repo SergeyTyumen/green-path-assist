@@ -85,8 +85,8 @@ export function ClientDetailDialog({ client, isOpen, onClose, onEdit, onClientUp
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-4xl h-[95vh] sm:h-auto sm:max-h-[90vh] w-[95vw] sm:w-auto flex flex-col overflow-hidden p-0">
-        <div className="p-6 pb-3 border-b shrink-0">
+      <DialogContent className="max-w-4xl h-[95vh] sm:h-auto sm:max-h-[90vh] w-[95vw] sm:w-auto grid grid-rows-[auto_1fr_auto] overflow-hidden p-0">
+        <div className="p-6 pb-3 border-b">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <User className="h-5 w-5" />
@@ -101,9 +101,9 @@ export function ClientDetailDialog({ client, isOpen, onClose, onEdit, onClientUp
           </DialogHeader>
         </div>
 
-        <div className="flex-1 min-h-0 px-6">
-          <Tabs defaultValue="overview" className="h-full flex flex-col">
-          <TabsList className="grid w-full grid-cols-3 h-auto shrink-0">
+        <div className="overflow-hidden px-6">
+          <Tabs defaultValue="overview" className="h-full grid grid-rows-[auto_1fr]">
+          <TabsList className="grid w-full grid-cols-3 h-auto">
             <TabsTrigger value="overview" className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm py-2">
               <User className="h-3 w-3 sm:h-4 sm:w-4" />
               <span className="hidden sm:inline">Обзор</span>
@@ -121,7 +121,7 @@ export function ClientDetailDialog({ client, isOpen, onClose, onEdit, onClientUp
             </TabsTrigger>
           </TabsList>
 
-          <TabsContent value="overview" className="flex-1 min-h-0 overflow-auto pr-2 sm:pr-4 pb-4">
+          <TabsContent value="overview" className="overflow-y-auto h-full pr-2 sm:pr-4 pb-4">
             <div className="space-y-6">
               {/* Статус и основная информация */}
               <div className="flex items-center justify-between">
@@ -237,14 +237,14 @@ export function ClientDetailDialog({ client, isOpen, onClose, onEdit, onClientUp
             </div>
           </TabsContent>
 
-          <TabsContent value="status" className="flex-1 min-h-0 overflow-auto pr-2 sm:pr-4 pb-4">
+          <TabsContent value="status" className="overflow-y-auto h-full pr-2 sm:pr-4 pb-4">
             <ClientStatusManager 
               client={client} 
               onClientUpdate={handleClientUpdate}
             />
           </TabsContent>
 
-          <TabsContent value="history" className="flex-1 min-h-0 overflow-auto pr-2 sm:pr-4 pb-4">
+          <TabsContent value="history" className="overflow-y-auto h-full pr-2 sm:pr-4 pb-4">
             <ClientCommentManager
             clientId={client.id} 
             clientName={client.name}
