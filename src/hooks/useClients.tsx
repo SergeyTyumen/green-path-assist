@@ -31,6 +31,9 @@ export interface Client {
   utm_medium?: string;
   utm_campaign?: string;
   referrer_url?: string;
+  // Поля для завершенных проектов
+  is_completed?: boolean;
+  completed_at?: string;
 }
 
 export function useClients() {

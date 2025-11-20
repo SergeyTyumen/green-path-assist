@@ -20,6 +20,7 @@ import {
 } from '@/components/ui/select';
 import { CheckCircle2, Star } from 'lucide-react';
 import { useCompletedProjects } from '@/hooks/useCompletedProjects';
+import { supabase } from '@/integrations/supabase/client';
 
 interface CompleteProjectDialogProps {
   isOpen: boolean;
@@ -61,6 +62,7 @@ export function CompleteProjectDialog({
 
     setIsCompleting(true);
     try {
+      // Создаем запись о завершенном проекте
       await completeProject(
         clientId,
         clientName,
@@ -73,6 +75,16 @@ export function CompleteProjectDialog({
         notes,
         clientCreatedAt
       );
+      
+      // Обновляем клиента - помечаем как завершенный
+      await supabase
+        .from('clients')
+        .update({
+          is_completed: true,
+          completed_at: new Date().toISOString(),
+        })
+        .eq('id', clientId);
+      
       onCompleted?.();
       handleClose();
     } finally {

@@ -80,6 +80,11 @@ export default function Clients() {
   };
 
   const filteredClients = clients.filter(client => {
+    // Исключаем завершенные проекты из списка
+    if (client.is_completed) {
+      return false;
+    }
+    
     const matchesSearch = client.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          client.phone.includes(searchTerm) ||
                          client.email?.toLowerCase().includes(searchTerm.toLowerCase());
