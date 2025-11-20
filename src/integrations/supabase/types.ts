@@ -184,6 +184,68 @@ export type Database = {
         }
         Relationships: []
       }
+      client_archives: {
+        Row: {
+          archive_period: number
+          archive_reason_comment: string | null
+          archive_reason_type: string
+          archived_at: string
+          client_id: string
+          created_at: string
+          id: string
+          reminder_sent: boolean | null
+          reminder_sent_at: string | null
+          reminder_type: string
+          restore_at: string
+          restored_at: string | null
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          archive_period: number
+          archive_reason_comment?: string | null
+          archive_reason_type: string
+          archived_at?: string
+          client_id: string
+          created_at?: string
+          id?: string
+          reminder_sent?: boolean | null
+          reminder_sent_at?: string | null
+          reminder_type?: string
+          restore_at: string
+          restored_at?: string | null
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          archive_period?: number
+          archive_reason_comment?: string | null
+          archive_reason_type?: string
+          archived_at?: string
+          client_id?: string
+          created_at?: string
+          id?: string
+          reminder_sent?: boolean | null
+          reminder_sent_at?: string | null
+          reminder_type?: string
+          restore_at?: string
+          restored_at?: string | null
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "client_archives_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       client_comments: {
         Row: {
           author_name: string
@@ -272,6 +334,7 @@ export type Database = {
       clients: {
         Row: {
           address: string | null
+          archived_until: string | null
           assigned_manager_id: string | null
           budget: number | null
           campaign_id: string | null
@@ -279,6 +342,7 @@ export type Database = {
           created_at: string
           email: string | null
           id: string
+          is_archived: boolean | null
           last_contact: string | null
           lead_quality_score: number | null
           lead_source: string | null
@@ -301,6 +365,7 @@ export type Database = {
         }
         Insert: {
           address?: string | null
+          archived_until?: string | null
           assigned_manager_id?: string | null
           budget?: number | null
           campaign_id?: string | null
@@ -308,6 +373,7 @@ export type Database = {
           created_at?: string
           email?: string | null
           id?: string
+          is_archived?: boolean | null
           last_contact?: string | null
           lead_quality_score?: number | null
           lead_source?: string | null
@@ -330,6 +396,7 @@ export type Database = {
         }
         Update: {
           address?: string | null
+          archived_until?: string | null
           assigned_manager_id?: string | null
           budget?: number | null
           campaign_id?: string | null
@@ -337,6 +404,7 @@ export type Database = {
           created_at?: string
           email?: string | null
           id?: string
+          is_archived?: boolean | null
           last_contact?: string | null
           lead_quality_score?: number | null
           lead_source?: string | null
