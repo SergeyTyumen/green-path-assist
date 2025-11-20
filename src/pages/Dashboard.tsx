@@ -75,13 +75,13 @@ export default function Dashboard() {
       try {
         // Клиенты: сравниваем последние 30 дней с предыдущими 30 днями
         const { data: currentClients } = await supabase
-          .from('clients')
+          .from('applications')
           .select('id')
           .eq('user_id', user.id)
           .gte('created_at', thirtyDaysAgo.toISOString());
 
         const { data: previousClients } = await supabase
-          .from('clients')
+          .from('applications')
           .select('id')
           .eq('user_id', user.id)
           .gte('created_at', sixtyDaysAgo.toISOString())
@@ -202,7 +202,7 @@ export default function Dashboard() {
 
         // Получаем всех клиентов пользователя
         const { data: allClients } = await supabase
-          .from('clients')
+          .from('applications')
           .select('id, lead_source_details, assigned_manager_id')
           .eq('user_id', user.id);
 

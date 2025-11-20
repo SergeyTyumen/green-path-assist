@@ -113,6 +113,119 @@ export type Database = {
         }
         Relationships: []
       }
+      applications: {
+        Row: {
+          address: string | null
+          archived_until: string | null
+          assigned_manager_id: string | null
+          budget: number | null
+          campaign_id: string | null
+          client_id: string | null
+          completed_at: string | null
+          conversion_stage: string | null
+          created_at: string
+          email: string | null
+          id: string
+          is_archived: boolean | null
+          is_completed: boolean | null
+          last_contact: string | null
+          lead_quality_score: number | null
+          lead_source: string | null
+          lead_source_details: Json | null
+          name: string
+          next_action: string | null
+          notes: string | null
+          phone: string
+          project_area: number | null
+          project_description: string | null
+          referrer_url: string | null
+          services: string[]
+          stage_changed_at: string | null
+          status: string
+          updated_at: string
+          user_id: string
+          utm_campaign: string | null
+          utm_medium: string | null
+          utm_source: string | null
+        }
+        Insert: {
+          address?: string | null
+          archived_until?: string | null
+          assigned_manager_id?: string | null
+          budget?: number | null
+          campaign_id?: string | null
+          client_id?: string | null
+          completed_at?: string | null
+          conversion_stage?: string | null
+          created_at?: string
+          email?: string | null
+          id?: string
+          is_archived?: boolean | null
+          is_completed?: boolean | null
+          last_contact?: string | null
+          lead_quality_score?: number | null
+          lead_source?: string | null
+          lead_source_details?: Json | null
+          name: string
+          next_action?: string | null
+          notes?: string | null
+          phone: string
+          project_area?: number | null
+          project_description?: string | null
+          referrer_url?: string | null
+          services?: string[]
+          stage_changed_at?: string | null
+          status?: string
+          updated_at?: string
+          user_id: string
+          utm_campaign?: string | null
+          utm_medium?: string | null
+          utm_source?: string | null
+        }
+        Update: {
+          address?: string | null
+          archived_until?: string | null
+          assigned_manager_id?: string | null
+          budget?: number | null
+          campaign_id?: string | null
+          client_id?: string | null
+          completed_at?: string | null
+          conversion_stage?: string | null
+          created_at?: string
+          email?: string | null
+          id?: string
+          is_archived?: boolean | null
+          is_completed?: boolean | null
+          last_contact?: string | null
+          lead_quality_score?: number | null
+          lead_source?: string | null
+          lead_source_details?: Json | null
+          name?: string
+          next_action?: string | null
+          notes?: string | null
+          phone?: string
+          project_area?: number | null
+          project_description?: string | null
+          referrer_url?: string | null
+          services?: string[]
+          stage_changed_at?: string | null
+          status?: string
+          updated_at?: string
+          user_id?: string
+          utm_campaign?: string | null
+          utm_medium?: string | null
+          utm_source?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "applications_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients_base"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       channel_accounts: {
         Row: {
           channel_id: string
@@ -241,7 +354,7 @@ export type Database = {
             foreignKeyName: "client_archives_client_id_fkey"
             columns: ["client_id"]
             isOneToOne: false
-            referencedRelation: "clients"
+            referencedRelation: "applications"
             referencedColumns: ["id"]
           },
         ]
@@ -282,7 +395,76 @@ export type Database = {
             foreignKeyName: "client_comments_client_id_fkey"
             columns: ["client_id"]
             isOneToOne: false
-            referencedRelation: "clients"
+            referencedRelation: "applications"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      client_interactions: {
+        Row: {
+          application_id: string | null
+          client_id: string
+          created_at: string
+          description: string | null
+          direction: string | null
+          duration_minutes: number | null
+          id: string
+          interaction_type: string
+          metadata: Json | null
+          next_action: string | null
+          next_action_date: string | null
+          outcome: string | null
+          subject: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          application_id?: string | null
+          client_id: string
+          created_at?: string
+          description?: string | null
+          direction?: string | null
+          duration_minutes?: number | null
+          id?: string
+          interaction_type: string
+          metadata?: Json | null
+          next_action?: string | null
+          next_action_date?: string | null
+          outcome?: string | null
+          subject?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          application_id?: string | null
+          client_id?: string
+          created_at?: string
+          description?: string | null
+          direction?: string | null
+          duration_minutes?: number | null
+          id?: string
+          interaction_type?: string
+          metadata?: Json | null
+          next_action?: string | null
+          next_action_date?: string | null
+          outcome?: string | null
+          subject?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "client_interactions_application_id_fkey"
+            columns: ["application_id"]
+            isOneToOne: false
+            referencedRelation: "applications"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "client_interactions_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients_base"
             referencedColumns: ["id"]
           },
         ]
@@ -326,39 +508,26 @@ export type Database = {
             foreignKeyName: "client_stages_client_id_fkey"
             columns: ["client_id"]
             isOneToOne: false
-            referencedRelation: "clients"
+            referencedRelation: "applications"
             referencedColumns: ["id"]
           },
         ]
       }
-      clients: {
+      clients_base: {
         Row: {
           address: string | null
-          archived_until: string | null
-          assigned_manager_id: string | null
-          budget: number | null
           campaign_id: string | null
-          completed_at: string | null
-          conversion_stage: string | null
+          company_name: string | null
           created_at: string
           email: string | null
           id: string
-          is_archived: boolean | null
-          is_completed: boolean | null
-          last_contact: string | null
-          lead_quality_score: number | null
           lead_source: string | null
           lead_source_details: Json | null
           name: string
-          next_action: string | null
           notes: string | null
           phone: string
-          project_area: number | null
-          project_description: string | null
+          position: string | null
           referrer_url: string | null
-          services: string[]
-          stage_changed_at: string | null
-          status: string
           updated_at: string
           user_id: string
           utm_campaign: string | null
@@ -367,31 +536,18 @@ export type Database = {
         }
         Insert: {
           address?: string | null
-          archived_until?: string | null
-          assigned_manager_id?: string | null
-          budget?: number | null
           campaign_id?: string | null
-          completed_at?: string | null
-          conversion_stage?: string | null
+          company_name?: string | null
           created_at?: string
           email?: string | null
           id?: string
-          is_archived?: boolean | null
-          is_completed?: boolean | null
-          last_contact?: string | null
-          lead_quality_score?: number | null
           lead_source?: string | null
           lead_source_details?: Json | null
           name: string
-          next_action?: string | null
           notes?: string | null
           phone: string
-          project_area?: number | null
-          project_description?: string | null
+          position?: string | null
           referrer_url?: string | null
-          services?: string[]
-          stage_changed_at?: string | null
-          status?: string
           updated_at?: string
           user_id: string
           utm_campaign?: string | null
@@ -400,31 +556,18 @@ export type Database = {
         }
         Update: {
           address?: string | null
-          archived_until?: string | null
-          assigned_manager_id?: string | null
-          budget?: number | null
           campaign_id?: string | null
-          completed_at?: string | null
-          conversion_stage?: string | null
+          company_name?: string | null
           created_at?: string
           email?: string | null
           id?: string
-          is_archived?: boolean | null
-          is_completed?: boolean | null
-          last_contact?: string | null
-          lead_quality_score?: number | null
           lead_source?: string | null
           lead_source_details?: Json | null
           name?: string
-          next_action?: string | null
           notes?: string | null
           phone?: string
-          project_area?: number | null
-          project_description?: string | null
+          position?: string | null
           referrer_url?: string | null
-          services?: string[]
-          stage_changed_at?: string | null
-          status?: string
           updated_at?: string
           user_id?: string
           utm_campaign?: string | null
@@ -538,7 +681,7 @@ export type Database = {
             foreignKeyName: "completed_projects_client_id_fkey"
             columns: ["client_id"]
             isOneToOne: false
-            referencedRelation: "clients"
+            referencedRelation: "applications"
             referencedColumns: ["id"]
           },
         ]

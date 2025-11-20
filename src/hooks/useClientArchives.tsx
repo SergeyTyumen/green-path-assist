@@ -83,7 +83,7 @@ export function useClientArchives(clientId?: string) {
 
       // Update client status
       const { error: clientError } = await supabase
-        .from('clients')
+        .from('applications')
         .update({
           status: 'postponed',
           is_archived: true,
@@ -128,7 +128,7 @@ export function useClientArchives(clientId?: string) {
 
       // Update client status
       const { error: clientError } = await supabase
-        .from('clients')
+        .from('applications')
         .update({
           is_archived: false,
           archived_until: null,
