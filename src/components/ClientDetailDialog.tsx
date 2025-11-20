@@ -18,13 +18,15 @@ import {
   User,
   Edit,
   MessageSquare,
-  TrendingUp
+  TrendingUp,
+  Archive
 } from 'lucide-react';
 import { ClickablePhone } from '@/components/ClickablePhone';
 import { ClientCommentManager } from '@/components/ClientCommentManager';
 import { SalesFunnel } from '@/components/SalesFunnel';
 import { ProposalManager } from '@/components/ProposalManager';
 import { ContractManager } from '@/components/ContractManager';
+import { ArchiveClientDialog } from '@/components/ArchiveClientDialog';
 
 interface Client {
   id: string;
@@ -53,6 +55,8 @@ interface ClientDetailDialogProps {
 }
 
 export function ClientDetailDialog({ client, isOpen, onClose, onEdit, onClientUpdate }: ClientDetailDialogProps) {
+  const [showArchiveDialog, setShowArchiveDialog] = useState(false);
+  
   if (!client) return null;
 
   const getStatusConfig = (status: string) => {
@@ -87,6 +91,10 @@ export function ClientDetailDialog({ client, isOpen, onClose, onEdit, onClientUp
     if (onClientUpdate) {
       onClientUpdate(updatedClient);
     }
+  };
+
+  const handleArchived = () => {
+    onClose();
   };
 
   return (
@@ -281,9 +289,25 @@ export function ClientDetailDialog({ client, isOpen, onClose, onEdit, onClientUp
               <Phone className="h-4 w-4 mr-2" />
               Позвонить
             </Button>
+            <Button 
+              variant="outline" 
+              className="flex-1 min-h-[44px]"
+              onClick={() => setShowArchiveDialog(true)}
+            >
+              <Archive className="h-4 w-4 mr-2" />
+              Архив
+            </Button>
           </div>
         </div>
       </DialogContent>
+
+      <ArchiveClientDialog
+        isOpen={showArchiveDialog}
+        onClose={() => setShowArchiveDialog(false)}
+        clientId={client.id}
+        clientName={client.name}
+        onArchived={handleArchived}
+      />
     </Dialog>
   );
 }
