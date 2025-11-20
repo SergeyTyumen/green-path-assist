@@ -40,7 +40,7 @@ serve(async (req) => {
     let client = null;
     if (clientId) {
       const { data } = await supabase
-        .from('clients')
+        .from('applications')
         .select('*')
         .eq('id', clientId)
         .eq('user_id', user.id)
@@ -184,7 +184,7 @@ ${clientTasks?.map(t => `- ${t.title} (${t.status}, до ${t.due_date || 'без
       if (Object.keys(updates).length > 0) {
         updates.updated_at = new Date().toISOString();
         await supabase
-          .from('clients')
+          .from('applications')
           .update(updates)
           .eq('id', clientId)
           .eq('user_id', user.id);

@@ -609,7 +609,7 @@ async function createEstimateFromTechnicalTask(data: any, userId: string): Promi
     let clientInfo = null;
     if (technicalTask.client_name) {
       const { data: client } = await supabase
-        .from('clients')
+        .from('applications')
         .select('*')
         .eq('user_id', userId)
         .eq('name', technicalTask.client_name)

@@ -63,7 +63,7 @@ async function sendProposal(proposalId: string, userId: string, sendOptions: any
     .from('proposals')
     .select(`
       *,
-      clients (
+      applications (
         id, name, email, phone
       )
     `)
@@ -75,7 +75,7 @@ async function sendProposal(proposalId: string, userId: string, sendOptions: any
     throw new Error('КП не найдено');
   }
 
-  if (!proposal.clients?.email) {
+  if (!proposal.applications?.email) {
     throw new Error('У клиента не указан email для отправки');
   }
 
@@ -86,7 +86,7 @@ async function sendProposal(proposalId: string, userId: string, sendOptions: any
   const emailContent = await generateEmailContent(proposal, proposalContent, sendOptions);
 
   // Имитируем отправку email (в реальной системе здесь будет интеграция с email-сервисом)
-  const emailSent = await simulateEmailSending(proposal.clients.email, emailContent);
+  const emailSent = await simulateEmailSending(proposal.applications.email, emailContent);
 
   if (emailSent) {
     // Обновляем статус КП
@@ -107,7 +107,7 @@ async function sendProposal(proposalId: string, userId: string, sendOptions: any
     return {
       success: true,
       status: 'sent',
-      sent_to: proposal.clients.email,
+      sent_to: proposal.applications.email,
       sent_at: new Date().toISOString()
     };
   } else {
@@ -121,7 +121,7 @@ async function trackProposalStatus(proposalId: string, userId: string): Promise<
     .from('proposals')
     .select(`
       *,
-      clients (
+      applications (
         id, name, phone, email
       )
     `)
@@ -153,7 +153,7 @@ async function getClientData(clientId: string, userId: string) {
   if (!clientId) return null;
   
   const { data, error } = await supabase
-    .from('clients')
+    .from('applications')
     .select('*')
     .eq('id', clientId)
     .eq('user_id', userId)
@@ -325,7 +325,7 @@ async function generateEmailContent(proposal: any, proposalContent: string, send
   return `
 Тема: ${proposal.title}
 
-Добрый день, ${proposal.clients.name}!
+Добрый день, ${proposal.applications.name}!
 
 Направляем Вам коммерческое предложение согласно нашей договоренности.
 

@@ -660,7 +660,7 @@ async function createCrmClient(userId: string, clientData: any) {
     let existing = null as any;
     if (clientData.phone) {
       const { data: foundByPhone } = await supabaseAdmin
-        .from('clients')
+        .from('applications')
         .select('*')
         .eq('user_id', userId)
         .eq('phone', clientData.phone)
@@ -669,7 +669,7 @@ async function createCrmClient(userId: string, clientData: any) {
     }
     if (!existing && clientData.email) {
       const { data: foundByEmail } = await supabaseAdmin
-        .from('clients')
+        .from('applications')
         .select('*')
         .eq('user_id', userId)
         .eq('email', clientData.email)
@@ -681,7 +681,7 @@ async function createCrmClient(userId: string, clientData: any) {
       // Optionally enrich notes
       if (clientData.notes) {
         await supabaseAdmin
-          .from('clients')
+          .from('applications')
           .update({ notes: `${existing.notes || ''}\n${clientData.notes}`.trim() })
           .eq('id', existing.id);
       }
@@ -693,7 +693,7 @@ async function createCrmClient(userId: string, clientData: any) {
     }
 
     const { data, error } = await supabaseAdmin
-      .from('clients')
+      .from('applications')
       .insert({
         user_id: userId,
         name: clientData.name,
@@ -835,7 +835,7 @@ async function getClientInfo(userId: string, args: any) {
     
     // Strategy 1: Exact match
     let { data: exactClients } = await supabaseAdmin
-      .from('clients')
+      .from('applications')
       .select('id, name, phone, email, lead_source, created_at, notes, conversion_stage')
       .eq('user_id', userId)
       .ilike('name', args.client_name);
@@ -847,7 +847,7 @@ async function getClientInfo(userId: string, args: any) {
       for (const part of nameParts) {
         if (part.length > 1) { // Only search for parts longer than 1 character
           const { data: partialClients } = await supabaseAdmin
-            .from('clients')
+            .from('applications')
             .select('id, name, phone, email, lead_source, created_at, notes, conversion_stage')
             .eq('user_id', userId)
             .ilike('name', `%${part}%`);
@@ -953,7 +953,7 @@ async function completeTask(userId: string, args: any) {
       // Если указан клиент, добавляем фильтр
       if (args.client_name) {
         const { data: client } = await supabaseAdmin
-          .from('clients')
+          .from('applications')
           .select('id')
           .eq('user_id', userId)
           .ilike('name', `%${args.client_name}%`)
