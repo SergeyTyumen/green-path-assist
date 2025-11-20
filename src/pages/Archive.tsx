@@ -13,19 +13,25 @@ import {
   DollarSign,
   User,
   RotateCcw,
-  Clock
+  Clock,
+  CheckCircle2,
+  Star
 } from "lucide-react";
 import { useClientArchives } from "@/hooks/useClientArchives";
 import { useClients } from "@/hooks/useClients";
+import { useCompletedProjects } from "@/hooks/useCompletedProjects";
 import { format } from "date-fns";
 import { ru } from "date-fns/locale";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 export default function Archive() {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedReasonType, setSelectedReasonType] = useState("all");
+  const [activeTab, setActiveTab] = useState<'archived' | 'completed'>('archived');
   
   const { archives, loading, restoreClient, getDaysUntilRestore, refetch } = useClientArchives();
   const { clients } = useClients();
+  const { projects: completedProjects, loading: projectsLoading } = useCompletedProjects();
 
   useEffect(() => {
     refetch();
@@ -69,90 +75,114 @@ export default function Archive() {
     refetch();
   };
 
+  const totalRevenue = completedProjects.reduce((sum, p) => sum + p.final_amount, 0);
+  const avgProjectDuration = completedProjects.length > 0
+    ? Math.round(completedProjects.reduce((sum, p) => sum + (p.project_duration_days || 0), 0) / completedProjects.length)
+    : 0;
+
+  const filteredProjects = completedProjects.filter(project => {
+    const matchesSearch = project.client_name.toLowerCase().includes(searchTerm.toLowerCase());
+    return matchesSearch;
+  });
+
   return (
     <div className="max-w-full w-full p-4 sm:p-6 space-y-6">
       <div className="flex justify-between items-center">
         <div className="min-w-0 flex-1">
-          <h1 className="text-2xl sm:text-3xl font-bold text-foreground break-words">Архив клиентов</h1>
+          <h1 className="text-2xl sm:text-3xl font-bold text-foreground break-words">Архив</h1>
           <p className="text-muted-foreground mt-1 text-sm sm:text-base break-words">
-            Клиенты, отправленные в архив на определенный период
+            Архивные клиенты и реализованные проекты
           </p>
         </div>
       </div>
 
-      {/* Статистика */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center gap-2">
-              <ArchiveIcon className="h-5 w-5 text-primary" />
-              <div>
-                <div className="text-2xl font-bold text-foreground">{activeArchives.length}</div>
-                <div className="text-sm text-muted-foreground">Клиентов в архиве</div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center gap-2">
-              <Clock className="h-5 w-5 text-orange-600" />
-              <div>
-                <div className="text-2xl font-bold text-foreground">
-                  {activeArchives.filter(a => getDaysUntilRestore(a.restore_at) <= 7).length}
-                </div>
-                <div className="text-sm text-muted-foreground">Возврат на этой неделе</div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center gap-2">
-              <User className="h-5 w-5 text-blue-600" />
-              <div>
-                <div className="text-2xl font-bold text-foreground">
-                  {archives.filter(a => a.status === 'restored').length}
-                </div>
-                <div className="text-sm text-muted-foreground">Восстановлено всего</div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+      <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'archived' | 'completed')}>
+        <TabsList className="grid w-full grid-cols-2">
+          <TabsTrigger value="archived" className="flex items-center gap-2">
+            <ArchiveIcon className="h-4 w-4" />
+            Архивные клиенты
+          </TabsTrigger>
+          <TabsTrigger value="completed" className="flex items-center gap-2">
+            <CheckCircle2 className="h-4 w-4" />
+            Реализованные проекты
+          </TabsTrigger>
+        </TabsList>
 
-      {/* Поиск и фильтры */}
-      <Card>
-        <CardContent className="p-4">
-          <div className="flex flex-col sm:flex-row gap-4">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                placeholder="Поиск по названию, клиенту или подрядчику..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-9"
-              />
-            </div>
-            <div className="flex flex-wrap gap-2">
-              <Select value={selectedReasonType} onValueChange={setSelectedReasonType}>
-                <SelectTrigger className="w-full sm:w-40">
-                  <SelectValue placeholder="Причина" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Все причины</SelectItem>
-                  <SelectItem value="no_contact">Не на связи</SelectItem>
-                  <SelectItem value="insufficient_budget">Нет бюджета</SelectItem>
-                  <SelectItem value="project_postponed">Переносит</SelectItem>
-                  <SelectItem value="other">Другое</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+        {/* Архивные клиенты */}
+        <TabsContent value="archived" className="space-y-6">
+          {/* Статистика архивных */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <Card>
+              <CardContent className="p-4">
+                <div className="flex items-center gap-2">
+                  <ArchiveIcon className="h-5 w-5 text-primary" />
+                  <div>
+                    <div className="text-2xl font-bold text-foreground">{activeArchives.length}</div>
+                    <div className="text-sm text-muted-foreground">Клиентов в архиве</div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+            
+            <Card>
+              <CardContent className="p-4">
+                <div className="flex items-center gap-2">
+                  <Clock className="h-5 w-5 text-orange-600" />
+                  <div>
+                    <div className="text-2xl font-bold text-foreground">
+                      {activeArchives.filter(a => getDaysUntilRestore(a.restore_at) <= 7).length}
+                    </div>
+                    <div className="text-sm text-muted-foreground">Возврат на этой неделе</div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+            
+            <Card>
+              <CardContent className="p-4">
+                <div className="flex items-center gap-2">
+                  <User className="h-5 w-5 text-blue-600" />
+                  <div>
+                    <div className="text-2xl font-bold text-foreground">
+                      {archives.filter(a => a.status === 'restored').length}
+                    </div>
+                    <div className="text-sm text-muted-foreground">Восстановлено всего</div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
           </div>
-        </CardContent>
-      </Card>
+
+          {/* Поиск и фильтры для архива */}
+          <Card>
+            <CardContent className="p-4">
+              <div className="flex flex-col sm:flex-row gap-4">
+                <div className="relative flex-1">
+                  <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                  <Input
+                    placeholder="Поиск по имени или телефону..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="pl-9"
+                  />
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <Select value={selectedReasonType} onValueChange={setSelectedReasonType}>
+                    <SelectTrigger className="w-full sm:w-40">
+                      <SelectValue placeholder="Причина" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Все причины</SelectItem>
+                      <SelectItem value="no_contact">Не на связи</SelectItem>
+                      <SelectItem value="insufficient_budget">Нет бюджета</SelectItem>
+                      <SelectItem value="project_postponed">Переносит</SelectItem>
+                      <SelectItem value="other">Другое</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
 
       {/* Список архивных клиентов */}
       <div className="grid gap-4">

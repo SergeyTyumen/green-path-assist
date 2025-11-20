@@ -257,6 +257,9 @@ export function ClientDetailDialog({ client, isOpen, onClose, onEdit, onClientUp
               currentStage={client.status}
               clientCreatedAt={client.created_at}
               clientName={client.name}
+              clientServices={client.services}
+              clientBudget={client.budget}
+              clientArea={client.project_area}
               onClientUpdate={handleClientUpdate}
             />
             

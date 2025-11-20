@@ -38,12 +38,16 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { CompleteProjectDialog } from '@/components/CompleteProjectDialog';
 
 interface SalesFunnelProps {
   clientId: string;
   currentStage: string;
   clientCreatedAt: string;
   clientName: string;
+  clientServices: string[];
+  clientBudget?: number;
+  clientArea?: number;
   onClientUpdate?: (updatedClient: any) => void;
 }
 
@@ -164,10 +168,20 @@ const INACTIVE_STAGES: FunnelStage[] = [
   }
 ];
 
-export function SalesFunnel({ clientId, currentStage, clientCreatedAt, clientName, onClientUpdate }: SalesFunnelProps) {
+export function SalesFunnel({ 
+  clientId, 
+  currentStage, 
+  clientCreatedAt, 
+  clientName,
+  clientServices,
+  clientBudget,
+  clientArea, 
+  onClientUpdate 
+}: SalesFunnelProps) {
   const [stageHistory, setStageHistory] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
+  const [showCompleteDialog, setShowCompleteDialog] = useState(false);
   const [selectedStage, setSelectedStage] = useState<string | null>(null);
   const [closureReason, setClosureReason] = useState('');
   const [customReason, setCustomReason] = useState('');
@@ -224,7 +238,13 @@ export function SalesFunnel({ clientId, currentStage, clientCreatedAt, clientNam
   const handleStageClick = (stageId: string) => {
     if (stageId === currentStage) return; // Если уже на этом этапе
     setSelectedStage(stageId);
-    setShowConfirmDialog(true);
+    
+    // Для стадии "completed" показываем специальный диалог
+    if (stageId === 'completed') {
+      setShowCompleteDialog(true);
+    } else {
+      setShowConfirmDialog(true);
+    }
   };
 
   const updateClientStatus = async () => {
@@ -558,6 +578,34 @@ export function SalesFunnel({ clientId, currentStage, clientCreatedAt, clientNam
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Диалог завершения проекта */}
+      <CompleteProjectDialog
+        isOpen={showCompleteDialog}
+        onClose={() => {
+          setShowCompleteDialog(false);
+          setSelectedStage(null);
+        }}
+        clientId={clientId}
+        clientName={clientName}
+        clientServices={clientServices}
+        clientBudget={clientBudget}
+        clientArea={clientArea}
+        clientCreatedAt={clientCreatedAt}
+        onCompleted={() => {
+          // Обновляем данные после завершения
+          if (onClientUpdate) {
+            supabase
+              .from('clients')
+              .select('*')
+              .eq('id', clientId)
+              .single()
+              .then(({ data }) => {
+                if (data) onClientUpdate(data);
+              });
+          }
+        }}
+      />
     </div>
   );
 }
