@@ -52,15 +52,19 @@ export default function Clients() {
 
   const getStatusConfig = (status: string) => {
     const configs = {
-      "new": { label: "Новый", className: "bg-status-new text-white" },
-      "in-progress": { label: "В работе", className: "bg-status-in-progress text-white" },
-      "proposal-sent": { label: "КП отправлено", className: "bg-status-proposal-sent text-white" },
-      "call-scheduled": { label: "Созвон", className: "bg-status-call-scheduled text-white" },
-      "postponed": { label: "Отложено", className: "bg-status-postponed text-white" },
-      "closed": { label: "Закрыт", className: "bg-status-closed text-white" },
+      "lead": { label: "Лид", className: "bg-blue-100 text-blue-700" },
+      "qualification": { label: "Квалификация", className: "bg-cyan-100 text-cyan-700" },
+      "site-visit": { label: "Замер", className: "bg-indigo-100 text-indigo-700" },
+      "proposal-sent": { label: "КП", className: "bg-purple-100 text-purple-700" },
+      "negotiation": { label: "Переговоры", className: "bg-orange-100 text-orange-700" },
+      "contract-signing": { label: "Договор", className: "bg-amber-100 text-amber-700" },
+      "in-progress": { label: "В работе", className: "bg-yellow-100 text-yellow-700" },
+      "completed": { label: "Завершено", className: "bg-green-100 text-green-700" },
+      "postponed": { label: "Отложено", className: "bg-gray-100 text-gray-700" },
+      "closed": { label: "Закрыто", className: "bg-red-100 text-red-700" },
       "archived": { label: "В архиве", className: "bg-muted text-muted-foreground" }
     };
-    return configs[status as keyof typeof configs] || configs.new;
+    return configs[status as keyof typeof configs] || configs.lead;
   };
 
   const getServiceLabel = (service: string) => {

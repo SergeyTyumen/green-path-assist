@@ -18,11 +18,13 @@ import {
   User,
   Edit,
   Settings,
-  MessageSquare
+  MessageSquare,
+  TrendingUp
 } from 'lucide-react';
 import { ClickablePhone } from '@/components/ClickablePhone';
 import { ClientCommentManager } from '@/components/ClientCommentManager';
 import { ClientStatusManager } from '@/components/ClientStatusManager';
+import { SalesFunnel } from '@/components/SalesFunnel';
 
 interface Client {
   id: string;
@@ -55,14 +57,18 @@ export function ClientDetailDialog({ client, isOpen, onClose, onEdit, onClientUp
 
   const getStatusConfig = (status: string) => {
     const configs = {
-      "new": { label: "Новый", className: "bg-blue-100 text-blue-700" },
-      "in-progress": { label: "В работе", className: "bg-yellow-100 text-yellow-700" },
+      "lead": { label: "Лид", className: "bg-blue-100 text-blue-700" },
+      "qualification": { label: "Квалификация", className: "bg-cyan-100 text-cyan-700" },
+      "site-visit": { label: "Замер", className: "bg-indigo-100 text-indigo-700" },
       "proposal-sent": { label: "КП отправлено", className: "bg-purple-100 text-purple-700" },
-      "call-scheduled": { label: "Созвон", className: "bg-orange-100 text-orange-700" },
+      "negotiation": { label: "Переговоры", className: "bg-orange-100 text-orange-700" },
+      "contract-signing": { label: "Договор", className: "bg-amber-100 text-amber-700" },
+      "in-progress": { label: "В работе", className: "bg-yellow-100 text-yellow-700" },
+      "completed": { label: "Завершено", className: "bg-green-100 text-green-700" },
       "postponed": { label: "Отложено", className: "bg-gray-100 text-gray-700" },
-      "closed": { label: "Закрыт", className: "bg-green-100 text-green-700" }
+      "closed": { label: "Закрыто", className: "bg-red-100 text-red-700" }
     };
-    return configs[status as keyof typeof configs] || configs.new;
+    return configs[status as keyof typeof configs] || configs.lead;
   };
 
   const getServiceLabel = (service: string) => {
@@ -103,15 +109,20 @@ export function ClientDetailDialog({ client, isOpen, onClose, onEdit, onClientUp
 
         <div className="overflow-hidden px-6">
           <Tabs defaultValue="overview" className="h-full grid grid-rows-[auto_1fr]">
-          <TabsList className="grid w-full grid-cols-3 h-auto">
+          <TabsList className="grid w-full grid-cols-4 h-auto">
             <TabsTrigger value="overview" className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm py-2">
               <User className="h-3 w-3 sm:h-4 sm:w-4" />
               <span className="hidden sm:inline">Обзор</span>
               <span className="sm:hidden">Инфо</span>
             </TabsTrigger>
+            <TabsTrigger value="funnel" className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm py-2">
+              <TrendingUp className="h-3 w-3 sm:h-4 sm:w-4" />
+              <span className="hidden sm:inline">Воронка</span>
+              <span className="sm:hidden">Этапы</span>
+            </TabsTrigger>
             <TabsTrigger value="status" className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm py-2">
               <Settings className="h-3 w-3 sm:h-4 sm:w-4" />
-              <span className="hidden sm:inline">Управление сделкой</span>
+              <span className="hidden sm:inline">Управление</span>
               <span className="sm:hidden">Сделка</span>
             </TabsTrigger>
             <TabsTrigger value="history" className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm py-2">
@@ -235,6 +246,18 @@ export function ClientDetailDialog({ client, isOpen, onClose, onEdit, onClientUp
                 )}
               </div>
             </div>
+          </TabsContent>
+
+          <TabsContent value="funnel" className="overflow-y-auto h-full pr-2 sm:pr-4 pb-4">
+            <SalesFunnel 
+              clientId={client.id}
+              currentStage={client.status}
+              clientCreatedAt={client.created_at}
+              onStageSelect={(stage) => {
+                // Обновляем статус клиента при выборе этапа
+                handleClientUpdate({ ...client, status: stage });
+              }}
+            />
           </TabsContent>
 
           <TabsContent value="status" className="overflow-y-auto h-full pr-2 sm:pr-4 pb-4">

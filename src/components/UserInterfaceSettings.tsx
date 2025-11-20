@@ -33,10 +33,8 @@ const MENU_ITEMS: MenuItemConfig[] = [
 const DASHBOARD_WIDGETS: MenuItemConfig[] = [
   { id: 'stats', label: 'Статистика', description: 'Основные показатели' },
   { id: 'recent_clients', label: 'Последние клиенты', description: 'Недавно добавленные клиенты' },
-  { id: 'tasks_chart', label: 'График задач', description: 'Визуализация задач' },
-  { id: 'overdue_tasks', label: 'Просроченные задачи', description: 'Задачи с истекшим сроком' },
-  { id: 'conversion_funnel', label: 'Воронка продаж', description: 'Этапы конверсии клиентов' },
-  { id: 'revenue_chart', label: 'График выручки', description: 'Динамика доходов' },
+  { id: 'tasks_today', label: 'Задачи на сегодня', description: 'Актуальные задачи' },
+  { id: 'ai_consultant', label: 'AI Консультант', description: 'Статистика AI помощника' }
 ];
 
 export function UserInterfaceSettings() {
