@@ -92,7 +92,7 @@ export function ClientStatusManager({ client, onClientUpdate }: ClientStatusMana
     try {
       // Обновляем статус клиента
       const { data: updatedClient, error: updateError } = await supabase
-        .from('clients')
+        .from('applications')
         .update({ 
           status: newStatus,
           updated_at: new Date().toISOString()

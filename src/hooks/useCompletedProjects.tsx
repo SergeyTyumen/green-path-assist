@@ -92,7 +92,7 @@ export function useCompletedProjects() {
 
       // Update client status
       const { error: clientError } = await supabase
-        .from('clients')
+        .from('applications')
         .update({
           status: 'completed',
           is_completed: true,

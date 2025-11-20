@@ -199,7 +199,7 @@ const AIConsultant = () => {
 
         // Загружаем существующих клиентов, чтобы определить какие контакты уже стали лидами
         const { data: existingClients, error: clientsError } = await supabase
-          .from('clients')
+          .from('applications')
           .select('lead_source_details')
           .or(`user_id.eq.${user.id},assigned_manager_id.eq.${user.id}`)
           .not('lead_source_details', 'is', null);
@@ -220,7 +220,7 @@ const AIConsultant = () => {
 
         // Загружаем клиентов для отображения в списке "Мои клиенты"
         const { data: clientsList, error: clientsListError } = await supabase
-          .from('clients')
+          .from('applications')
           .select('*')
           .or(`user_id.eq.${user.id},assigned_manager_id.eq.${user.id}`)
           .not('lead_source_details', 'is', null)
@@ -719,7 +719,7 @@ const AIConsultant = () => {
 
       // Проверяем, существует ли уже клиент с таким контактом
       const { data: existingClient } = await supabase
-        .from('clients')
+        .from('applications')
         .select('id, name')
         .eq('user_id', user.id)
         .or(`phone.eq.${contact.phone},email.eq.${contact.email}`)
@@ -735,7 +735,7 @@ const AIConsultant = () => {
 
       // Создаем нового клиента и автоматически назначаем текущего менеджера
       const { data: newClient, error: clientError } = await supabase
-        .from('clients')
+        .from('applications')
         .insert({
           user_id: user.id,
           name: contact.name || contactName,

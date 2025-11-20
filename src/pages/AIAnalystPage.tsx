@@ -71,7 +71,7 @@ const AIAnalystPage = () => {
     try {
       // Получаем данные из CRM для анализа
       const { data: clientsData } = await supabase
-        .from('clients')
+        .from('applications')
         .select('*')
         .order('created_at', { ascending: false });
 

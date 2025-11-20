@@ -260,7 +260,7 @@ export function SalesFunnel({
     try {
       // Обновляем статус клиента
       const { data: updatedClient, error: updateError } = await supabase
-        .from('clients')
+        .from('applications')
         .update({ 
           status: selectedStage,
           updated_at: new Date().toISOString()
@@ -596,7 +596,7 @@ export function SalesFunnel({
           // Обновляем данные после завершения
           if (onClientUpdate) {
             supabase
-              .from('clients')
+              .from('applications')
               .select('*')
               .eq('id', clientId)
               .single()

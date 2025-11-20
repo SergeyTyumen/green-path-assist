@@ -78,7 +78,7 @@ export function CompleteProjectDialog({
       
       // Обновляем клиента - помечаем как завершенный
       await supabase
-        .from('clients')
+        .from('applications')
         .update({
           is_completed: true,
           completed_at: new Date().toISOString(),
