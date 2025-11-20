@@ -48,12 +48,23 @@ const AIAssistants = () => {
       settingsComponent: null
     },
     {
-      id: 'voice-dispatcher',
-      name: 'Голосовой ИИ-ассистент',
-      description: 'Главный помощник руководителя с голосовым управлением и диспетчеризацией',
+      id: 'voice-assistant-elevenlabs',
+      name: 'Голосовой помощник (ElevenLabs)',
+      description: 'Базовый голосовой помощник с поддержкой ElevenLabs для простых команд',
       icon: Mic,
       status: 'active',
-      features: ['Голосовые команды', 'Управление другими ИИ', 'Диспетчеризация задач', 'Аналитика CRM'],
+      features: ['Голосовой режим', 'Создание задач', 'Информация о клиентах', 'Простые команды'],
+      color: 'bg-sky-500',
+      route: '/voice-assistant',
+      settingsComponent: null
+    },
+    {
+      id: 'voice-dispatcher',
+      name: 'Расширенный голосовой ассистент',
+      description: 'Главный помощник руководителя с AI-диспетчеризацией и полной интеграцией CRM',
+      icon: Mic,
+      status: 'active',
+      features: ['Function calling', 'Streaming', 'OpenAI + Yandex GPT', 'Управление другими ИИ', 'Глубокая интеграция'],
       color: 'bg-blue-500',
       route: '/voice-chat',
       settingsComponent: 'voice'
@@ -283,7 +294,7 @@ const AIAssistants = () => {
             <div className="flex items-center gap-3">
               <Bot className="h-8 w-8 text-primary" />
               <div>
-                <p className="text-2xl font-bold">10</p>
+                <p className="text-2xl font-bold">11</p>
                 <p className="text-sm text-muted-foreground">Активных помощников</p>
               </div>
             </div>
