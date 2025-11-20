@@ -1,4 +1,4 @@
-import { Outlet } from "react-router-dom";
+import { Outlet, useNavigate } from "react-router-dom";
 import { Menu, LogOut, LayoutGrid } from "lucide-react";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
@@ -11,6 +11,7 @@ import { AvatarUpload } from "@/components/AvatarUpload";
 export function Layout() {
   const { user, signOut } = useAuth();
   const { currentProfile } = useProfiles();
+  const navigate = useNavigate();
 
   return (
     <ProtectedRoute>
@@ -30,15 +31,20 @@ export function Layout() {
               </div>
               
               <div className="flex items-center gap-1 sm:gap-2 min-w-0">
-                <AvatarUpload
-                  currentAvatarUrl={currentProfile?.avatar_url}
-                  onAvatarChange={() => {}}
-                  fullName={currentProfile?.full_name}
-                  size="sm"
-                />
-                <div className="text-xs sm:text-sm font-medium text-foreground truncate max-w-[120px] sm:max-w-none">
-                  {currentProfile?.full_name || user?.email}
-                </div>
+                <button 
+                  onClick={() => navigate("/user-profile")}
+                  className="flex items-center gap-1 sm:gap-2 hover:bg-accent/50 rounded-md p-1 transition-colors"
+                >
+                  <AvatarUpload
+                    currentAvatarUrl={currentProfile?.avatar_url}
+                    onAvatarChange={() => {}}
+                    fullName={currentProfile?.full_name}
+                    size="sm"
+                  />
+                  <div className="text-xs sm:text-sm font-medium text-foreground truncate max-w-[120px] sm:max-w-none">
+                    {currentProfile?.full_name || user?.email}
+                  </div>
+                </button>
                 <Button
                   variant="ghost"
                   size="sm"

@@ -58,9 +58,10 @@ export function AppSidebar() {
   const collapsed = state === "collapsed";
 
   // Фильтруем пункты меню на основе настроек пользователя
+  // ВАЖНО: "user-profile" всегда должен быть виден, чтобы пользователь мог попасть в настройки
   const visibleMenuItems = currentProfile?.ui_preferences?.visible_menu_items;
   const filteredNavigationItems = visibleMenuItems && visibleMenuItems.length > 0
-    ? navigationItems.filter(item => visibleMenuItems.includes(item.id))
+    ? navigationItems.filter(item => visibleMenuItems.includes(item.id) || item.id === "user-profile")
     : navigationItems; // Если настройки не заданы, показываем все
 
   const handleNavClick = () => {
