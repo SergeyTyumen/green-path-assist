@@ -273,6 +273,160 @@ export default function Archive() {
           </CardContent>
         </Card>
       )}
+        </TabsContent>
+
+        {/* Реализованные проекты */}
+        <TabsContent value="completed" className="space-y-6">
+          {/* Статистика проектов */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <Card>
+              <CardContent className="p-4">
+                <div className="flex items-center gap-2">
+                  <CheckCircle2 className="h-5 w-5 text-green-600" />
+                  <div>
+                    <div className="text-2xl font-bold text-foreground">{completedProjects.length}</div>
+                    <div className="text-sm text-muted-foreground">Проектов завершено</div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+            
+            <Card>
+              <CardContent className="p-4">
+                <div className="flex items-center gap-2">
+                  <DollarSign className="h-5 w-5 text-green-600" />
+                  <div>
+                    <div className="text-2xl font-bold text-foreground">
+                      {totalRevenue.toLocaleString('ru-RU')} ₽
+                    </div>
+                    <div className="text-sm text-muted-foreground">Общий доход</div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+            
+            <Card>
+              <CardContent className="p-4">
+                <div className="flex items-center gap-2">
+                  <Clock className="h-5 w-5 text-blue-600" />
+                  <div>
+                    <div className="text-2xl font-bold text-foreground">{avgProjectDuration}</div>
+                    <div className="text-sm text-muted-foreground">Средняя длительность (дней)</div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Поиск для проектов */}
+          <Card>
+            <CardContent className="p-4">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  placeholder="Поиск по имени клиента..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-9"
+                />
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Список завершенных проектов */}
+          <div className="grid gap-4">
+            {filteredProjects.map((project) => (
+              <Card key={project.id} className="hover:shadow-md transition-shadow">
+                <CardContent className="p-4 sm:p-6">
+                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-[minmax(0,1fr)_auto]">
+                    <div className="min-w-0">
+                      <div className="flex flex-wrap items-center gap-2 mb-3">
+                        <h3 className="text-base sm:text-lg font-semibold text-foreground">
+                          {project.client_name}
+                        </h3>
+                        {project.client_rating && (
+                          <div className="flex items-center gap-1">
+                            <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
+                            <span className="text-sm font-medium">{project.client_rating}</span>
+                          </div>
+                        )}
+                        <Badge className="bg-green-100 text-green-700">
+                          {project.payment_status === 'paid' ? 'Оплачено' : 'Частично оплачено'}
+                        </Badge>
+                      </div>
+                      
+                      <div className="space-y-2">
+                        <div className="flex items-center gap-2 text-sm">
+                          <DollarSign className="h-4 w-4 text-muted-foreground" />
+                          <span className="font-medium">{project.final_amount.toLocaleString('ru-RU')} ₽</span>
+                        </div>
+                        
+                        <div className="flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
+                          <div className="flex items-center gap-1">
+                            <Calendar className="h-4 w-4" />
+                            <span>Завершен: {format(new Date(project.completion_date), 'd MMMM yyyy', { locale: ru })}</span>
+                          </div>
+                          {project.project_duration_days && (
+                            <div className="flex items-center gap-1">
+                              <Clock className="h-4 w-4" />
+                              <span>Длительность: {project.project_duration_days} дней</span>
+                            </div>
+                          )}
+                        </div>
+
+                        {project.services && project.services.length > 0 && (
+                          <div className="flex flex-wrap gap-1 mt-2">
+                            {project.services.map((service, idx) => (
+                              <Badge key={idx} variant="outline" className="text-xs">
+                                {service}
+                              </Badge>
+                            ))}
+                          </div>
+                        )}
+
+                        {project.client_feedback && (
+                          <div className="mt-2 p-3 bg-muted/50 rounded-lg">
+                            <p className="text-sm text-muted-foreground italic">
+                              "{project.client_feedback}"
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2">
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        className="w-full sm:w-auto"
+                      >
+                        <Eye className="h-4 w-4 mr-2" />
+                        Детали
+                      </Button>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+
+          {filteredProjects.length === 0 && !projectsLoading && (
+            <Card>
+              <CardContent className="p-12 text-center">
+                <CheckCircle2 className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                <h3 className="text-lg font-medium text-foreground mb-2">
+                  Завершенных проектов не найдено
+                </h3>
+                <p className="text-muted-foreground">
+                  {searchTerm 
+                    ? 'Попробуйте изменить параметры поиска' 
+                    : 'Пока нет завершенных проектов'}
+                </p>
+              </CardContent>
+            </Card>
+          )}
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
