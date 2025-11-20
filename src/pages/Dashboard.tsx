@@ -473,13 +473,19 @@ export default function Dashboard() {
 
   const getStatusBadge = (status: string) => {
     const statusConfig = {
-      "new": { label: "Новый", className: "bg-status-new/10 text-status-new" },
-      "proposal-sent": { label: "КП отправлено", className: "bg-status-proposal-sent/10 text-status-proposal-sent" },
-      "call-scheduled": { label: "Созвон", className: "bg-status-call-scheduled/10 text-status-call-scheduled" },
-      "in-progress": { label: "В работе", className: "bg-status-in-progress/10 text-status-in-progress" }
+      "lead": { label: "Лид", className: "bg-blue-100 text-blue-700" },
+      "qualification": { label: "Квалификация", className: "bg-cyan-100 text-cyan-700" },
+      "site-visit": { label: "Замер", className: "bg-indigo-100 text-indigo-700" },
+      "proposal-sent": { label: "КП", className: "bg-purple-100 text-purple-700" },
+      "negotiation": { label: "Переговоры", className: "bg-orange-100 text-orange-700" },
+      "contract-signing": { label: "Договор", className: "bg-amber-100 text-amber-700" },
+      "in-progress": { label: "В работе", className: "bg-yellow-100 text-yellow-700" },
+      "completed": { label: "Завершено", className: "bg-green-100 text-green-700" },
+      "postponed": { label: "Отложено", className: "bg-gray-100 text-gray-700" },
+      "closed": { label: "Закрыто", className: "bg-red-100 text-red-700" }
     };
     
-    const config = statusConfig[status as keyof typeof statusConfig] || statusConfig.new;
+    const config = statusConfig[status as keyof typeof statusConfig] || statusConfig.lead;
     
     return (
       <span className={`px-2 py-1 rounded-full text-xs font-medium ${config.className}`}>

@@ -38,14 +38,16 @@ export function ClientStatusManager({ client, onClientUpdate }: ClientStatusMana
   const { user } = useAuth();
 
   const statusOptions = [
-    { value: "new", label: "Новый", color: "bg-blue-100 text-blue-700" },
-    { value: "in-progress", label: "В работе", color: "bg-yellow-100 text-yellow-700" },
+    { value: "lead", label: "Лид", color: "bg-blue-100 text-blue-700" },
+    { value: "qualification", label: "Квалификация", color: "bg-cyan-100 text-cyan-700" },
+    { value: "site-visit", label: "Замер объекта", color: "bg-indigo-100 text-indigo-700" },
     { value: "proposal-sent", label: "КП отправлено", color: "bg-purple-100 text-purple-700" },
-    { value: "call-scheduled", label: "Созвон назначен", color: "bg-orange-100 text-orange-700" },
-    { value: "contract-signing", label: "Подписание договора", color: "bg-indigo-100 text-indigo-700" },
-    { value: "completed", label: "Выполнен", color: "bg-green-100 text-green-700" },
+    { value: "negotiation", label: "Переговоры", color: "bg-orange-100 text-orange-700" },
+    { value: "contract-signing", label: "Подписание договора", color: "bg-amber-100 text-amber-700" },
+    { value: "in-progress", label: "В работе", color: "bg-yellow-100 text-yellow-700" },
+    { value: "completed", label: "Завершено", color: "bg-green-100 text-green-700" },
     { value: "postponed", label: "Отложено", color: "bg-gray-100 text-gray-700" },
-    { value: "closed", label: "Закрыт", color: "bg-red-100 text-red-700" }
+    { value: "closed", label: "Закрыто", color: "bg-red-100 text-red-700" }
   ];
 
   const closureReasons = [
