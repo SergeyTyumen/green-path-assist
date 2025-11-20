@@ -2,6 +2,9 @@ import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
+import { Button } from '@/components/ui/button';
+import { Textarea } from '@/components/ui/textarea';
+import { Label } from '@/components/ui/label';
 import { 
   Sparkles, 
   Search, 
@@ -13,16 +16,35 @@ import {
   CheckCircle,
   Clock,
   XCircle,
-  TrendingUp
+  TrendingUp,
+  ArrowRight
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/hooks/useAuth';
 import { cn } from '@/lib/utils';
+import { toast } from 'sonner';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 
 interface SalesFunnelProps {
   clientId: string;
   currentStage: string;
   clientCreatedAt: string;
-  onStageSelect?: (stage: string) => void;
+  clientName: string;
+  onClientUpdate?: (updatedClient: any) => void;
 }
 
 export interface FunnelStage {
@@ -142,9 +164,25 @@ const INACTIVE_STAGES: FunnelStage[] = [
   }
 ];
 
-export function SalesFunnel({ clientId, currentStage, clientCreatedAt, onStageSelect }: SalesFunnelProps) {
+export function SalesFunnel({ clientId, currentStage, clientCreatedAt, clientName, onClientUpdate }: SalesFunnelProps) {
   const [stageHistory, setStageHistory] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showConfirmDialog, setShowConfirmDialog] = useState(false);
+  const [selectedStage, setSelectedStage] = useState<string | null>(null);
+  const [closureReason, setClosureReason] = useState('');
+  const [customReason, setCustomReason] = useState('');
+  const [updating, setUpdating] = useState(false);
+  const { user } = useAuth();
+
+  const closureReasons = [
+    "Не прошли по цене",
+    "Выбрали другого подрядчика",
+    "Отложили проект",
+    "Не устроили сроки",
+    "Не устроило качество предложения",
+    "Изменились обстоятельства",
+    "Другое"
+  ];
 
   useEffect(() => {
     loadStageHistory();
@@ -181,6 +219,94 @@ export function SalesFunnel({ clientId, currentStage, clientCreatedAt, onStageSe
     const diffTime = Math.abs(now.getTime() - created.getTime());
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
     return diffDays;
+  };
+
+  const handleStageClick = (stageId: string) => {
+    if (stageId === currentStage) return; // Если уже на этом этапе
+    setSelectedStage(stageId);
+    setShowConfirmDialog(true);
+  };
+
+  const updateClientStatus = async () => {
+    if (!selectedStage || !user) return;
+
+    // Проверяем обязательность причины для статуса "закрыт"
+    if (selectedStage === 'closed' && !closureReason && !customReason) {
+      toast.error('Укажите причину закрытия сделки');
+      return;
+    }
+
+    setUpdating(true);
+    try {
+      // Обновляем статус клиента
+      const { data: updatedClient, error: updateError } = await supabase
+        .from('clients')
+        .update({ 
+          status: selectedStage,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', clientId)
+        .select()
+        .single();
+
+      if (updateError) throw updateError;
+
+      // Если статус "закрыт", сохраняем в таблицу закрытых сделок
+      if (selectedStage === 'closed') {
+        const finalReason = customReason || closureReason;
+        
+        await supabase
+          .from('closed_deals')
+          .insert({
+            user_id: user.id,
+            client_id: clientId,
+            client_name: clientName,
+            closure_reason: finalReason,
+            notes: `Сделка закрыта: ${finalReason}`
+          });
+      }
+
+      // Добавляем запись в историю комментариев
+      const oldStageLabel = getCurrentStageInfo().label;
+      const newStageInfo = [...FUNNEL_STAGES, ...INACTIVE_STAGES].find(s => s.id === selectedStage);
+      const newStageLabel = newStageInfo?.label || selectedStage;
+      
+      let commentContent = `Статус изменен с "${oldStageLabel}" на "${newStageLabel}"`;
+      if (selectedStage === 'closed') {
+        const finalReason = customReason || closureReason;
+        commentContent += `. Причина закрытия: ${finalReason}`;
+      }
+      
+      await supabase
+        .from('client_comments')
+        .insert({
+          client_id: clientId,
+          user_id: user.id,
+          content: commentContent,
+          comment_type: 'status_change',
+          author_name: user.email || 'Пользователь'
+        });
+
+      if (onClientUpdate && updatedClient) {
+        onClientUpdate(updatedClient);
+      }
+      
+      toast.success('Статус клиента обновлен');
+      setShowConfirmDialog(false);
+      setClosureReason('');
+      setCustomReason('');
+      setSelectedStage(null);
+    } catch (error) {
+      console.error('Error updating client status:', error);
+      toast.error('Ошибка при обновлении статуса');
+    } finally {
+      setUpdating(false);
+    }
+  };
+
+  const getSelectedStageInfo = () => {
+    if (!selectedStage) return null;
+    return [...FUNNEL_STAGES, ...INACTIVE_STAGES].find(s => s.id === selectedStage);
   };
 
   const isStageCompleted = (stageId: string) => {
@@ -246,7 +372,7 @@ export function SalesFunnel({ clientId, currentStage, clientCreatedAt, onStageSe
             return (
               <div
                 key={stage.id}
-                onClick={() => onStageSelect?.(stage.id)}
+                onClick={() => handleStageClick(stage.id)}
                 className={cn(
                   "relative group cursor-pointer transition-all duration-200",
                   current && "scale-[1.02]"
@@ -345,7 +471,7 @@ export function SalesFunnel({ clientId, currentStage, clientCreatedAt, onStageSe
                 return (
                   <div
                     key={stage.id}
-                    onClick={() => onStageSelect?.(stage.id)}
+                    onClick={() => handleStageClick(stage.id)}
                     className={cn(
                       "flex items-center gap-2 p-3 rounded-lg border cursor-pointer transition-all",
                       current && cn(stage.bgColor, stage.borderColor, "border-2 shadow-sm"),
@@ -371,6 +497,67 @@ export function SalesFunnel({ clientId, currentStage, clientCreatedAt, onStageSe
           </div>
         </CardContent>
       </Card>
+
+      {/* Диалог подтверждения смены статуса */}
+      <Dialog open={showConfirmDialog} onOpenChange={setShowConfirmDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Изменить этап сделки?</DialogTitle>
+            <DialogDescription>
+              Вы собираетесь изменить этап с "{getCurrentStageInfo().label}" на "{getSelectedStageInfo()?.label}"
+            </DialogDescription>
+          </DialogHeader>
+
+          {selectedStage === 'closed' && (
+            <div className="space-y-3">
+              <Label className="text-sm font-medium">Причина закрытия сделки *</Label>
+              <Select value={closureReason} onValueChange={setClosureReason}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Выберите причину" />
+                </SelectTrigger>
+                <SelectContent>
+                  {closureReasons.map((reason) => (
+                    <SelectItem key={reason} value={reason}>
+                      {reason}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              
+              {(closureReason === 'Другое' || closureReason === '') && (
+                <div>
+                  <Label className="text-sm">Укажите свою причину:</Label>
+                  <Textarea
+                    value={customReason}
+                    onChange={(e) => setCustomReason(e.target.value)}
+                    placeholder="Опишите причину закрытия сделки..."
+                    className="mt-1"
+                    rows={3}
+                  />
+                </div>
+              )}
+            </div>
+          )}
+
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setShowConfirmDialog(false);
+                setSelectedStage(null);
+                setClosureReason('');
+                setCustomReason('');
+              }}
+              disabled={updating}
+            >
+              Отмена
+            </Button>
+            <Button onClick={updateClientStatus} disabled={updating}>
+              {updating ? 'Обновление...' : 'Изменить этап'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

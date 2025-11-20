@@ -17,14 +17,14 @@ import {
   FileText, 
   User,
   Edit,
-  Settings,
   MessageSquare,
   TrendingUp
 } from 'lucide-react';
 import { ClickablePhone } from '@/components/ClickablePhone';
 import { ClientCommentManager } from '@/components/ClientCommentManager';
-import { ClientStatusManager } from '@/components/ClientStatusManager';
 import { SalesFunnel } from '@/components/SalesFunnel';
+import { ProposalManager } from '@/components/ProposalManager';
+import { ContractManager } from '@/components/ContractManager';
 
 interface Client {
   id: string;
@@ -109,7 +109,7 @@ export function ClientDetailDialog({ client, isOpen, onClose, onEdit, onClientUp
 
         <div className="overflow-hidden px-6">
           <Tabs defaultValue="overview" className="h-full grid grid-rows-[auto_1fr]">
-          <TabsList className="grid w-full grid-cols-4 h-auto">
+          <TabsList className="grid w-full grid-cols-3 h-auto">
             <TabsTrigger value="overview" className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm py-2">
               <User className="h-3 w-3 sm:h-4 sm:w-4" />
               <span className="hidden sm:inline">Обзор</span>
@@ -117,12 +117,7 @@ export function ClientDetailDialog({ client, isOpen, onClose, onEdit, onClientUp
             </TabsTrigger>
             <TabsTrigger value="funnel" className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm py-2">
               <TrendingUp className="h-3 w-3 sm:h-4 sm:w-4" />
-              <span className="hidden sm:inline">Воронка</span>
-              <span className="sm:hidden">Этапы</span>
-            </TabsTrigger>
-            <TabsTrigger value="status" className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm py-2">
-              <Settings className="h-3 w-3 sm:h-4 sm:w-4" />
-              <span className="hidden sm:inline">Управление</span>
+              <span className="hidden sm:inline">Воронка и документы</span>
               <span className="sm:hidden">Сделка</span>
             </TabsTrigger>
             <TabsTrigger value="history" className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm py-2">
@@ -248,23 +243,18 @@ export function ClientDetailDialog({ client, isOpen, onClose, onEdit, onClientUp
             </div>
           </TabsContent>
 
-          <TabsContent value="funnel" className="overflow-y-auto h-full pr-2 sm:pr-4 pb-4">
+          <TabsContent value="funnel" className="overflow-y-auto h-full pr-2 sm:pr-4 pb-4 space-y-6">
             <SalesFunnel 
               clientId={client.id}
               currentStage={client.status}
               clientCreatedAt={client.created_at}
-              onStageSelect={(stage) => {
-                // Обновляем статус клиента при выборе этапа
-                handleClientUpdate({ ...client, status: stage });
-              }}
-            />
-          </TabsContent>
-
-          <TabsContent value="status" className="overflow-y-auto h-full pr-2 sm:pr-4 pb-4">
-            <ClientStatusManager 
-              client={client} 
+              clientName={client.name}
               onClientUpdate={handleClientUpdate}
             />
+            
+            <ProposalManager clientId={client.id} clientName={client.name} />
+            
+            <ContractManager clientId={client.id} clientName={client.name} />
           </TabsContent>
 
           <TabsContent value="history" className="overflow-y-auto h-full pr-2 sm:pr-4 pb-4">
