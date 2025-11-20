@@ -16,7 +16,7 @@ const supabase = createClient(supabaseUrl, supabaseServiceKey);
 async function createCRMClient(data: any, userId: string) {
   console.log('Creating client:', data);
   const { data: result, error } = await supabase
-    .from('clients')
+    .from('applications')
     .insert({
       user_id: userId,
       name: data.name,
@@ -118,7 +118,7 @@ async function createSupplier(data: any, userId: string) {
 async function findClient(query: any, userId: string) {
   console.log('Searching for client:', query);
   const { data, error } = await supabase
-    .from('clients')
+    .from('applications')
     .select('*')
     .eq('user_id', userId)
     .or(`name.ilike.%${query.name || ''}%,phone.ilike.%${query.phone || ''}%`);
@@ -237,7 +237,7 @@ async function updateClientWithComment(clientId: string, comment: string, userId
   
   // Получаем текущие заметки
   const { data: client, error: fetchError } = await supabase
-    .from('clients')
+    .from('applications')
     .select('notes')
     .eq('id', clientId)
     .eq('user_id', userId)
@@ -253,8 +253,8 @@ async function updateClientWithComment(clientId: string, comment: string, userId
     : newNote;
   
   const { data, error } = await supabase
-    .from('clients')
-    .update({ 
+    .from('applications')
+    .update({
       notes: updatedNotes,
       last_contact: new Date().toISOString(),
       updated_at: new Date().toISOString()
@@ -271,7 +271,7 @@ async function updateClientWithComment(clientId: string, comment: string, userId
 // Получение данных для аналитики
 async function getClientsData(userId: string) {
   const { data, error } = await supabase
-    .from('clients')
+    .from('applications')
     .select('*')
     .eq('user_id', userId);
   

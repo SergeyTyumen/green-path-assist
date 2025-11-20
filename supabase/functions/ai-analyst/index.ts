@@ -91,7 +91,7 @@ async function getCRMDataForAnalysis(userId: string): Promise<any> {
   try {
     // Получаем клиентов
     const { data: clients, error: clientsError } = await supabase
-      .from('clients')
+      .from('applications')
       .select('*')
       .eq('user_id', userId);
 
