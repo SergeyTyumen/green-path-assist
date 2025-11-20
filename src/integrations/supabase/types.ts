@@ -338,11 +338,13 @@ export type Database = {
           assigned_manager_id: string | null
           budget: number | null
           campaign_id: string | null
+          completed_at: string | null
           conversion_stage: string | null
           created_at: string
           email: string | null
           id: string
           is_archived: boolean | null
+          is_completed: boolean | null
           last_contact: string | null
           lead_quality_score: number | null
           lead_source: string | null
@@ -369,11 +371,13 @@ export type Database = {
           assigned_manager_id?: string | null
           budget?: number | null
           campaign_id?: string | null
+          completed_at?: string | null
           conversion_stage?: string | null
           created_at?: string
           email?: string | null
           id?: string
           is_archived?: boolean | null
+          is_completed?: boolean | null
           last_contact?: string | null
           lead_quality_score?: number | null
           lead_source?: string | null
@@ -400,11 +404,13 @@ export type Database = {
           assigned_manager_id?: string | null
           budget?: number | null
           campaign_id?: string | null
+          completed_at?: string | null
           conversion_stage?: string | null
           created_at?: string
           email?: string | null
           id?: string
           is_archived?: boolean | null
+          is_completed?: boolean | null
           last_contact?: string | null
           lead_quality_score?: number | null
           lead_source?: string | null
@@ -468,6 +474,74 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      completed_projects: {
+        Row: {
+          actual_area: number | null
+          after_photos: string[] | null
+          before_photos: string[] | null
+          client_feedback: string | null
+          client_id: string
+          client_name: string
+          client_rating: number | null
+          completion_date: string
+          created_at: string
+          final_amount: number
+          id: string
+          notes: string | null
+          payment_status: string
+          project_duration_days: number | null
+          services: string[]
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          actual_area?: number | null
+          after_photos?: string[] | null
+          before_photos?: string[] | null
+          client_feedback?: string | null
+          client_id: string
+          client_name: string
+          client_rating?: number | null
+          completion_date?: string
+          created_at?: string
+          final_amount: number
+          id?: string
+          notes?: string | null
+          payment_status?: string
+          project_duration_days?: number | null
+          services?: string[]
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          actual_area?: number | null
+          after_photos?: string[] | null
+          before_photos?: string[] | null
+          client_feedback?: string | null
+          client_id?: string
+          client_name?: string
+          client_rating?: number | null
+          completion_date?: string
+          created_at?: string
+          final_amount?: number
+          id?: string
+          notes?: string | null
+          payment_status?: string
+          project_duration_days?: number | null
+          services?: string[]
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "completed_projects_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       contact_identities: {
         Row: {
