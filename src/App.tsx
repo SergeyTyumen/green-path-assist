@@ -33,6 +33,7 @@ import AITechnicalSpecialist from "./pages/AITechnicalSpecialistNew";
 import TechnicalSpecifications from "./pages/TechnicalSpecifications";
 import UserManagement from "./pages/UserManagement";
 import UserProfile from "./pages/UserProfile";
+import MasterDashboard from "./pages/MasterDashboard";
 import { RegistrationRequest } from "./pages/RegistrationRequest";
 import { ForgotPassword } from "./pages/ForgotPassword";
 import { ResetPassword } from "./pages/ResetPassword";
@@ -76,6 +77,7 @@ const App = () => (
             <Route path="ai-assistants-settings" element={<AIAssistantsSettings />} />
             <Route path="user-management" element={<UserManagement />} />
             <Route path="user-profile" element={<UserProfile />} />
+            <Route path="master-dashboard" element={<MasterDashboard />} />
           </Route>
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />

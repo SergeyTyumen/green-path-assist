@@ -1496,6 +1496,53 @@ export type Database = {
         }
         Relationships: []
       }
+      project_assignments: {
+        Row: {
+          assigned_at: string
+          assigned_by: string
+          created_at: string
+          id: string
+          notes: string | null
+          project_id: string
+          removed_at: string | null
+          role_on_project: string
+          updated_at: string
+          worker_id: string
+        }
+        Insert: {
+          assigned_at?: string
+          assigned_by: string
+          created_at?: string
+          id?: string
+          notes?: string | null
+          project_id: string
+          removed_at?: string | null
+          role_on_project?: string
+          updated_at?: string
+          worker_id: string
+        }
+        Update: {
+          assigned_at?: string
+          assigned_by?: string
+          created_at?: string
+          id?: string
+          notes?: string | null
+          project_id?: string
+          removed_at?: string | null
+          role_on_project?: string
+          updated_at?: string
+          worker_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_assignments_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "applications"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       projects: {
         Row: {
           area: number | null
@@ -2223,6 +2270,134 @@ export type Database = {
         }
         Relationships: []
       }
+      work_reports: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          photos: string[] | null
+          project_id: string | null
+          report_type: string
+          review_comment: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          status: string
+          task_id: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          photos?: string[] | null
+          project_id?: string | null
+          report_type: string
+          review_comment?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+          task_id?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          photos?: string[] | null
+          project_id?: string | null
+          report_type?: string
+          review_comment?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+          task_id?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "work_reports_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "applications"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "work_reports_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "tasks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      work_requests: {
+        Row: {
+          assigned_to: string | null
+          created_at: string
+          description: string | null
+          id: string
+          project_id: string
+          quantity: number | null
+          request_type: string
+          resolution_comment: string | null
+          resolved_at: string | null
+          resolved_by: string | null
+          status: string
+          title: string
+          unit: string | null
+          updated_at: string
+          urgency: string
+          user_id: string
+        }
+        Insert: {
+          assigned_to?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          project_id: string
+          quantity?: number | null
+          request_type: string
+          resolution_comment?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          status?: string
+          title: string
+          unit?: string | null
+          updated_at?: string
+          urgency?: string
+          user_id: string
+        }
+        Update: {
+          assigned_to?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          project_id?: string
+          quantity?: number | null
+          request_type?: string
+          resolution_comment?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          status?: string
+          title?: string
+          unit?: string | null
+          updated_at?: string
+          urgency?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "work_requests_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "applications"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
@@ -2253,6 +2428,7 @@ export type Database = {
       }
       is_admin: { Args: never; Returns: boolean }
       is_contacts_owner: { Args: { contact_user_id: string }; Returns: boolean }
+      is_master: { Args: { _user_id: string }; Returns: boolean }
       mark_messages_as_read: {
         Args: { p_conversation_id: string; p_user_id: string }
         Returns: undefined
