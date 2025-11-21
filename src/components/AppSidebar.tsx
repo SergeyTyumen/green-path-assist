@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import { NavLink, useLocation } from "react-router-dom";
 import { useProfiles } from "@/hooks/useProfiles";
+import { useUserRole, UserRole } from "@/hooks/useUserRole";
 
 import {
   Sidebar,
@@ -32,8 +33,17 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar";
 
-const navigationItems = [
+type NavigationItem = {
+  id: string;
+  title: string;
+  url: string;
+  icon: any;
+  requireRole?: UserRole;
+};
+
+const navigationItems: NavigationItem[] = [
   { id: "dashboard", title: "Дашборд", url: "/", icon: LayoutDashboard },
+  { id: "master-dashboard", title: "Панель мастера", url: "/master-dashboard", icon: HardHat, requireRole: "master" },
   { id: "clients", title: "Клиенты и заявки", url: "/clients", icon: Users },
   { id: "ai-technical-specialist", title: "AI-Технолог", url: "/ai-technical-specialist", icon: HardHat },
   { id: "technical-specifications", title: "Технические задания", url: "/technical-specifications", icon: FileText },
@@ -53,16 +63,27 @@ const navigationItems = [
 export function AppSidebar() {
   const { state, setOpen, isMobile } = useSidebar();
   const { currentProfile } = useProfiles();
+  const { hasRole } = useUserRole();
   const location = useLocation();
   const currentPath = location.pathname;
   const collapsed = state === "collapsed";
 
-  // Фильтруем пункты меню на основе настроек пользователя
+  // Фильтруем пункты меню на основе настроек пользователя и ролей
   // ВАЖНО: "user-profile" всегда должен быть виден, чтобы пользователь мог попасть в настройки
   const visibleMenuItems = currentProfile?.ui_preferences?.visible_menu_items;
-  const filteredNavigationItems = visibleMenuItems && visibleMenuItems.length > 0
-    ? navigationItems.filter(item => visibleMenuItems.includes(item.id) || item.id === "user-profile")
-    : navigationItems; // Если настройки не заданы, показываем все
+  const filteredNavigationItems = navigationItems.filter(item => {
+    // Проверяем требование роли
+    if (item.requireRole && !hasRole(item.requireRole)) {
+      return false;
+    }
+    
+    // Проверяем видимость в настройках
+    if (visibleMenuItems && visibleMenuItems.length > 0) {
+      return visibleMenuItems.includes(item.id) || item.id === "user-profile";
+    }
+    
+    return true;
+  });
 
   const handleNavClick = () => {
     // Auto-collapse sidebar when navigation item is clicked on mobile
