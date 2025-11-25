@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { format } from 'date-fns';
 import { ru } from 'date-fns/locale';
 import { Download, Eye, FileText, Trash2, Plus, Edit3, Sparkles, Mic, MicOff } from 'lucide-react';
+import jsPDF from 'jspdf';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -51,36 +52,176 @@ const TechnicalSpecifications = () => {
   };
 
   const handleDownloadPDF = async (spec: any) => {
-    toast.info('Скачивание PDF будет реализовано в следующей версии');
+    try {
+      const doc = new jsPDF();
+      const pageWidth = doc.internal.pageSize.getWidth();
+      const margin = 15;
+      const lineHeight = 7;
+      let yPosition = 20;
+
+      // Заголовок
+      doc.setFontSize(16);
+      doc.setFont('helvetica', 'bold');
+      doc.text('ТЕХНИЧЕСКОЕ ЗАДАНИЕ', pageWidth / 2, yPosition, { align: 'center' });
+      yPosition += lineHeight * 2;
+
+      // Общая информация
+      doc.setFontSize(12);
+      doc.setFont('helvetica', 'bold');
+      doc.text('ОБЩАЯ ИНФОРМАЦИЯ', margin, yPosition);
+      yPosition += lineHeight;
+
+      doc.setFontSize(10);
+      doc.setFont('helvetica', 'normal');
+      doc.text(`Название: ${spec.title || 'Не указано'}`, margin, yPosition);
+      yPosition += lineHeight;
+      doc.text(`Клиент: ${spec.client_name || 'Не указан'}`, margin, yPosition);
+      yPosition += lineHeight;
+      doc.text(`Адрес: ${spec.object_address || 'Не указан'}`, margin, yPosition);
+      yPosition += lineHeight * 2;
+
+      // Описание объекта
+      if (spec.object_description) {
+        doc.setFontSize(12);
+        doc.setFont('helvetica', 'bold');
+        doc.text('ОПИСАНИЕ ОБЪЕКТА', margin, yPosition);
+        yPosition += lineHeight;
+        
+        doc.setFontSize(10);
+        doc.setFont('helvetica', 'normal');
+        const descLines = doc.splitTextToSize(spec.object_description, pageWidth - margin * 2);
+        descLines.forEach((line: string) => {
+          if (yPosition > 270) {
+            doc.addPage();
+            yPosition = 20;
+          }
+          doc.text(line, margin, yPosition);
+          yPosition += lineHeight;
+        });
+        yPosition += lineHeight;
+      }
+
+      // Объем работ
+      if (spec.work_scope) {
+        if (yPosition > 240) {
+          doc.addPage();
+          yPosition = 20;
+        }
+        doc.setFontSize(12);
+        doc.setFont('helvetica', 'bold');
+        doc.text('ОБЪЕМ РАБОТ', margin, yPosition);
+        yPosition += lineHeight;
+
+        doc.setFontSize(10);
+        doc.setFont('helvetica', 'normal');
+        const workLines = doc.splitTextToSize(spec.work_scope, pageWidth - margin * 2);
+        workLines.forEach((line: string) => {
+          if (yPosition > 270) {
+            doc.addPage();
+            yPosition = 20;
+          }
+          doc.text(line, margin, yPosition);
+          yPosition += lineHeight;
+        });
+        yPosition += lineHeight;
+      }
+
+      // Спецификация материалов
+      if (spec.materials_spec) {
+        if (yPosition > 240) {
+          doc.addPage();
+          yPosition = 20;
+        }
+        doc.setFontSize(12);
+        doc.setFont('helvetica', 'bold');
+        doc.text('СПЕЦИФИКАЦИЯ МАТЕРИАЛОВ', margin, yPosition);
+        yPosition += lineHeight;
+
+        doc.setFontSize(10);
+        doc.setFont('helvetica', 'normal');
+        const materialsText = typeof spec.materials_spec === 'string' 
+          ? spec.materials_spec 
+          : JSON.stringify(spec.materials_spec, null, 2);
+        const materialsLines = doc.splitTextToSize(materialsText, pageWidth - margin * 2);
+        materialsLines.forEach((line: string) => {
+          if (yPosition > 270) {
+            doc.addPage();
+            yPosition = 20;
+          }
+          doc.text(line, margin, yPosition);
+          yPosition += lineHeight;
+        });
+      }
+
+      doc.save(`ТЗ_${spec.client_name || 'документ'}_${format(new Date(), 'dd.MM.yyyy')}.pdf`);
+      toast.success('PDF успешно загружен');
+    } catch (error) {
+      console.error('Ошибка создания PDF:', error);
+      toast.error('Ошибка при создании PDF');
+    }
   };
 
   const handleDownloadDocx = async (spec: any) => {
-    toast.info('Скачивание DOCX будет реализовано в следующей версии');
-  };
-
-  const handleCreateEstimate = async (spec: any) => {
     try {
-      toast.info('Создание сметы из технического задания...');
+      toast.info('Генерация DOCX...');
       
-      const { data, error } = await supabase.functions.invoke('ai-estimator', {
+      const { data, error } = await supabase.functions.invoke('generate-proposal-document', {
         body: {
-          technical_specification: spec,
-          action: 'create_estimate_from_spec'
+          type: 'technical_specification',
+          data: {
+            title: spec.title,
+            client_name: spec.client_name,
+            object_address: spec.object_address,
+            object_description: spec.object_description,
+            work_scope: spec.work_scope,
+            materials_spec: typeof spec.materials_spec === 'string' 
+              ? spec.materials_spec 
+              : JSON.stringify(spec.materials_spec, null, 2),
+            normative_references: spec.normative_references,
+            quality_requirements: spec.quality_requirements,
+            timeline: spec.timeline,
+            safety_requirements: spec.safety_requirements,
+            acceptance_criteria: spec.acceptance_criteria,
+            additional_requirements: spec.additional_requirements
+          }
         }
       });
 
       if (error) throw error;
 
-      if (data?.estimate_id) {
-        toast.success('Смета успешно создана! Переход к просмотру...');
-        navigate(`/ai-estimator?estimate_id=${data.estimate_id}`);
-      } else {
-        toast.success('Смета создана!');
-      }
+      // Создаем blob и скачиваем
+      const blob = new Blob([new Uint8Array(data.file)], { 
+        type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' 
+      });
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `ТЗ_${spec.client_name || 'документ'}_${format(new Date(), 'dd.MM.yyyy')}.docx`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+
+      toast.success('DOCX успешно загружен');
     } catch (error) {
-      console.error('Ошибка создания сметы:', error);
-      toast.error('Ошибка при создании сметы из технического задания');
+      console.error('Ошибка создания DOCX:', error);
+      toast.error('Ошибка при создании DOCX. Используйте PDF.');
     }
+  };
+
+  const handleCreateEstimate = (spec: any) => {
+    // Переход к AI-сметчику с данными ТЗ
+    const searchParams = new URLSearchParams({
+      ts_id: spec.id,
+      work_scope: spec.work_scope || '',
+      materials: typeof spec.materials_spec === 'string' 
+        ? spec.materials_spec 
+        : JSON.stringify(spec.materials_spec),
+      client_name: spec.client_name || '',
+      object_address: spec.object_address || ''
+    });
+    navigate(`/ai-estimator?${searchParams.toString()}`);
+    toast.info('Переход к созданию сметы...');
   };
 
   const handleView = (spec: any) => {
