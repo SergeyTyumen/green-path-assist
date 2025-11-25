@@ -51,6 +51,61 @@ const TechnicalSpecifications = () => {
     }
   };
 
+  const formatMaterialsSpec = (materialsSpec: any): string => {
+    if (!materialsSpec) return '';
+    
+    try {
+      // Если это строка, пытаемся распарсить JSON
+      const materials = typeof materialsSpec === 'string' 
+        ? JSON.parse(materialsSpec) 
+        : materialsSpec;
+      
+      // Если это массив или объект с материалами
+      if (Array.isArray(materials)) {
+        return materials.map((material: any, index: number) => {
+          let result = `${index + 1}. ${material.name || 'Материал'}\n`;
+          if (material.norm) result += `   ГОСТ/норма: ${material.norm}\n`;
+          if (material.type) result += `   Тип: ${material.type}\n`;
+          if (material.unit) result += `   Единица: ${material.unit}\n`;
+          if (material.quantity) result += `   Количество: ${material.quantity}\n`;
+          if (material.characteristics) {
+            if (typeof material.characteristics === 'object') {
+              result += `   Характеристики:\n`;
+              Object.entries(material.characteristics).forEach(([key, value]) => {
+                result += `      ${key}: ${value}\n`;
+              });
+            } else {
+              result += `   Характеристики: ${material.characteristics}\n`;
+            }
+          }
+          if (material.modulus) result += `   Модуль: ${material.modulus}\n`;
+          if (material.density) result += `   Плотность: ${material.density}\n`;
+          if (material.size) result += `   Размер: ${material.size}\n`;
+          if (material.material) result += `   Материал: ${material.material}\n`;
+          return result;
+        }).join('\n');
+      } else if (typeof materials === 'object') {
+        // Если это объект с ключами как названиями материалов
+        return Object.entries(materials).map(([key, value]: [string, any], index: number) => {
+          let result = `${index + 1}. ${key}\n`;
+          if (typeof value === 'object') {
+            Object.entries(value).forEach(([subKey, subValue]) => {
+              result += `   ${subKey}: ${typeof subValue === 'object' ? JSON.stringify(subValue) : subValue}\n`;
+            });
+          } else {
+            result += `   ${value}\n`;
+          }
+          return result;
+        }).join('\n');
+      }
+      
+      return String(materials);
+    } catch (e) {
+      // Если не получилось распарсить, возвращаем как есть
+      return typeof materialsSpec === 'string' ? materialsSpec : JSON.stringify(materialsSpec, null, 2);
+    }
+  };
+
   const handleDownloadPDF = async (spec: any) => {
     try {
       const doc = new jsPDF();
@@ -613,7 +668,7 @@ const TechnicalSpecifications = () => {
                   <div>
                     <h3 className="font-semibold text-sm text-muted-foreground mb-2">Спецификация материалов</h3>
                     <div className="bg-muted p-4 rounded-lg">
-                      <pre className="whitespace-pre-wrap text-sm">{JSON.stringify(selectedSpec.materials_spec, null, 2)}</pre>
+                      <pre className="whitespace-pre-wrap text-sm font-sans">{formatMaterialsSpec(selectedSpec.materials_spec)}</pre>
                     </div>
                   </div>
                 )}
