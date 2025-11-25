@@ -1026,6 +1026,48 @@ export type Database = {
           },
         ]
       }
+      estimate_templates: {
+        Row: {
+          created_at: string | null
+          description: string | null
+          formulas: Json | null
+          id: string
+          is_active: boolean | null
+          name: string
+          table_structure: Json | null
+          template_rows: Json | null
+          updated_at: string | null
+          user_id: string
+          work_type: string
+        }
+        Insert: {
+          created_at?: string | null
+          description?: string | null
+          formulas?: Json | null
+          id?: string
+          is_active?: boolean | null
+          name: string
+          table_structure?: Json | null
+          template_rows?: Json | null
+          updated_at?: string | null
+          user_id: string
+          work_type: string
+        }
+        Update: {
+          created_at?: string | null
+          description?: string | null
+          formulas?: Json | null
+          id?: string
+          is_active?: boolean | null
+          name?: string
+          table_structure?: Json | null
+          template_rows?: Json | null
+          updated_at?: string | null
+          user_id?: string
+          work_type?: string
+        }
+        Relationships: []
+      }
       estimates: {
         Row: {
           client_id: string | null
@@ -1320,6 +1362,51 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      normative_documents: {
+        Row: {
+          created_at: string | null
+          description: string | null
+          document_number: string
+          document_text: string | null
+          document_type: string
+          document_url: string | null
+          id: string
+          is_active: boolean | null
+          name: string
+          updated_at: string | null
+          user_id: string
+          year: number | null
+        }
+        Insert: {
+          created_at?: string | null
+          description?: string | null
+          document_number: string
+          document_text?: string | null
+          document_type: string
+          document_url?: string | null
+          id?: string
+          is_active?: boolean | null
+          name: string
+          updated_at?: string | null
+          user_id: string
+          year?: number | null
+        }
+        Update: {
+          created_at?: string | null
+          description?: string | null
+          document_number?: string
+          document_text?: string | null
+          document_type?: string
+          document_url?: string | null
+          id?: string
+          is_active?: boolean | null
+          name?: string
+          updated_at?: string | null
+          user_id?: string
+          year?: number | null
+        }
+        Relationships: []
       }
       norms: {
         Row: {
