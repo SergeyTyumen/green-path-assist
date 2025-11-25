@@ -3,6 +3,7 @@ import { format } from 'date-fns';
 import { ru } from 'date-fns/locale';
 import { Download, Eye, FileText, Trash2, Plus, Edit3, Sparkles, Mic, MicOff } from 'lucide-react';
 import jsPDF from 'jspdf';
+import { Document, Packer, Paragraph, TextRun } from 'docx';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -14,7 +15,6 @@ import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useTechnicalSpecifications } from '@/hooks/useTechnicalSpecifications';
-import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -108,7 +108,17 @@ const TechnicalSpecifications = () => {
 
   const handleDownloadPDF = async (spec: any) => {
     try {
+      // Загружаем шрифт с поддержкой кириллицы (файл содержит base64 шрифта)
+      const fontResponse = await fetch('/fonts/Roboto-Regular.ttf');
+      const fontBase64 = await fontResponse.text();
+
       const doc = new jsPDF();
+      // @ts-expect-error - методы шрифта не типизированы в jsPDF
+      doc.addFileToVFS('Roboto-Regular.ttf', fontBase64);
+      // @ts-expect-error - методы шрифта не типизированы в jsPDF
+      doc.addFont('Roboto-Regular.ttf', 'Roboto', 'normal');
+      doc.setFont('Roboto', 'normal');
+
       const pageWidth = doc.internal.pageSize.getWidth();
       const margin = 15;
       const lineHeight = 7;
@@ -116,18 +126,15 @@ const TechnicalSpecifications = () => {
 
       // Заголовок
       doc.setFontSize(16);
-      doc.setFont('helvetica', 'bold');
       doc.text('ТЕХНИЧЕСКОЕ ЗАДАНИЕ', pageWidth / 2, yPosition, { align: 'center' });
       yPosition += lineHeight * 2;
 
       // Общая информация
       doc.setFontSize(12);
-      doc.setFont('helvetica', 'bold');
       doc.text('ОБЩАЯ ИНФОРМАЦИЯ', margin, yPosition);
       yPosition += lineHeight;
 
       doc.setFontSize(10);
-      doc.setFont('helvetica', 'normal');
       doc.text(`Название: ${spec.title || 'Не указано'}`, margin, yPosition);
       yPosition += lineHeight;
       doc.text(`Клиент: ${spec.client_name || 'Не указан'}`, margin, yPosition);
@@ -138,12 +145,10 @@ const TechnicalSpecifications = () => {
       // Описание объекта
       if (spec.object_description) {
         doc.setFontSize(12);
-        doc.setFont('helvetica', 'bold');
         doc.text('ОПИСАНИЕ ОБЪЕКТА', margin, yPosition);
         yPosition += lineHeight;
         
         doc.setFontSize(10);
-        doc.setFont('helvetica', 'normal');
         const descLines = doc.splitTextToSize(spec.object_description, pageWidth - margin * 2);
         descLines.forEach((line: string) => {
           if (yPosition > 270) {
@@ -163,12 +168,10 @@ const TechnicalSpecifications = () => {
           yPosition = 20;
         }
         doc.setFontSize(12);
-        doc.setFont('helvetica', 'bold');
         doc.text('ОБЪЕМ РАБОТ', margin, yPosition);
         yPosition += lineHeight;
 
         doc.setFontSize(10);
-        doc.setFont('helvetica', 'normal');
         const workLines = doc.splitTextToSize(spec.work_scope, pageWidth - margin * 2);
         workLines.forEach((line: string) => {
           if (yPosition > 270) {
@@ -188,15 +191,11 @@ const TechnicalSpecifications = () => {
           yPosition = 20;
         }
         doc.setFontSize(12);
-        doc.setFont('helvetica', 'bold');
         doc.text('СПЕЦИФИКАЦИЯ МАТЕРИАЛОВ', margin, yPosition);
         yPosition += lineHeight;
 
         doc.setFontSize(10);
-        doc.setFont('helvetica', 'normal');
-        const materialsText = typeof spec.materials_spec === 'string' 
-          ? spec.materials_spec 
-          : JSON.stringify(spec.materials_spec, null, 2);
+        const materialsText = formatMaterialsSpec(spec.materials_spec);
         const materialsLines = doc.splitTextToSize(materialsText, pageWidth - margin * 2);
         materialsLines.forEach((line: string) => {
           if (yPosition > 270) {
@@ -218,54 +217,143 @@ const TechnicalSpecifications = () => {
 
   const handleDownloadDocx = async (spec: any) => {
     try {
-      toast.info('Генерация DOCX...');
-      
-      // Используем прямой fetch для получения бинарных данных
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
-        toast.error('Необходима авторизация');
-        return;
-      }
+      const paragraphs = [] as Paragraph[];
 
-      const response = await fetch(
-        `https://nxyzmxqtzsvjezmkmkja.supabase.co/functions/v1/generate-proposal-document`,
-        {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${session.access_token}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            type: 'technical_specification',
-            data: {
-              title: spec.title,
-              client_name: spec.client_name,
-              object_address: spec.object_address,
-              object_description: spec.object_description,
-              work_scope: spec.work_scope,
-              materials_spec: typeof spec.materials_spec === 'string' 
-                ? spec.materials_spec 
-                : JSON.stringify(spec.materials_spec, null, 2),
-              normative_references: spec.normative_references,
-              quality_requirements: spec.quality_requirements,
-              timeline: spec.timeline,
-              safety_requirements: spec.safety_requirements,
-              acceptance_criteria: spec.acceptance_criteria,
-              additional_requirements: spec.additional_requirements
-            }
-          })
-        }
+      // Заголовок
+      paragraphs.push(
+        new Paragraph({
+          children: [
+            new TextRun({ text: 'ТЕХНИЧЕСКОЕ ЗАДАНИЕ', bold: true, size: 32 }),
+          ],
+        }),
       );
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Ошибка генерации документа');
+      paragraphs.push(
+        new Paragraph({
+          children: [
+            new TextRun({
+              text: `Название: ${spec.title || 'Не указано'}`,
+              size: 24,
+            }),
+          ],
+        }),
+      );
+
+      paragraphs.push(
+        new Paragraph({
+          children: [
+            new TextRun({
+              text: `Клиент: ${spec.client_name || 'Не указан'}`,
+              size: 24,
+            }),
+          ],
+        }),
+      );
+
+      paragraphs.push(
+        new Paragraph({
+          children: [
+            new TextRun({
+              text: `Адрес объекта: ${spec.object_address || 'Не указан'}`,
+              size: 24,
+            }),
+          ],
+        }),
+      );
+
+      // Описание объекта
+      if (spec.object_description) {
+        paragraphs.push(new Paragraph(''));
+        paragraphs.push(
+          new Paragraph({
+            children: [new TextRun({ text: 'ОПИСАНИЕ ОБЪЕКТА', bold: true })],
+          }),
+        );
+        paragraphs.push(
+          new Paragraph({
+            children: [new TextRun({ text: spec.object_description })],
+          }),
+        );
       }
 
-      // Получаем бинарные данные
-      const blob = await response.blob();
-      
-      // Создаем URL и скачиваем файл
+      // Объем работ
+      if (spec.work_scope) {
+        paragraphs.push(new Paragraph(''));
+        paragraphs.push(
+          new Paragraph({
+            children: [new TextRun({ text: 'ОБЪЕМ РАБОТ', bold: true })],
+          }),
+        );
+        spec.work_scope.split('\n').forEach((line: string) => {
+          paragraphs.push(new Paragraph({ children: [new TextRun({ text: line })] }));
+        });
+      }
+
+      // Спецификация материалов
+      if (spec.materials_spec) {
+        const materialsText = formatMaterialsSpec(spec.materials_spec);
+        paragraphs.push(new Paragraph(''));
+        paragraphs.push(
+          new Paragraph({
+            children: [new TextRun({ text: 'СПЕЦИФИКАЦИЯ МАТЕРИАЛОВ', bold: true })],
+          }),
+        );
+        materialsText.split('\n').forEach((line: string) => {
+          paragraphs.push(new Paragraph({ children: [new TextRun({ text: line })] }));
+        });
+      }
+
+      // Нормативные ссылки
+      if (spec.normative_references) {
+        const refs = Array.isArray(spec.normative_references)
+          ? spec.normative_references
+          : String(spec.normative_references).split('\n');
+        paragraphs.push(new Paragraph(''));
+        paragraphs.push(
+          new Paragraph({
+            children: [new TextRun({ text: 'НОРМАТИВНЫЕ ССЫЛКИ', bold: true })],
+          }),
+        );
+        refs.forEach((ref: string) => {
+          if (ref.trim()) {
+            paragraphs.push(new Paragraph({ children: [new TextRun({ text: ref })] }));
+          }
+        });
+      }
+
+      // Прочие разделы
+      const extraFields: { label: string; value?: string }[] = [
+        { label: 'Требования к качеству', value: spec.quality_requirements },
+        { label: 'Временные рамки', value: spec.timeline },
+        { label: 'Требования безопасности', value: spec.safety_requirements },
+        { label: 'Критерии приемки', value: spec.acceptance_criteria },
+        { label: 'Дополнительные требования', value: spec.additional_requirements },
+      ];
+
+      extraFields.forEach(({ label, value }) => {
+        if (value) {
+          paragraphs.push(new Paragraph(''));
+          paragraphs.push(
+            new Paragraph({
+              children: [new TextRun({ text: label.toUpperCase(), bold: true })],
+            }),
+          );
+          value.split('\n').forEach((line: string) => {
+            paragraphs.push(new Paragraph({ children: [new TextRun({ text: line })] }));
+          });
+        }
+      });
+
+      const doc = new Document({
+        sections: [
+          {
+            properties: {},
+            children: paragraphs,
+          },
+        ],
+      });
+
+      const blob = await Packer.toBlob(doc);
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
