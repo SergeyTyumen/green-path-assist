@@ -294,6 +294,26 @@ async function callOpenAIWithTools(messages: AIMessage[], settings: UserSettings
             required: ["services"]
           }
         }
+      },
+      {
+        type: "function",
+        function: {
+          name: "delegate_to_ai_assistant",
+          description: "Делегировать задачу специализированному AI-ассистенту (сметчик, аналитик, поставщик, технический специалист, менеджер КП)",
+          parameters: {
+            type: "object",
+            properties: {
+              assistant_name: { 
+                type: "string",
+                enum: ["сметчик", "estimator", "аналитик", "analyst", "конкурентный-анализ", "competitor-analysis"],
+                description: "Имя AI-ассистента для делегирования" 
+              },
+              task_description: { type: "string", description: "Описание задачи для ассистента" },
+              additional_data: { type: "object", description: "Дополнительные данные для ассистента (клиент, площадь, услуги и т.д.)" }
+            },
+            required: ["assistant_name", "task_description"]
+          }
+        }
       }
     ];
 
@@ -521,9 +541,66 @@ async function executeFunction(functionName: string, args: any, userId: string, 
     
     case 'add_items_to_estimate':
       return await addItemsToEstimate(userId, args);
+    
+    case 'delegate_to_ai_assistant':
+      return await delegateToAIAssistant(userId, args, userToken);
       
     default:
       return { error: `Unknown function: ${functionName}` };
+  }
+}
+
+// Делегирование задачи AI-ассистенту
+async function delegateToAIAssistant(userId: string, args: any, userToken?: string) {
+  console.log('Delegating to AI assistant:', args);
+  try {
+    const supabaseAdmin = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+    );
+
+    const { data: result, error } = await supabaseAdmin.functions.invoke('assistant-router', {
+      body: {
+        assistant_name: args.assistant_name,
+        task_description: args.task_description,
+        additional_data: args.additional_data || {},
+        context: {
+          user_id: userId
+        }
+      },
+      headers: {
+        Authorization: `Bearer ${userToken || Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`
+      }
+    });
+
+    if (error) {
+      console.error('Error calling assistant-router:', error);
+      return {
+        success: false,
+        message: `❌ Ошибка делегирования: ${error.message}`
+      };
+    }
+
+    console.log('Delegation result:', result);
+
+    if (!result.success) {
+      return {
+        success: false,
+        message: result.error || `❌ Ошибка выполнения задачи AI-помощником "${args.assistant_name}"`
+      };
+    }
+
+    return {
+      success: true,
+      result: result.result,
+      message: `✅ Задача делегирована AI-помощнику "${args.assistant_name}"\n\n${JSON.stringify(result.result, null, 2)}`
+    };
+  } catch (error) {
+    console.error('Error in delegateToAIAssistant:', error);
+    return {
+      success: false,
+      message: `❌ Ошибка делегирования: ${error instanceof Error ? error.message : 'Неизвестная ошибка'}`
+    };
   }
 }
 
