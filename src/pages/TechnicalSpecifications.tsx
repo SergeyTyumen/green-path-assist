@@ -15,6 +15,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useTechnicalSpecifications } from '@/hooks/useTechnicalSpecifications';
+import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -113,9 +114,7 @@ const TechnicalSpecifications = () => {
       const fontBase64 = await fontResponse.text();
 
       const doc = new jsPDF();
-      // @ts-expect-error - методы шрифта не типизированы в jsPDF
       doc.addFileToVFS('Roboto-Regular.ttf', fontBase64);
-      // @ts-expect-error - методы шрифта не типизированы в jsPDF
       doc.addFont('Roboto-Regular.ttf', 'Roboto', 'normal');
       doc.setFont('Roboto', 'normal');
 
