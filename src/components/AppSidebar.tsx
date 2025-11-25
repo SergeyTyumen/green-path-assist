@@ -14,7 +14,9 @@ import {
   Settings,
   UserCog,
   HardHat,
-  User
+  User,
+  BookOpen,
+  FileSpreadsheet
 } from "lucide-react";
 import { NavLink, useLocation } from "react-router-dom";
 import { useProfiles } from "@/hooks/useProfiles";
@@ -47,6 +49,8 @@ const navigationItems: NavigationItem[] = [
   { id: "clients", title: "Клиенты и заявки", url: "/clients", icon: Users },
   { id: "ai-technical-specialist", title: "AI-Технолог", url: "/ai-technical-specialist", icon: HardHat },
   { id: "technical-specifications", title: "Технические задания", url: "/technical-specifications", icon: FileText },
+  { id: "normative-documents", title: "Нормативная база", url: "/normative-documents", icon: BookOpen },
+  { id: "estimate-templates", title: "Шаблоны смет", url: "/estimate-templates", icon: FileSpreadsheet },
   { id: "estimates", title: "Сметы", url: "/estimates", icon: Calculator },
   { id: "proposals", title: "Коммерческие предложения", url: "/proposals", icon: FileText },
   { id: "contractors", title: "Подрядчики", url: "/contractors", icon: Wrench },
