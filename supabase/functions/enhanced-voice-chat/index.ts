@@ -314,6 +314,302 @@ async function callOpenAIWithTools(messages: AIMessage[], settings: UserSettings
             required: ["assistant_name", "task_description"]
           }
         }
+      },
+      // МОДУЛЬ 1: Расширенное управление клиентами
+      {
+        type: "function",
+        function: {
+          name: "update_client",
+          description: "Обновить данные клиента (телефон, email, адрес, заметки, бюджет, статус)",
+          parameters: {
+            type: "object",
+            properties: {
+              client_name: { type: "string", description: "Имя клиента для поиска" },
+              phone: { type: "string", description: "Новый телефон" },
+              email: { type: "string", description: "Новый email" },
+              address: { type: "string", description: "Новый адрес" },
+              budget: { type: "number", description: "Новый бюджет" },
+              status: { type: "string", description: "Новый статус" },
+              notes: { type: "string", description: "Новые заметки" },
+              conversion_stage: { type: "string", description: "Новый этап работы" }
+            },
+            required: ["client_name"]
+          }
+        }
+      },
+      {
+        type: "function",
+        function: {
+          name: "archive_client",
+          description: "Архивировать клиента с указанием причины и периода",
+          parameters: {
+            type: "object",
+            properties: {
+              client_name: { type: "string", description: "Имя клиента" },
+              reason_type: { 
+                type: "string", 
+                enum: ["not_ready", "no_budget", "competitor", "other"],
+                description: "Тип причины архивации" 
+              },
+              reason_comment: { type: "string", description: "Комментарий к причине" },
+              archive_period: { type: "number", description: "Период архивации в днях" }
+            },
+            required: ["client_name", "reason_type", "archive_period"]
+          }
+        }
+      },
+      {
+        type: "function",
+        function: {
+          name: "get_client_history",
+          description: "Получить историю взаимодействий с клиентом",
+          parameters: {
+            type: "object",
+            properties: {
+              client_name: { type: "string", description: "Имя клиента" },
+              interaction_type: { 
+                type: "string",
+                enum: ["call", "meeting", "email", "message"],
+                description: "Тип взаимодействия для фильтрации" 
+              }
+            },
+            required: ["client_name"]
+          }
+        }
+      },
+      {
+        type: "function",
+        function: {
+          name: "add_client_comment",
+          description: "Добавить комментарий к клиенту",
+          parameters: {
+            type: "object",
+            properties: {
+              client_name: { type: "string", description: "Имя клиента" },
+              comment: { type: "string", description: "Текст комментария" },
+              comment_type: { 
+                type: "string",
+                enum: ["note", "important", "warning"],
+                description: "Тип комментария" 
+              }
+            },
+            required: ["client_name", "comment"]
+          }
+        }
+      },
+      // МОДУЛЬ 2: Управление подрядчиками
+      {
+        type: "function",
+        function: {
+          name: "create_contractor",
+          description: "Создать нового подрядчика",
+          parameters: {
+            type: "object",
+            properties: {
+              company_name: { type: "string", description: "Название компании" },
+              phone: { type: "string", description: "Телефон" },
+              specialization: { 
+                type: "array",
+                items: { type: "string" },
+                description: "Специализации подрядчика" 
+              },
+              experience_years: { type: "number", description: "Опыт работы в годах" },
+              description: { type: "string", description: "Описание" }
+            },
+            required: ["company_name", "specialization"]
+          }
+        }
+      },
+      {
+        type: "function",
+        function: {
+          name: "get_contractors",
+          description: "Получить список подрядчиков с фильтрами",
+          parameters: {
+            type: "object",
+            properties: {
+              specialization: { type: "string", description: "Фильтр по специализации" },
+              verified_only: { type: "boolean", description: "Только проверенные" },
+              rating_min: { type: "number", description: "Минимальный рейтинг" }
+            }
+          }
+        }
+      },
+      {
+        type: "function",
+        function: {
+          name: "assign_contractor_to_project",
+          description: "Назначить подрядчика на проект",
+          parameters: {
+            type: "object",
+            properties: {
+              contractor_name: { type: "string", description: "Название компании подрядчика" },
+              client_name: { type: "string", description: "Имя клиента/название проекта" },
+              role: { type: "string", description: "Роль на проекте" },
+              notes: { type: "string", description: "Заметки" }
+            },
+            required: ["contractor_name", "client_name"]
+          }
+        }
+      },
+      // МОДУЛЬ 3: Управление поставщиками
+      {
+        type: "function",
+        function: {
+          name: "create_supplier",
+          description: "Создать нового поставщика",
+          parameters: {
+            type: "object",
+            properties: {
+              name: { type: "string", description: "Название поставщика" },
+              categories: { 
+                type: "array",
+                items: { type: "string" },
+                description: "Категории материалов" 
+              },
+              contact_person: { type: "string", description: "Контактное лицо" },
+              phone: { type: "string", description: "Телефон" },
+              email: { type: "string", description: "Email" },
+              location: { type: "string", description: "Местоположение" }
+            },
+            required: ["name", "categories"]
+          }
+        }
+      },
+      {
+        type: "function",
+        function: {
+          name: "get_suppliers",
+          description: "Получить список поставщиков с фильтрами",
+          parameters: {
+            type: "object",
+            properties: {
+              categories: { 
+                type: "array",
+                items: { type: "string" },
+                description: "Фильтр по категориям" 
+              },
+              status: { 
+                type: "string",
+                enum: ["active", "inactive"],
+                description: "Статус поставщика" 
+              },
+              rating_min: { type: "number", description: "Минимальный рейтинг" }
+            }
+          }
+        }
+      },
+      // МОДУЛЬ 4: Расширенное управление задачами
+      {
+        type: "function",
+        function: {
+          name: "update_task",
+          description: "Обновить задачу",
+          parameters: {
+            type: "object",
+            properties: {
+              task_id: { type: "string", description: "ID задачи" },
+              task_title: { type: "string", description: "Название задачи для поиска" },
+              title: { type: "string", description: "Новое название" },
+              description: { type: "string", description: "Новое описание" },
+              due_date: { type: "string", description: "Новая дата выполнения" },
+              priority: { 
+                type: "string",
+                enum: ["low", "medium", "high"],
+                description: "Новый приоритет" 
+              },
+              status: { 
+                type: "string",
+                enum: ["pending", "in-progress", "completed"],
+                description: "Новый статус" 
+              },
+              assignee: { type: "string", description: "Новый исполнитель" }
+            }
+          }
+        }
+      },
+      {
+        type: "function",
+        function: {
+          name: "delete_task",
+          description: "Удалить задачу",
+          parameters: {
+            type: "object",
+            properties: {
+              task_id: { type: "string", description: "ID задачи" },
+              task_title: { type: "string", description: "Название задачи для поиска" }
+            }
+          }
+        }
+      },
+      // МОДУЛЬ 6: Аналитика
+      {
+        type: "function",
+        function: {
+          name: "get_dashboard_stats",
+          description: "Получить общую статистику дашборда (клиенты, задачи, сметы)",
+          parameters: {
+            type: "object",
+            properties: {
+              period: { 
+                type: "string",
+                enum: ["today", "week", "month", "year"],
+                description: "Период для статистики" 
+              }
+            }
+          }
+        }
+      },
+      {
+        type: "function",
+        function: {
+          name: "get_sales_funnel",
+          description: "Получить данные воронки продаж",
+          parameters: {
+            type: "object",
+            properties: {
+              period: { 
+                type: "string",
+                enum: ["week", "month", "quarter"],
+                description: "Период анализа" 
+              }
+            }
+          }
+        }
+      },
+      // МОДУЛЬ 7: Быстрые команды
+      {
+        type: "function",
+        function: {
+          name: "daily_summary",
+          description: "Получить ежедневную сводку (задачи на сегодня, новые клиенты, дедлайны)",
+          parameters: {
+            type: "object",
+            properties: {}
+          }
+        }
+      },
+      {
+        type: "function",
+        function: {
+          name: "quick_search",
+          description: "Быстрый поиск по всем сущностям CRM",
+          parameters: {
+            type: "object",
+            properties: {
+              query: { type: "string", description: "Поисковый запрос" },
+              search_in: { 
+                type: "array",
+                items: { 
+                  type: "string",
+                  enum: ["clients", "tasks", "estimates", "proposals", "contractors", "suppliers"]
+                },
+                description: "Где искать (по умолчанию везде)" 
+              }
+            },
+            required: ["query"]
+          }
+        }
       }
     ];
 
@@ -544,6 +840,57 @@ async function executeFunction(functionName: string, args: any, userId: string, 
     
     case 'delegate_to_ai_assistant':
       return await delegateToAIAssistant(userId, args, userToken);
+    
+    // МОДУЛЬ 1: Расширенное управление клиентами
+    case 'update_client':
+      return await updateClient(userId, args);
+    
+    case 'archive_client':
+      return await archiveClient(userId, args);
+    
+    case 'get_client_history':
+      return await getClientHistory(userId, args);
+    
+    case 'add_client_comment':
+      return await addClientComment(userId, args);
+    
+    // МОДУЛЬ 2: Управление подрядчиками
+    case 'create_contractor':
+      return await createContractor(userId, args);
+    
+    case 'get_contractors':
+      return await getContractors(userId, args);
+    
+    case 'assign_contractor_to_project':
+      return await assignContractorToProject(userId, args);
+    
+    // МОДУЛЬ 3: Управление поставщиками
+    case 'create_supplier':
+      return await createSupplier(userId, args);
+    
+    case 'get_suppliers':
+      return await getSuppliers(userId, args);
+    
+    // МОДУЛЬ 4: Расширенное управление задачами
+    case 'update_task':
+      return await updateTask(userId, args);
+    
+    case 'delete_task':
+      return await deleteTask(userId, args);
+    
+    // МОДУЛЬ 6: Аналитика
+    case 'get_dashboard_stats':
+      return await getDashboardStats(userId, args);
+    
+    case 'get_sales_funnel':
+      return await getSalesFunnel(userId, args);
+    
+    // МОДУЛЬ 7: Быстрые команды
+    case 'daily_summary':
+      return await getDailySummary(userId);
+    
+    case 'quick_search':
+      return await quickSearch(userId, args);
       
     default:
       return { error: `Unknown function: ${functionName}` };
@@ -600,6 +947,1111 @@ async function delegateToAIAssistant(userId: string, args: any, userToken?: stri
     return {
       success: false,
       message: `❌ Ошибка делегирования: ${error instanceof Error ? error.message : 'Неизвестная ошибка'}`
+    };
+  }
+}
+
+// МОДУЛЬ 1: Расширенное управление клиентами
+
+// Обновление данных клиента
+async function updateClient(userId: string, args: any) {
+  try {
+    const supabaseAdmin = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+    );
+
+    // Поиск клиента
+    const { data: client } = await supabaseAdmin
+      .from('applications')
+      .select('id, name')
+      .eq('user_id', userId)
+      .ilike('name', `%${args.client_name}%`)
+      .maybeSingle();
+
+    if (!client) {
+      return {
+        success: false,
+        message: `❌ Клиент "${args.client_name}" не найден`
+      };
+    }
+
+    // Формируем объект обновления
+    const updates: any = { updated_at: new Date().toISOString() };
+    if (args.phone) updates.phone = args.phone;
+    if (args.email) updates.email = args.email;
+    if (args.address) updates.address = args.address;
+    if (args.budget) updates.budget = args.budget;
+    if (args.status) updates.status = args.status;
+    if (args.notes) updates.notes = args.notes;
+    if (args.conversion_stage) updates.conversion_stage = args.conversion_stage;
+
+    const { data, error } = await supabaseAdmin
+      .from('applications')
+      .update(updates)
+      .eq('id', client.id)
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    const updatedFields = Object.keys(updates).filter(k => k !== 'updated_at').join(', ');
+    return {
+      success: true,
+      client: data,
+      message: `✅ Данные клиента "${client.name}" обновлены (${updatedFields})`
+    };
+  } catch (error) {
+    console.error('Error updating client:', error);
+    return {
+      success: false,
+      message: `❌ Ошибка обновления: ${error instanceof Error ? error.message : 'Неизвестная ошибка'}`
+    };
+  }
+}
+
+// Архивация клиента
+async function archiveClient(userId: string, args: any) {
+  try {
+    const supabaseAdmin = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+    );
+
+    // Поиск клиента
+    const { data: client } = await supabaseAdmin
+      .from('applications')
+      .select('id, name')
+      .eq('user_id', userId)
+      .ilike('name', `%${args.client_name}%`)
+      .maybeSingle();
+
+    if (!client) {
+      return {
+        success: false,
+        message: `❌ Клиент "${args.client_name}" не найден`
+      };
+    }
+
+    // Вычисляем дату восстановления
+    const restoreDate = new Date();
+    restoreDate.setDate(restoreDate.getDate() + args.archive_period);
+
+    // Создаем запись архивации
+    const { data, error } = await supabaseAdmin
+      .from('client_archives')
+      .insert({
+        user_id: userId,
+        client_id: client.id,
+        archive_reason_type: args.reason_type,
+        archive_reason_comment: args.reason_comment || '',
+        archive_period: args.archive_period,
+        restore_at: restoreDate.toISOString(),
+        reminder_type: 'before_restore'
+      })
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    // Обновляем статус клиента
+    await supabaseAdmin
+      .from('applications')
+      .update({ 
+        is_archived: true,
+        archived_until: restoreDate.toISOString(),
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', client.id);
+
+    return {
+      success: true,
+      archive: data,
+      message: `✅ Клиент "${client.name}" архивирован на ${args.archive_period} дней. Восстановление: ${restoreDate.toLocaleDateString('ru-RU')}`
+    };
+  } catch (error) {
+    console.error('Error archiving client:', error);
+    return {
+      success: false,
+      message: `❌ Ошибка архивации: ${error instanceof Error ? error.message : 'Неизвестная ошибка'}`
+    };
+  }
+}
+
+// История взаимодействий с клиентом
+async function getClientHistory(userId: string, args: any) {
+  try {
+    const supabaseAdmin = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+    );
+
+    // Поиск клиента
+    const { data: client } = await supabaseAdmin
+      .from('applications')
+      .select('id, name')
+      .eq('user_id', userId)
+      .ilike('name', `%${args.client_name}%`)
+      .maybeSingle();
+
+    if (!client) {
+      return {
+        success: false,
+        message: `❌ Клиент "${args.client_name}" не найден`
+      };
+    }
+
+    // Получаем историю взаимодействий
+    let query = supabaseAdmin
+      .from('client_interactions')
+      .select('*')
+      .eq('user_id', userId)
+      .eq('client_id', client.id);
+
+    if (args.interaction_type) {
+      query = query.eq('interaction_type', args.interaction_type);
+    }
+
+    const { data: interactions, error } = await query
+      .order('created_at', { ascending: false })
+      .limit(20);
+
+    if (error) throw error;
+
+    if (!interactions || interactions.length === 0) {
+      return {
+        success: true,
+        interactions: [],
+        message: `ℹ️ История взаимодействий с "${client.name}" пуста`
+      };
+    }
+
+    const list = interactions
+      .map((int: any, idx: number) => 
+        `${idx + 1}. ${int.interaction_type} (${new Date(int.created_at).toLocaleDateString('ru-RU')}) - ${int.subject || 'Без темы'}`
+      )
+      .join('\n');
+
+    return {
+      success: true,
+      interactions,
+      message: `📋 История взаимодействий с "${client.name}" (${interactions.length}):\n\n${list}`
+    };
+  } catch (error) {
+    console.error('Error getting client history:', error);
+    return {
+      success: false,
+      message: `❌ Ошибка получения истории: ${error instanceof Error ? error.message : 'Неизвестная ошибка'}`
+    };
+  }
+}
+
+// Добавление комментария к клиенту
+async function addClientComment(userId: string, args: any) {
+  try {
+    const supabaseAdmin = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+    );
+
+    // Поиск клиента
+    const { data: client } = await supabaseAdmin
+      .from('applications')
+      .select('id, name')
+      .eq('user_id', userId)
+      .ilike('name', `%${args.client_name}%`)
+      .maybeSingle();
+
+    if (!client) {
+      return {
+        success: false,
+        message: `❌ Клиент "${args.client_name}" не найден`
+      };
+    }
+
+    // Получаем имя пользователя
+    const { data: profile } = await supabaseAdmin
+      .from('profiles')
+      .select('full_name')
+      .eq('user_id', userId)
+      .maybeSingle();
+
+    // Создаем комментарий
+    const { data, error } = await supabaseAdmin
+      .from('client_comments')
+      .insert({
+        user_id: userId,
+        client_id: client.id,
+        content: args.comment,
+        comment_type: args.comment_type || 'note',
+        author_name: profile?.full_name || 'Пользователь'
+      })
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    const typeEmoji = {
+      note: '📝',
+      important: '⚠️',
+      warning: '🚨'
+    };
+
+    return {
+      success: true,
+      comment: data,
+      message: `✅ ${typeEmoji[args.comment_type || 'note']} Комментарий добавлен к клиенту "${client.name}"`
+    };
+  } catch (error) {
+    console.error('Error adding client comment:', error);
+    return {
+      success: false,
+      message: `❌ Ошибка добавления комментария: ${error instanceof Error ? error.message : 'Неизвестная ошибка'}`
+    };
+  }
+}
+
+// МОДУЛЬ 2: Управление подрядчиками
+
+// Создание подрядчика
+async function createContractor(userId: string, args: any) {
+  try {
+    const supabaseAdmin = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+    );
+
+    // Проверка, не существует ли уже
+    const { data: existing } = await supabaseAdmin
+      .from('contractor_profiles')
+      .select('id, company_name')
+      .eq('user_id', userId)
+      .ilike('company_name', args.company_name)
+      .maybeSingle();
+
+    if (existing) {
+      return {
+        success: false,
+        message: `❌ Подрядчик "${existing.company_name}" уже существует`
+      };
+    }
+
+    const { data, error } = await supabaseAdmin
+      .from('contractor_profiles')
+      .insert({
+        user_id: userId,
+        company_name: args.company_name,
+        phone: args.phone,
+        specialization: args.specialization,
+        experience_years: args.experience_years,
+        description: args.description
+      })
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    return {
+      success: true,
+      contractor: data,
+      message: `✅ Подрядчик "${args.company_name}" создан. Специализация: ${args.specialization.join(', ')}`
+    };
+  } catch (error) {
+    console.error('Error creating contractor:', error);
+    return {
+      success: false,
+      message: `❌ Ошибка создания подрядчика: ${error instanceof Error ? error.message : 'Неизвестная ошибка'}`
+    };
+  }
+}
+
+// Получение списка подрядчиков
+async function getContractors(userId: string, args: any) {
+  try {
+    const supabaseAdmin = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+    );
+
+    let query = supabaseAdmin
+      .from('contractor_profiles')
+      .select('*')
+      .eq('user_id', userId);
+
+    if (args.specialization) {
+      query = query.contains('specialization', [args.specialization]);
+    }
+
+    if (args.verified_only) {
+      query = query.eq('verified', true);
+    }
+
+    if (args.rating_min) {
+      query = query.gte('rating', args.rating_min);
+    }
+
+    const { data: contractors, error } = await query
+      .order('rating', { ascending: false })
+      .limit(20);
+
+    if (error) throw error;
+
+    if (!contractors || contractors.length === 0) {
+      return {
+        success: true,
+        contractors: [],
+        message: '❌ Подрядчики не найдены по заданным фильтрам'
+      };
+    }
+
+    const list = contractors
+      .map((c: any, idx: number) => 
+        `${idx + 1}. ${c.company_name}\n   Специализация: ${c.specialization.join(', ')}\n   Рейтинг: ${c.rating || 0}★\n   Опыт: ${c.experience_years || 0} лет`
+      )
+      .join('\n\n');
+
+    return {
+      success: true,
+      contractors,
+      message: `🏗️ Найдено подрядчиков: ${contractors.length}\n\n${list}`
+    };
+  } catch (error) {
+    console.error('Error getting contractors:', error);
+    return {
+      success: false,
+      message: `❌ Ошибка получения подрядчиков: ${error instanceof Error ? error.message : 'Неизвестная ошибка'}`
+    };
+  }
+}
+
+// Назначение подрядчика на проект
+async function assignContractorToProject(userId: string, args: any) {
+  try {
+    const supabaseAdmin = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+    );
+
+    // Поиск подрядчика
+    const { data: contractor } = await supabaseAdmin
+      .from('contractor_profiles')
+      .select('id, user_id, company_name')
+      .eq('user_id', userId)
+      .ilike('company_name', `%${args.contractor_name}%`)
+      .maybeSingle();
+
+    if (!contractor) {
+      return {
+        success: false,
+        message: `❌ Подрядчик "${args.contractor_name}" не найден`
+      };
+    }
+
+    // Поиск клиента/проекта
+    const { data: client } = await supabaseAdmin
+      .from('applications')
+      .select('id, name')
+      .eq('user_id', userId)
+      .ilike('name', `%${args.client_name}%`)
+      .maybeSingle();
+
+    if (!client) {
+      return {
+        success: false,
+        message: `❌ Клиент/проект "${args.client_name}" не найден`
+      };
+    }
+
+    // Создаем назначение
+    const { data, error } = await supabaseAdmin
+      .from('project_assignments')
+      .insert({
+        project_id: client.id,
+        worker_id: contractor.user_id,
+        assigned_by: userId,
+        role_on_project: args.role || 'contractor',
+        notes: args.notes
+      })
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    return {
+      success: true,
+      assignment: data,
+      message: `✅ Подрядчик "${contractor.company_name}" назначен на проект "${client.name}"`
+    };
+  } catch (error) {
+    console.error('Error assigning contractor:', error);
+    return {
+      success: false,
+      message: `❌ Ошибка назначения: ${error instanceof Error ? error.message : 'Неизвестная ошибка'}`
+    };
+  }
+}
+
+// МОДУЛЬ 3: Управление поставщиками
+
+// Создание поставщика
+async function createSupplier(userId: string, args: any) {
+  try {
+    const supabaseAdmin = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+    );
+
+    // Проверка, не существует ли уже
+    const { data: existing } = await supabaseAdmin
+      .from('suppliers')
+      .select('id, name')
+      .eq('user_id', userId)
+      .ilike('name', args.name)
+      .maybeSingle();
+
+    if (existing) {
+      return {
+        success: false,
+        message: `❌ Поставщик "${existing.name}" уже существует`
+      };
+    }
+
+    const { data, error } = await supabaseAdmin
+      .from('suppliers')
+      .insert({
+        user_id: userId,
+        name: args.name,
+        categories: args.categories,
+        contact_person: args.contact_person,
+        phone: args.phone,
+        email: args.email,
+        location: args.location,
+        status: 'active'
+      })
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    return {
+      success: true,
+      supplier: data,
+      message: `✅ Поставщик "${args.name}" создан. Категории: ${args.categories.join(', ')}`
+    };
+  } catch (error) {
+    console.error('Error creating supplier:', error);
+    return {
+      success: false,
+      message: `❌ Ошибка создания поставщика: ${error instanceof Error ? error.message : 'Неизвестная ошибка'}`
+    };
+  }
+}
+
+// Получение списка поставщиков
+async function getSuppliers(userId: string, args: any) {
+  try {
+    const supabaseAdmin = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+    );
+
+    let query = supabaseAdmin
+      .from('suppliers')
+      .select('*')
+      .eq('user_id', userId);
+
+    if (args.categories && args.categories.length > 0) {
+      query = query.overlaps('categories', args.categories);
+    }
+
+    if (args.status) {
+      query = query.eq('status', args.status);
+    }
+
+    if (args.rating_min) {
+      query = query.gte('rating', args.rating_min);
+    }
+
+    const { data: suppliers, error } = await query
+      .order('rating', { ascending: false })
+      .limit(20);
+
+    if (error) throw error;
+
+    if (!suppliers || suppliers.length === 0) {
+      return {
+        success: true,
+        suppliers: [],
+        message: '❌ Поставщики не найдены по заданным фильтрам'
+      };
+    }
+
+    const list = suppliers
+      .map((s: any, idx: number) => 
+        `${idx + 1}. ${s.name}\n   Категории: ${s.categories.join(', ')}\n   Рейтинг: ${s.rating || 0}★\n   Телефон: ${s.phone || 'не указан'}`
+      )
+      .join('\n\n');
+
+    return {
+      success: true,
+      suppliers,
+      message: `🚚 Найдено поставщиков: ${suppliers.length}\n\n${list}`
+    };
+  } catch (error) {
+    console.error('Error getting suppliers:', error);
+    return {
+      success: false,
+      message: `❌ Ошибка получения поставщиков: ${error instanceof Error ? error.message : 'Неизвестная ошибка'}`
+    };
+  }
+}
+
+// МОДУЛЬ 4: Расширенное управление задачами
+
+// Обновление задачи
+async function updateTask(userId: string, args: any) {
+  try {
+    const supabaseAdmin = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+    );
+
+    // Поиск задачи
+    let task = null;
+    if (args.task_id) {
+      const { data } = await supabaseAdmin
+        .from('tasks')
+        .select('*')
+        .eq('id', args.task_id)
+        .eq('user_id', userId)
+        .maybeSingle();
+      task = data;
+    } else if (args.task_title) {
+      const { data } = await supabaseAdmin
+        .from('tasks')
+        .select('*')
+        .eq('user_id', userId)
+        .ilike('title', `%${args.task_title}%`)
+        .order('created_at', { ascending: false })
+        .maybeSingle();
+      task = data;
+    }
+
+    if (!task) {
+      return {
+        success: false,
+        message: `❌ Задача не найдена`
+      };
+    }
+
+    // Формируем объект обновления
+    const updates: any = { updated_at: new Date().toISOString() };
+    if (args.title) updates.title = args.title;
+    if (args.description) updates.description = args.description;
+    if (args.due_date) updates.due_date = args.due_date;
+    if (args.priority) updates.priority = args.priority;
+    if (args.status) updates.status = args.status;
+    if (args.assignee) updates.assignee = args.assignee;
+
+    const { data, error } = await supabaseAdmin
+      .from('tasks')
+      .update(updates)
+      .eq('id', task.id)
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    const updatedFields = Object.keys(updates).filter(k => k !== 'updated_at').join(', ');
+    return {
+      success: true,
+      task: data,
+      message: `✅ Задача "${task.title}" обновлена (${updatedFields})`
+    };
+  } catch (error) {
+    console.error('Error updating task:', error);
+    return {
+      success: false,
+      message: `❌ Ошибка обновления задачи: ${error instanceof Error ? error.message : 'Неизвестная ошибка'}`
+    };
+  }
+}
+
+// Удаление задачи
+async function deleteTask(userId: string, args: any) {
+  try {
+    const supabaseAdmin = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+    );
+
+    // Поиск задачи
+    let task = null;
+    if (args.task_id) {
+      const { data } = await supabaseAdmin
+        .from('tasks')
+        .select('*')
+        .eq('id', args.task_id)
+        .eq('user_id', userId)
+        .maybeSingle();
+      task = data;
+    } else if (args.task_title) {
+      const { data } = await supabaseAdmin
+        .from('tasks')
+        .select('*')
+        .eq('user_id', userId)
+        .ilike('title', `%${args.task_title}%`)
+        .order('created_at', { ascending: false })
+        .maybeSingle();
+      task = data;
+    }
+
+    if (!task) {
+      return {
+        success: false,
+        message: `❌ Задача не найдена`
+      };
+    }
+
+    const { error } = await supabaseAdmin
+      .from('tasks')
+      .delete()
+      .eq('id', task.id);
+
+    if (error) throw error;
+
+    return {
+      success: true,
+      message: `✅ Задача "${task.title}" удалена`
+    };
+  } catch (error) {
+    console.error('Error deleting task:', error);
+    return {
+      success: false,
+      message: `❌ Ошибка удаления задачи: ${error instanceof Error ? error.message : 'Неизвестная ошибка'}`
+    };
+  }
+}
+
+// МОДУЛЬ 6: Аналитика
+
+// Общая статистика дашборда
+async function getDashboardStats(userId: string, args: any) {
+  try {
+    const supabaseAdmin = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+    );
+
+    const period = args.period || 'week';
+    
+    // Определяем дату начала периода
+    let startDate = new Date();
+    switch (period) {
+      case 'today':
+        startDate.setHours(0, 0, 0, 0);
+        break;
+      case 'week':
+        startDate.setDate(startDate.getDate() - 7);
+        break;
+      case 'month':
+        startDate.setMonth(startDate.getMonth() - 1);
+        break;
+      case 'year':
+        startDate.setFullYear(startDate.getFullYear() - 1);
+        break;
+    }
+
+    // Получаем статистику клиентов
+    const { data: clients } = await supabaseAdmin
+      .from('applications')
+      .select('id, status, created_at')
+      .eq('user_id', userId)
+      .gte('created_at', startDate.toISOString());
+
+    const totalClients = clients?.length || 0;
+    const newClients = clients?.filter((c: any) => c.status === 'new').length || 0;
+
+    // Получаем статистику задач
+    const { data: tasks } = await supabaseAdmin
+      .from('tasks')
+      .select('id, status, due_date')
+      .eq('user_id', userId);
+
+    const totalTasks = tasks?.length || 0;
+    const completedTasks = tasks?.filter((t: any) => t.status === 'completed').length || 0;
+    const overdueTasks = tasks?.filter((t: any) => {
+      if (!t.due_date || t.status === 'completed') return false;
+      return new Date(t.due_date) < new Date();
+    }).length || 0;
+
+    // Получаем статистику смет
+    const { data: estimates } = await supabaseAdmin
+      .from('estimates')
+      .select('id, status, total_amount, created_at')
+      .eq('user_id', userId)
+      .gte('created_at', startDate.toISOString());
+
+    const totalEstimates = estimates?.length || 0;
+    const approvedEstimates = estimates?.filter((e: any) => e.status === 'approved').length || 0;
+    const totalEstimatesAmount = estimates?.reduce((sum: number, e: any) => sum + Number(e.total_amount || 0), 0) || 0;
+
+    // Получаем статистику КП
+    const { data: proposals } = await supabaseAdmin
+      .from('proposals')
+      .select('id, status, amount, created_at')
+      .eq('user_id', userId)
+      .gte('created_at', startDate.toISOString());
+
+    const totalProposals = proposals?.length || 0;
+    const sentProposals = proposals?.filter((p: any) => p.status === 'sent' || p.status === 'viewed').length || 0;
+
+    const periodName = {
+      today: 'сегодня',
+      week: 'за неделю',
+      month: 'за месяц',
+      year: 'за год'
+    }[period];
+
+    const message = `📊 Статистика ${periodName}:
+
+👥 КЛИЕНТЫ:
+• Всего: ${totalClients}
+• Новых: ${newClients}
+
+✅ ЗАДАЧИ:
+• Всего: ${totalTasks}
+• Выполнено: ${completedTasks}
+• Просрочено: ${overdueTasks}
+
+💰 СМЕТЫ:
+• Создано: ${totalEstimates}
+• Согласовано: ${approvedEstimates}
+• Сумма: ${Math.round(totalEstimatesAmount).toLocaleString('ru-RU')} ₽
+
+📄 КП:
+• Создано: ${totalProposals}
+• Отправлено: ${sentProposals}`;
+
+    return {
+      success: true,
+      stats: {
+        clients: { total: totalClients, new: newClients },
+        tasks: { total: totalTasks, completed: completedTasks, overdue: overdueTasks },
+        estimates: { total: totalEstimates, approved: approvedEstimates, amount: totalEstimatesAmount },
+        proposals: { total: totalProposals, sent: sentProposals }
+      },
+      message
+    };
+  } catch (error) {
+    console.error('Error getting dashboard stats:', error);
+    return {
+      success: false,
+      message: `❌ Ошибка получения статистики: ${error instanceof Error ? error.message : 'Неизвестная ошибка'}`
+    };
+  }
+}
+
+// Воронка продаж
+async function getSalesFunnel(userId: string, args: any) {
+  try {
+    const supabaseAdmin = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+    );
+
+    const period = args.period || 'month';
+    
+    let startDate = new Date();
+    switch (period) {
+      case 'week':
+        startDate.setDate(startDate.getDate() - 7);
+        break;
+      case 'month':
+        startDate.setMonth(startDate.getMonth() - 1);
+        break;
+      case 'quarter':
+        startDate.setMonth(startDate.getMonth() - 3);
+        break;
+    }
+
+    // Получаем всех клиентов за период
+    const { data: clients } = await supabaseAdmin
+      .from('applications')
+      .select('id, conversion_stage, status, created_at')
+      .eq('user_id', userId)
+      .gte('created_at', startDate.toISOString());
+
+    if (!clients || clients.length === 0) {
+      return {
+        success: true,
+        funnel: [],
+        message: '❌ Нет данных за выбранный период'
+      };
+    }
+
+    // Подсчет по этапам
+    const stages: Record<string, number> = {};
+    clients.forEach((c: any) => {
+      const stage = c.conversion_stage || 'Неизвестно';
+      stages[stage] = (stages[stage] || 0) + 1;
+    });
+
+    const funnelData = Object.entries(stages)
+      .sort((a, b) => b[1] - a[1])
+      .map(([stage, count]) => ({
+        stage,
+        count,
+        percentage: Math.round((count / clients.length) * 100)
+      }));
+
+    const message = `📈 Воронка продаж (${period}):\n\n` +
+      funnelData.map(item => 
+        `${item.stage}: ${item.count} (${item.percentage}%)`
+      ).join('\n') +
+      `\n\n💡 Всего клиентов в воронке: ${clients.length}`;
+
+    return {
+      success: true,
+      funnel: funnelData,
+      total: clients.length,
+      message
+    };
+  } catch (error) {
+    console.error('Error getting sales funnel:', error);
+    return {
+      success: false,
+      message: `❌ Ошибка получения воронки: ${error instanceof Error ? error.message : 'Неизвестная ошибка'}`
+    };
+  }
+}
+
+// МОДУЛЬ 7: Быстрые команды
+
+// Ежедневная сводка
+async function getDailySummary(userId: string) {
+  try {
+    const supabaseAdmin = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+    );
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+
+    // Задачи на сегодня
+    const { data: todayTasks } = await supabaseAdmin
+      .from('tasks')
+      .select('*')
+      .eq('user_id', userId)
+      .gte('due_date', today.toISOString())
+      .lt('due_date', tomorrow.toISOString())
+      .neq('status', 'completed');
+
+    // Новые клиенты за сегодня
+    const { data: newClients } = await supabaseAdmin
+      .from('applications')
+      .select('id, name')
+      .eq('user_id', userId)
+      .gte('created_at', today.toISOString());
+
+    // Дедлайны на завтра
+    const dayAfterTomorrow = new Date(tomorrow);
+    dayAfterTomorrow.setDate(dayAfterTomorrow.getDate() + 1);
+
+    const { data: tomorrowDeadlines } = await supabaseAdmin
+      .from('tasks')
+      .select('*')
+      .eq('user_id', userId)
+      .gte('due_date', tomorrow.toISOString())
+      .lt('due_date', dayAfterTomorrow.toISOString())
+      .neq('status', 'completed');
+
+    const tasksCount = todayTasks?.length || 0;
+    const clientsCount = newClients?.length || 0;
+    const deadlinesCount = tomorrowDeadlines?.length || 0;
+
+    let message = `🌅 Сводка на ${today.toLocaleDateString('ru-RU')}:\n\n`;
+    
+    message += `✅ ЗАДАЧИ НА СЕГОДНЯ: ${tasksCount}\n`;
+    if (tasksCount > 0) {
+      message += todayTasks!.slice(0, 5).map((t: any) => 
+        `  • ${t.title} (${t.priority})`
+      ).join('\n');
+      if (tasksCount > 5) message += `\n  ... и еще ${tasksCount - 5}`;
+    }
+
+    message += `\n\n👥 НОВЫЕ КЛИЕНТЫ: ${clientsCount}\n`;
+    if (clientsCount > 0) {
+      message += newClients!.slice(0, 3).map((c: any) => `  • ${c.name}`).join('\n');
+      if (clientsCount > 3) message += `\n  ... и еще ${clientsCount - 3}`;
+    }
+
+    message += `\n\n⏰ ДЕДЛАЙНЫ ЗАВТРА: ${deadlinesCount}\n`;
+    if (deadlinesCount > 0) {
+      message += tomorrowDeadlines!.slice(0, 3).map((t: any) => `  • ${t.title}`).join('\n');
+      if (deadlinesCount > 3) message += `\n  ... и еще ${deadlinesCount - 3}`;
+    }
+
+    return {
+      success: true,
+      summary: {
+        today_tasks: todayTasks,
+        new_clients: newClients,
+        tomorrow_deadlines: tomorrowDeadlines
+      },
+      message
+    };
+  } catch (error) {
+    console.error('Error getting daily summary:', error);
+    return {
+      success: false,
+      message: `❌ Ошибка получения сводки: ${error instanceof Error ? error.message : 'Неизвестная ошибка'}`
+    };
+  }
+}
+
+// Быстрый поиск
+async function quickSearch(userId: string, args: any) {
+  try {
+    const supabaseAdmin = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+    );
+
+    const query = args.query.toLowerCase();
+    const searchIn = args.search_in || ['clients', 'tasks', 'estimates', 'proposals', 'contractors', 'suppliers'];
+    const results: any = {
+      clients: [],
+      tasks: [],
+      estimates: [],
+      proposals: [],
+      contractors: [],
+      suppliers: []
+    };
+
+    // Поиск клиентов
+    if (searchIn.includes('clients')) {
+      const { data } = await supabaseAdmin
+        .from('applications')
+        .select('id, name, phone, status')
+        .eq('user_id', userId)
+        .or(`name.ilike.%${query}%,phone.ilike.%${query}%,email.ilike.%${query}%`)
+        .limit(5);
+      results.clients = data || [];
+    }
+
+    // Поиск задач
+    if (searchIn.includes('tasks')) {
+      const { data } = await supabaseAdmin
+        .from('tasks')
+        .select('id, title, status, due_date')
+        .eq('user_id', userId)
+        .or(`title.ilike.%${query}%,description.ilike.%${query}%`)
+        .limit(5);
+      results.tasks = data || [];
+    }
+
+    // Поиск смет
+    if (searchIn.includes('estimates')) {
+      const { data } = await supabaseAdmin
+        .from('estimates')
+        .select('id, title, status, total_amount')
+        .eq('user_id', userId)
+        .ilike('title', `%${query}%`)
+        .limit(5);
+      results.estimates = data || [];
+    }
+
+    // Поиск КП
+    if (searchIn.includes('proposals')) {
+      const { data } = await supabaseAdmin
+        .from('proposals')
+        .select('id, title, status, amount')
+        .eq('user_id', userId)
+        .ilike('title', `%${query}%`)
+        .limit(5);
+      results.proposals = data || [];
+    }
+
+    // Поиск подрядчиков
+    if (searchIn.includes('contractors')) {
+      const { data } = await supabaseAdmin
+        .from('contractor_profiles')
+        .select('id, company_name, specialization, rating')
+        .eq('user_id', userId)
+        .ilike('company_name', `%${query}%`)
+        .limit(5);
+      results.contractors = data || [];
+    }
+
+    // Поиск поставщиков
+    if (searchIn.includes('suppliers')) {
+      const { data } = await supabaseAdmin
+        .from('suppliers')
+        .select('id, name, categories, status')
+        .eq('user_id', userId)
+        .ilike('name', `%${query}%`)
+        .limit(5);
+      results.suppliers = data || [];
+    }
+
+    // Формируем сообщение
+    const totalFound = Object.values(results).reduce((sum: number, arr: any) => sum + arr.length, 0);
+
+    if (totalFound === 0) {
+      return {
+        success: true,
+        results,
+        message: `❌ По запросу "${args.query}" ничего не найдено`
+      };
+    }
+
+    let message = `🔍 Результаты поиска по "${args.query}":\n\n`;
+
+    if (results.clients.length > 0) {
+      message += `👥 КЛИЕНТЫ (${results.clients.length}):\n`;
+      message += results.clients.map((c: any) => `  • ${c.name} - ${c.status}`).join('\n') + '\n\n';
+    }
+
+    if (results.tasks.length > 0) {
+      message += `✅ ЗАДАЧИ (${results.tasks.length}):\n`;
+      message += results.tasks.map((t: any) => `  • ${t.title} - ${t.status}`).join('\n') + '\n\n';
+    }
+
+    if (results.estimates.length > 0) {
+      message += `💰 СМЕТЫ (${results.estimates.length}):\n`;
+      message += results.estimates.map((e: any) => `  • ${e.title} - ${e.status}`).join('\n') + '\n\n';
+    }
+
+    if (results.proposals.length > 0) {
+      message += `📄 КП (${results.proposals.length}):\n`;
+      message += results.proposals.map((p: any) => `  • ${p.title} - ${p.status}`).join('\n') + '\n\n';
+    }
+
+    if (results.contractors.length > 0) {
+      message += `🏗️ ПОДРЯДЧИКИ (${results.contractors.length}):\n`;
+      message += results.contractors.map((c: any) => `  • ${c.company_name} - ${c.rating || 0}★`).join('\n') + '\n\n';
+    }
+
+    if (results.suppliers.length > 0) {
+      message += `🚚 ПОСТАВЩИКИ (${results.suppliers.length}):\n`;
+      message += results.suppliers.map((s: any) => `  • ${s.name}`).join('\n');
+    }
+
+    return {
+      success: true,
+      results,
+      total_found: totalFound,
+      message: message.trim()
+    };
+  } catch (error) {
+    console.error('Error in quick search:', error);
+    return {
+      success: false,
+      message: `❌ Ошибка поиска: ${error instanceof Error ? error.message : 'Неизвестная ошибка'}`
     };
   }
 }
@@ -1387,18 +2839,58 @@ serve(async (req) => {
 - На вопрос "сколько задач?": "У вас 3 задачи на сегодня. Хотите их список или подробности по какой-то?"
 
 ОСНОВНЫЕ ФУНКЦИИ:
-- Поиск информации о клиентах через get_client_info (имя клиента)
-- Список клиентов через get_clients (фильтры: status, conversion_stage, limit)
-- Список задач через get_tasks (scope: all/today/overdue/by_status, status, limit)
-- Статистика задач через get_tasks_stats (всего, сегодня, просроченные, по статусам)
-- Создание клиентов через create_client (имя, телефон, email, источник лида)
-- Поиск технических заданий через get_technical_specifications (client_name, title, limit)
-- Создание клиентов через create_client (имя, телефон, email, адрес, услуги)
-- Создание смет через AI-Сметчика (указывайте: описание проекта, площадь, клиента, виды работ)
-- Создание технических заданий через create_technical_specification (описание объекта, клиент, адрес)
-- Создание сметы из технического задания через create_estimate_from_technical_spec (ID ТЗ, имя клиента или название ТЗ)
-- Создание задач через create_task (заголовок, описание, дата выполнения)
-- Завершение задач через complete_task (название задачи или ID)
+
+УПРАВЛЕНИЕ КЛИЕНТАМИ:
+- get_client_info - получить информацию о клиенте и его задачах
+- create_client - создать нового клиента (имя, телефон, email, источник лида)
+- get_clients - список клиентов с фильтрами (status, conversion_stage, limit)
+- update_client - обновить данные клиента (телефон, email, адрес, бюджет, статус, заметки, этап)
+- archive_client - архивировать клиента (причина, комментарий, период)
+- get_client_history - история взаимодействий с клиентом (тип: call/meeting/email/message)
+- add_client_comment - добавить комментарий к клиенту (note/important/warning)
+
+УПРАВЛЕНИЕ ЗАДАЧАМИ:
+- create_task - создать задачу (заголовок, описание, дата выполнения, клиент)
+- get_tasks - список задач (scope: all/today/overdue/by_status, status, limit)
+- get_tasks_stats - статистика задач (всего, сегодня, просроченные, по статусам)
+- update_task - обновить задачу (название, описание, дата, приоритет, статус, исполнитель)
+- delete_task - удалить задачу (ID или название)
+- complete_task - завершить задачу (ID или название, имя клиента)
+
+УПРАВЛЕНИЕ ПОДРЯДЧИКАМИ:
+- create_contractor - создать подрядчика (название, телефон, специализации, опыт, описание)
+- get_contractors - список подрядчиков (специализация, только проверенные, мин. рейтинг)
+- assign_contractor_to_project - назначить подрядчика на проект (подрядчик, клиент, роль, заметки)
+
+УПРАВЛЕНИЕ ПОСТАВЩИКАМИ:
+- create_supplier - создать поставщика (название, категории, контакт, телефон, email, место)
+- get_suppliers - список поставщиков (категории, статус, мин. рейтинг)
+
+СМЕТЫ И ТЕХЗАДАНИЯ:
+- create_estimate - создать смету через AI-Сметчика (описание проекта, площадь, клиент, услуги)
+- create_technical_specification - создать ТЗ (описание объекта, клиент, адрес)
+- get_technical_specifications - найти ТЗ (client_name, title, limit)
+- create_estimate_from_technical_spec - создать смету из ТЗ (ID ТЗ, имя клиента или название ТЗ)
+- search_services_in_nomenclature - поиск услуг в номенклатуре
+- add_items_to_estimate - добавить позиции в смету
+
+КОММЕРЧЕСКИЕ ПРЕДЛОЖЕНИЯ:
+- create_proposal - создать КП (клиент, ID сметы, название, шаблон, отправить сразу)
+- send_proposal - отправить КП (ID КП, имя клиента, способ: email/whatsapp/telegram)
+
+АНАЛИТИКА И ОТЧЕТЫ:
+- get_dashboard_stats - общая статистика (клиенты, задачи, сметы, КП) за период (today/week/month/year)
+- get_sales_funnel - воронка продаж за период (week/month/quarter)
+- get_consultant_analytics - статистика ИИ-консультанта (period, metric: count/questions/types/all)
+
+ДЕЛЕГИРОВАНИЕ AI-ПОМОЩНИКАМ:
+- delegate_to_ai_assistant - делегировать задачу специализированному AI-ассистенту
+  Доступные ассистенты: сметчик, аналитик, конкурентный-анализ
+  Примеры: "поручи сметчику расчет на 100 кв.м", "делегируй аналитику продаж аналитику"
+
+БЫСТРЫЕ КОМАНДЫ:
+- daily_summary - ежедневная сводка (задачи на сегодня, новые клиенты, дедлайны)
+- quick_search - быстрый поиск по всем сущностям CRM (клиенты, задачи, сметы, КП, подрядчики, поставщики)
 
 АНАЛИТИКА ИИ-КОНСУЛЬТАНТА:
 - Статистика обращений через get_consultant_analytics (period: today/week/month/all, metric: count/questions/types/all)
