@@ -11,10 +11,11 @@ import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { getAIConfigForAssistant } from "@/utils/getAPIKeys";
-import { Loader2, FileText, User, MapPin, Building, Calculator, ArrowRight, Save, FolderOpen, Settings } from "lucide-react";
+import { Loader2, FileText, User, MapPin, Building, Calculator, ArrowRight, Save, FolderOpen, Settings, Download } from "lucide-react";
 import VoiceRecorder from "@/components/VoiceRecorder";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import TechnicalSpecialistSettings from "@/components/ai-settings/TechnicalSpecialistSettings";
+import jsPDF from 'jspdf';
 
 interface TechnicalSpecification {
   id: string;
@@ -171,6 +172,135 @@ export default function AITechnicalSpecialist() {
         area: specification.estimated_area.toString(),
       });
       window.location.href = `/ai-estimator?${searchParams.toString()}`;
+    }
+  };
+
+  const downloadPDF = () => {
+    if (!specification) return;
+    
+    const doc = new jsPDF();
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const margin = 15;
+    const lineHeight = 7;
+    let yPosition = 20;
+
+    // Заголовок
+    doc.setFontSize(16);
+    doc.setFont('helvetica', 'bold');
+    doc.text('ТЕХНИЧЕСКОЕ ЗАДАНИЕ', pageWidth / 2, yPosition, { align: 'center' });
+    yPosition += lineHeight * 2;
+
+    // Общая информация
+    doc.setFontSize(12);
+    doc.setFont('helvetica', 'bold');
+    doc.text('ОБЩАЯ ИНФОРМАЦИЯ', margin, yPosition);
+    yPosition += lineHeight;
+
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'normal');
+    doc.text(`Клиент: ${specification.client_name}`, margin, yPosition);
+    yPosition += lineHeight;
+    doc.text(`Адрес: ${specification.object_address}`, margin, yPosition);
+    yPosition += lineHeight;
+    doc.text(`Площадь: ${specification.estimated_area} м²`, margin, yPosition);
+    yPosition += lineHeight;
+    doc.text(`Длительность: ${specification.estimated_duration}`, margin, yPosition);
+    yPosition += lineHeight * 2;
+
+    // Объем работ
+    doc.setFontSize(12);
+    doc.setFont('helvetica', 'bold');
+    doc.text('ОБЪЕМ РАБОТ', margin, yPosition);
+    yPosition += lineHeight;
+
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'normal');
+    const workLines = doc.splitTextToSize(specification.work_scope, pageWidth - margin * 2);
+    workLines.forEach((line: string) => {
+      if (yPosition > 270) {
+        doc.addPage();
+        yPosition = 20;
+      }
+      doc.text(line, margin, yPosition);
+      yPosition += lineHeight;
+    });
+    yPosition += lineHeight;
+
+    // Спецификация материалов
+    if (yPosition > 240) {
+      doc.addPage();
+      yPosition = 20;
+    }
+    doc.setFontSize(12);
+    doc.setFont('helvetica', 'bold');
+    doc.text('СПЕЦИФИКАЦИЯ МАТЕРИАЛОВ', margin, yPosition);
+    yPosition += lineHeight;
+
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'normal');
+    const materialsLines = doc.splitTextToSize(specification.materials_spec, pageWidth - margin * 2);
+    materialsLines.forEach((line: string) => {
+      if (yPosition > 270) {
+        doc.addPage();
+        yPosition = 20;
+      }
+      doc.text(line, margin, yPosition);
+      yPosition += lineHeight;
+    });
+
+    doc.save(`ТЗ_${specification.client_name}_${new Date().toLocaleDateString()}.pdf`);
+    toast({
+      title: "PDF сохранен",
+      description: "Техническое задание загружено в формате PDF",
+    });
+  };
+
+  const downloadDOCX = async () => {
+    if (!specification) return;
+
+    try {
+      const { data, error } = await supabase.functions.invoke('generate-proposal-document', {
+        body: {
+          type: 'technical_specification',
+          data: {
+            client_name: specification.client_name,
+            object_address: specification.object_address,
+            estimated_area: specification.estimated_area,
+            estimated_duration: specification.estimated_duration,
+            work_scope: specification.work_scope,
+            materials_spec: specification.materials_spec,
+            normative_references: specification.normative_references,
+            recommendations: specification.recommendations,
+          }
+        }
+      });
+
+      if (error) throw error;
+
+      // Создаем blob и скачиваем
+      const blob = new Blob([new Uint8Array(data.file)], { 
+        type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' 
+      });
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `ТЗ_${specification.client_name}_${new Date().toLocaleDateString()}.docx`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+
+      toast({
+        title: "DOCX сохранен",
+        description: "Техническое задание загружено в формате DOCX",
+      });
+    } catch (error) {
+      console.error('Error generating DOCX:', error);
+      toast({
+        variant: "destructive",
+        title: "Ошибка",
+        description: "Не удалось сгенерировать DOCX. Используйте PDF.",
+      });
     }
   };
 
@@ -339,29 +469,8 @@ export default function AITechnicalSpecialist() {
 
                   <div>
                     <h3 className="font-semibold text-sm text-muted-foreground mb-2">СПЕЦИФИКАЦИЯ МАТЕРИАЛОВ</h3>
-                    <div className="text-sm bg-muted/50 p-3 rounded-md space-y-2">
-                      {typeof specification.materials_spec === 'string' ? (
-                        <div className="whitespace-pre-line">{specification.materials_spec}</div>
-                      ) : specification.materials_spec && typeof specification.materials_spec === 'object' ? (
-                        Object.entries(specification.materials_spec).map(([key, value]: [string, any]) => (
-                          <div key={key} className="border-b border-muted pb-2 last:border-b-0">
-                            <div className="font-medium capitalize">{key.replace(/_/g, ' ')}</div>
-                            {typeof value === 'object' && value !== null ? (
-                              <div className="ml-4 text-xs text-muted-foreground">
-                                {Object.entries(value).map(([subKey, subValue]) => (
-                                  <div key={subKey}>
-                                    <span className="font-medium">{subKey}:</span> {String(subValue)}
-                                  </div>
-                                ))}
-                              </div>
-                            ) : (
-                              <div className="ml-4 text-xs text-muted-foreground">{String(value)}</div>
-                            )}
-                          </div>
-                        ))
-                      ) : (
-                        <div>Спецификация материалов не загружена</div>
-                      )}
+                    <div className="text-sm whitespace-pre-line bg-muted/50 p-3 rounded-md">
+                      {specification.materials_spec}
                     </div>
                   </div>
 
@@ -401,15 +510,36 @@ export default function AITechnicalSpecialist() {
 
                   <Separator />
 
-                  <Button 
-                    onClick={transferToEstimator}
-                    className="w-full"
-                    variant="default"
-                  >
-                    <Calculator className="mr-2 h-4 w-4" />
-                    Передать в AI-Сметчик
-                    <ArrowRight className="ml-2 h-4 w-4" />
-                  </Button>
+                  <div className="space-y-2">
+                    <div className="grid grid-cols-2 gap-2">
+                      <Button 
+                        onClick={downloadPDF}
+                        variant="outline"
+                        className="w-full"
+                      >
+                        <Download className="mr-2 h-4 w-4" />
+                        Скачать PDF
+                      </Button>
+                      <Button 
+                        onClick={downloadDOCX}
+                        variant="outline"
+                        className="w-full"
+                      >
+                        <Download className="mr-2 h-4 w-4" />
+                        Скачать DOCX
+                      </Button>
+                    </div>
+
+                    <Button 
+                      onClick={transferToEstimator}
+                      className="w-full"
+                      variant="default"
+                    >
+                      <Calculator className="mr-2 h-4 w-4" />
+                      Передать в AI-Сметчик
+                      <ArrowRight className="ml-2 h-4 w-4" />
+                    </Button>
+                  </div>
                 </div>
               </div>
             ) : (
