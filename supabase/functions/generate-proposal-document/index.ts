@@ -6,11 +6,13 @@ const corsHeaders = {
 };
 
 interface GenerateProposalRequest {
-  template_id: string;
-  client_id: string;
-  estimate_id: string;
-  title: string;
-  valid_days: number;
+  template_id?: string;
+  client_id?: string;
+  estimate_id?: string;
+  title?: string;
+  valid_days?: number;
+  type?: string;
+  data?: any;
 }
 
 // Простая генерация DOCX через XML
@@ -73,9 +75,69 @@ Deno.serve(async (req) => {
     const requestData: GenerateProposalRequest = await req.json();
     console.log('Generate proposal request:', requestData);
 
-    // Получаем данные клиента
+    // Проверяем тип запроса
+    if (requestData.type === 'technical_specification') {
+      // Генерация DOCX из технического задания
+      const data = requestData.data;
+      
+      let content = `ТЕХНИЧЕСКОЕ ЗАДАНИЕ\n\n`;
+      content += `Название: ${data.title || 'Не указано'}\n`;
+      content += `Клиент: ${data.client_name || 'Не указан'}\n`;
+      content += `Адрес объекта: ${data.object_address || 'Не указан'}\n\n`;
+      
+      if (data.object_description) {
+        content += `ОПИСАНИЕ ОБЪЕКТА\n${data.object_description}\n\n`;
+      }
+      
+      if (data.work_scope) {
+        content += `ОБЪЕМ РАБОТ\n${data.work_scope}\n\n`;
+      }
+      
+      if (data.materials_spec) {
+        content += `СПЕЦИФИКАЦИЯ МАТЕРИАЛОВ\n${data.materials_spec}\n\n`;
+      }
+      
+      if (data.normative_references && Array.isArray(data.normative_references)) {
+        content += `НОРМАТИВНЫЕ ССЫЛКИ\n${data.normative_references.join('\n')}\n\n`;
+      }
+      
+      if (data.quality_requirements) {
+        content += `ТРЕБОВАНИЯ К КАЧЕСТВУ\n${data.quality_requirements}\n\n`;
+      }
+      
+      if (data.timeline) {
+        content += `ВРЕМЕННЫЕ РАМКИ\n${data.timeline}\n\n`;
+      }
+      
+      if (data.safety_requirements) {
+        content += `ТРЕБОВАНИЯ БЕЗОПАСНОСТИ\n${data.safety_requirements}\n\n`;
+      }
+      
+      if (data.acceptance_criteria) {
+        content += `КРИТЕРИИ ПРИЕМКИ\n${data.acceptance_criteria}\n\n`;
+      }
+      
+      if (data.additional_requirements) {
+        content += `ДОПОЛНИТЕЛЬНЫЕ ТРЕБОВАНИЯ\n${data.additional_requirements}\n\n`;
+      }
+
+      // Генерируем DOCX
+      const docxContent = generateDocx(content, data.title || 'Техническое задание');
+
+      // Возвращаем файл напрямую
+      return new Response(docxContent, {
+        headers: {
+          ...corsHeaders,
+          'Content-Type': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+          'Content-Disposition': `attachment; filename="technical_specification.docx"`,
+        },
+      });
+    }
+
+    // Генерация КП из сметы (старая логика)
+    // Получаем данные клиента из clients_base
     const { data: client, error: clientError } = await supabaseClient
-      .from('clients')
+      .from('clients_base')
       .select('*')
       .eq('id', requestData.client_id)
       .single();
@@ -125,7 +187,7 @@ Deno.serve(async (req) => {
     });
 
     // Генерируем DOCX
-    const docxContent = generateDocx(content, requestData.title);
+    const docxContent = generateDocx(content, requestData.title || 'Коммерческое предложение');
 
     // Генерируем имя файла
     const fileName = `proposal_${requestData.client_id}_${Date.now()}.docx`;
@@ -153,7 +215,7 @@ Deno.serve(async (req) => {
 
     // Создаём КП в базе
     const expiresAt = new Date();
-    expiresAt.setDate(expiresAt.getDate() + requestData.valid_days);
+    expiresAt.setDate(expiresAt.getDate() + (requestData.valid_days || 14));
 
     const { data: proposal, error: proposalError } = await supabaseClient
       .from('proposals')

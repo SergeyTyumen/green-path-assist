@@ -165,34 +165,52 @@ const TechnicalSpecifications = () => {
     try {
       toast.info('Генерация DOCX...');
       
-      const { data, error } = await supabase.functions.invoke('generate-proposal-document', {
-        body: {
-          type: 'technical_specification',
-          data: {
-            title: spec.title,
-            client_name: spec.client_name,
-            object_address: spec.object_address,
-            object_description: spec.object_description,
-            work_scope: spec.work_scope,
-            materials_spec: typeof spec.materials_spec === 'string' 
-              ? spec.materials_spec 
-              : JSON.stringify(spec.materials_spec, null, 2),
-            normative_references: spec.normative_references,
-            quality_requirements: spec.quality_requirements,
-            timeline: spec.timeline,
-            safety_requirements: spec.safety_requirements,
-            acceptance_criteria: spec.acceptance_criteria,
-            additional_requirements: spec.additional_requirements
-          }
+      // Используем прямой fetch для получения бинарных данных
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        toast.error('Необходима авторизация');
+        return;
+      }
+
+      const response = await fetch(
+        `https://nxyzmxqtzsvjezmkmkja.supabase.co/functions/v1/generate-proposal-document`,
+        {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${session.access_token}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            type: 'technical_specification',
+            data: {
+              title: spec.title,
+              client_name: spec.client_name,
+              object_address: spec.object_address,
+              object_description: spec.object_description,
+              work_scope: spec.work_scope,
+              materials_spec: typeof spec.materials_spec === 'string' 
+                ? spec.materials_spec 
+                : JSON.stringify(spec.materials_spec, null, 2),
+              normative_references: spec.normative_references,
+              quality_requirements: spec.quality_requirements,
+              timeline: spec.timeline,
+              safety_requirements: spec.safety_requirements,
+              acceptance_criteria: spec.acceptance_criteria,
+              additional_requirements: spec.additional_requirements
+            }
+          })
         }
-      });
+      );
 
-      if (error) throw error;
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Ошибка генерации документа');
+      }
 
-      // Создаем blob и скачиваем
-      const blob = new Blob([new Uint8Array(data.file)], { 
-        type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' 
-      });
+      // Получаем бинарные данные
+      const blob = await response.blob();
+      
+      // Создаем URL и скачиваем файл
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
@@ -205,7 +223,7 @@ const TechnicalSpecifications = () => {
       toast.success('DOCX успешно загружен');
     } catch (error) {
       console.error('Ошибка создания DOCX:', error);
-      toast.error('Ошибка при создании DOCX. Используйте PDF.');
+      toast.error(error instanceof Error ? error.message : 'Ошибка при создании DOCX');
     }
   };
 
