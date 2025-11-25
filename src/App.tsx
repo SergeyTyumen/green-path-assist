@@ -31,6 +31,8 @@ import AIContractorManager from "./pages/AIContractorManager";
 import AIAssistantsSettings from "./pages/AIAssistantsSettings";
 import AITechnicalSpecialist from "./pages/AITechnicalSpecialistNew";
 import TechnicalSpecifications from "./pages/TechnicalSpecifications";
+import NormativeDocuments from "./pages/NormativeDocuments";
+import EstimateTemplates from "./pages/EstimateTemplates";
 import UserManagement from "./pages/UserManagement";
 import UserProfile from "./pages/UserProfile";
 import MasterDashboard from "./pages/MasterDashboard";
@@ -66,6 +68,8 @@ const App = () => (
             
             <Route path="ai-technical-specialist" element={<AITechnicalSpecialist />} />
             <Route path="technical-specifications" element={<TechnicalSpecifications />} />
+            <Route path="normative-documents" element={<NormativeDocuments />} />
+            <Route path="estimate-templates" element={<EstimateTemplates />} />
             <Route path="ai-analyst" element={<AIAnalystPage />} />
             <Route path="competitor-analysis" element={<CompetitorAnalysisPage />} />
             <Route path="ai-estimator" element={<AIEstimator />} />
