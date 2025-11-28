@@ -3,9 +3,11 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useProfiles } from '@/hooks/useProfiles';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Menu, LayoutGrid } from 'lucide-react';
+import { DashboardWidgetSettings } from '@/components/DashboardWidgetSettings';
 
 interface MenuItemConfig {
   id: string;
@@ -107,82 +109,66 @@ export function UserInterfaceSettings() {
   };
 
   return (
-    <div className="space-y-6">
-      <Card>
-        <CardHeader>
-          <CardTitle>Настройка меню</CardTitle>
-          <CardDescription>
-            Выберите разделы, которые будут отображаться в боковом меню
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {MENU_ITEMS.map((item) => (
-            <div key={item.id} className="flex items-start space-x-3">
-              <Checkbox
-                id={`menu-${item.id}`}
-                checked={selectedMenuItems.includes(item.id)}
-                onCheckedChange={() => handleMenuItemToggle(item.id)}
-              />
-              <div className="grid gap-1.5 leading-none">
-                <Label
-                  htmlFor={`menu-${item.id}`}
-                  className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-                >
-                  {item.label}
-                </Label>
-                {item.description && (
-                  <p className="text-sm text-muted-foreground">
-                    {item.description}
-                  </p>
-                )}
-              </div>
-            </div>
-          ))}
-        </CardContent>
-      </Card>
+    <Tabs defaultValue="dashboard" className="w-full">
+      <TabsList className="grid w-full grid-cols-2 max-w-md">
+        <TabsTrigger value="dashboard">
+          <LayoutGrid className="h-4 w-4 mr-2" />
+          Виджеты дашборда
+        </TabsTrigger>
+        <TabsTrigger value="menu">
+          <Menu className="h-4 w-4 mr-2" />
+          Меню навигации
+        </TabsTrigger>
+      </TabsList>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Настройка дашборда</CardTitle>
-          <CardDescription>
-            Выберите виджеты, которые будут отображаться на главной странице
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {DASHBOARD_WIDGETS.map((widget) => (
-            <div key={widget.id} className="flex items-start space-x-3">
-              <Checkbox
-                id={`widget-${widget.id}`}
-                checked={selectedWidgets.includes(widget.id)}
-                onCheckedChange={() => handleWidgetToggle(widget.id)}
-              />
-              <div className="grid gap-1.5 leading-none">
-                <Label
-                  htmlFor={`widget-${widget.id}`}
-                  className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-                >
-                  {widget.label}
-                </Label>
-                {widget.description && (
-                  <p className="text-sm text-muted-foreground">
-                    {widget.description}
-                  </p>
-                )}
-              </div>
-            </div>
-          ))}
-        </CardContent>
-      </Card>
+      <TabsContent value="dashboard" className="space-y-4">
+        <DashboardWidgetSettings />
+      </TabsContent>
 
-      <div className="flex gap-3">
-        <Button onClick={handleSave} disabled={loading}>
-          {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-          Сохранить настройки
-        </Button>
-        <Button onClick={handleReset} variant="outline" disabled={loading}>
-          Сбросить по умолчанию
-        </Button>
-      </div>
-    </div>
+      <TabsContent value="menu" className="space-y-4">
+        <Card>
+          <CardHeader>
+            <CardTitle>Настройка меню</CardTitle>
+            <CardDescription>
+              Выберите разделы, которые будут отображаться в боковом меню
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {MENU_ITEMS.map((item) => (
+              <div key={item.id} className="flex items-start space-x-3">
+                <Checkbox
+                  id={`menu-${item.id}`}
+                  checked={selectedMenuItems.includes(item.id)}
+                  onCheckedChange={() => handleMenuItemToggle(item.id)}
+                />
+                <div className="grid gap-1.5 leading-none">
+                  <Label
+                    htmlFor={`menu-${item.id}`}
+                    className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                  >
+                    {item.label}
+                  </Label>
+                  {item.description && (
+                    <p className="text-sm text-muted-foreground">
+                      {item.description}
+                    </p>
+                  )}
+                </div>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+
+        <div className="flex gap-3">
+          <Button onClick={handleSave} disabled={loading}>
+            {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            Сохранить настройки
+          </Button>
+          <Button onClick={handleReset} variant="outline" disabled={loading}>
+            Сбросить по умолчанию
+          </Button>
+        </div>
+      </TabsContent>
+    </Tabs>
   );
 }
