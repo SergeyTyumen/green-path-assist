@@ -16,8 +16,7 @@ import {
   HardHat,
   User,
   BookOpen,
-  FileSpreadsheet,
-  Bell
+  FileSpreadsheet
 } from "lucide-react";
 import { NavLink, useLocation } from "react-router-dom";
 import { useProfiles } from "@/hooks/useProfiles";
@@ -61,7 +60,6 @@ const navigationItems: NavigationItem[] = [
   { id: "archive", title: "Архив проектов", url: "/archive", icon: Archive },
   { id: "ai-assistants", title: "ИИ-помощники", url: "/ai-assistants", icon: Bot },
   { id: "voice-chat", title: "Голосовой помощник", url: "/voice-chat", icon: Mic },
-  { id: "notification-settings", title: "Настройки уведомлений", url: "/notification-settings", icon: Bell },
   { id: "user-profile", title: "Профили пользователей", url: "/user-profile", icon: User },
   { id: "user-management", title: "Управление пользователями", url: "/user-management", icon: UserCog },
 ];
@@ -75,8 +73,7 @@ export function AppSidebar() {
   const collapsed = state === "collapsed";
 
   // Фильтруем пункты меню на основе настроек пользователя и ролей
-  // ВАЖНО: системные пункты всегда видны
-  const systemItems = ["user-profile", "notification-settings"];
+  // ВАЖНО: "user-profile" всегда должен быть виден
   const visibleMenuItems = currentProfile?.ui_preferences?.visible_menu_items;
   const filteredNavigationItems = navigationItems.filter(item => {
     // Проверяем требование роли
@@ -86,7 +83,7 @@ export function AppSidebar() {
     
     // Проверяем видимость в настройках
     if (visibleMenuItems && visibleMenuItems.length > 0) {
-      return visibleMenuItems.includes(item.id) || systemItems.includes(item.id);
+      return visibleMenuItems.includes(item.id) || item.id === "user-profile";
     }
     
     return true;

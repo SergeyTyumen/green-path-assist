@@ -4,9 +4,10 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Edit, Mail, Phone, MessageCircle, User, Building, Key, Settings, Users } from 'lucide-react';
+import { Edit, Mail, Phone, MessageCircle, User, Building, Key, Settings, Users, Bell } from 'lucide-react';
 import { UserProfileDialog } from '@/components/UserProfileDialog';
 import { UserInterfaceSettings } from '@/components/UserInterfaceSettings';
+import { NotificationSettings } from '@/components/NotificationSettings';
 import { ClickablePhone } from '@/components/ClickablePhone';
 import { useProfiles } from '@/hooks/useProfiles';
 import { useNavigate, useSearchParams } from 'react-router-dom';
@@ -20,7 +21,7 @@ export default function UserProfile() {
 
   useEffect(() => {
     const tab = searchParams.get('tab');
-    if (tab && ['profile', 'interface', 'team'].includes(tab)) {
+    if (tab && ['profile', 'interface', 'notifications', 'team'].includes(tab)) {
       setActiveTab(tab);
     }
   }, [searchParams]);
@@ -50,14 +51,18 @@ export default function UserProfile() {
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid w-full grid-cols-3 max-w-md">
+        <TabsList className="grid w-full grid-cols-4 max-w-2xl">
           <TabsTrigger value="profile">
             <User className="h-4 w-4 mr-2" />
             Мой профиль
           </TabsTrigger>
           <TabsTrigger value="interface">
             <Settings className="h-4 w-4 mr-2" />
-            Настройка интерфейса
+            Интерфейс
+          </TabsTrigger>
+          <TabsTrigger value="notifications">
+            <Bell className="h-4 w-4 mr-2" />
+            Уведомления
           </TabsTrigger>
           <TabsTrigger value="team">
             <Users className="h-4 w-4 mr-2" />
@@ -151,6 +156,10 @@ export default function UserProfile() {
 
         <TabsContent value="interface">
           <UserInterfaceSettings />
+        </TabsContent>
+
+        <TabsContent value="notifications">
+          <NotificationSettings />
         </TabsContent>
 
         <TabsContent value="team" className="space-y-4">
