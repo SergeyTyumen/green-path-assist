@@ -7,9 +7,8 @@ import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
-import { Users, Shield, Search, UserCheck, Crown, Bell } from 'lucide-react';
+import { Users, Shield, Search, UserCheck, Crown } from 'lucide-react';
 import { Navigate, Link } from 'react-router-dom';
-import { NotificationSettings } from '@/components/NotificationSettings';
 import { UserRegistrationManager } from '@/components/UserRegistrationManager';
 import { PermissionsManager } from '@/components/PermissionsManager';
 
@@ -325,22 +324,7 @@ const UserManagement = () => {
 
       {/* Настройки системы */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="space-y-6">
-          <Card>
-            <CardHeader>
-              <div className="flex items-center gap-2">
-                <Bell className="h-5 w-5 text-primary" />
-                <CardTitle>Настройки уведомлений</CardTitle>
-              </div>
-              <CardDescription>
-                Настройка push-уведомлений для мобильного приложения
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <NotificationSettings />
-            </CardContent>
-          </Card>
-
+        <div>
           <UserRegistrationManager />
         </div>
 
