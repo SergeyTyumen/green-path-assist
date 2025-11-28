@@ -75,7 +75,8 @@ export function AppSidebar() {
   const collapsed = state === "collapsed";
 
   // Фильтруем пункты меню на основе настроек пользователя и ролей
-  // ВАЖНО: "user-profile" всегда должен быть виден, чтобы пользователь мог попасть в настройки
+  // ВАЖНО: системные пункты всегда видны
+  const systemItems = ["user-profile", "notification-settings"];
   const visibleMenuItems = currentProfile?.ui_preferences?.visible_menu_items;
   const filteredNavigationItems = navigationItems.filter(item => {
     // Проверяем требование роли
@@ -85,7 +86,7 @@ export function AppSidebar() {
     
     // Проверяем видимость в настройках
     if (visibleMenuItems && visibleMenuItems.length > 0) {
-      return visibleMenuItems.includes(item.id) || item.id === "user-profile";
+      return visibleMenuItems.includes(item.id) || systemItems.includes(item.id);
     }
     
     return true;
