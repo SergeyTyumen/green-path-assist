@@ -1,0 +1,21 @@
+-- Обновляем поле ui_preferences для хранения настроек виджетов дашборда
+COMMENT ON COLUMN profiles.ui_preferences IS 'Хранит настройки интерфейса пользователя, включая виджеты дашборда, их размеры и порядок';
+
+-- Пример структуры ui_preferences:
+-- {
+--   "dashboard_widgets": [
+--     {
+--       "id": "new_leads",
+--       "enabled": true,
+--       "size": "1x1",
+--       "order": 0
+--     },
+--     {
+--       "id": "my_tasks",
+--       "enabled": true,
+--       "size": "1x2",
+--       "order": 1
+--     }
+--   ],
+--   "visible_menu_items": ["dashboard", "clients", "tasks"]
+-- }

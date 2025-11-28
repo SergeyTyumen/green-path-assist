@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -9,12 +9,21 @@ import { UserProfileDialog } from '@/components/UserProfileDialog';
 import { UserInterfaceSettings } from '@/components/UserInterfaceSettings';
 import { ClickablePhone } from '@/components/ClickablePhone';
 import { useProfiles } from '@/hooks/useProfiles';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 
 export default function UserProfile() {
   const { profiles, currentProfile, loading } = useProfiles();
   const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [searchParams] = useSearchParams();
   const navigate = useNavigate();
+  const [activeTab, setActiveTab] = useState("profile");
+
+  useEffect(() => {
+    const tab = searchParams.get('tab');
+    if (tab && ['profile', 'interface', 'team'].includes(tab)) {
+      setActiveTab(tab);
+    }
+  }, [searchParams]);
 
   if (loading) {
     return (
@@ -40,7 +49,7 @@ export default function UserProfile() {
         </div>
       </div>
 
-      <Tabs defaultValue="profile" className="w-full">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
         <TabsList className="grid w-full grid-cols-3 max-w-md">
           <TabsTrigger value="profile">
             <User className="h-4 w-4 mr-2" />
