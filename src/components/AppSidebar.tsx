@@ -16,7 +16,8 @@ import {
   HardHat,
   User,
   BookOpen,
-  FileSpreadsheet
+  FileSpreadsheet,
+  Bell
 } from "lucide-react";
 import { NavLink, useLocation } from "react-router-dom";
 import { useProfiles } from "@/hooks/useProfiles";
@@ -60,6 +61,7 @@ const navigationItems: NavigationItem[] = [
   { id: "archive", title: "Архив проектов", url: "/archive", icon: Archive },
   { id: "ai-assistants", title: "ИИ-помощники", url: "/ai-assistants", icon: Bot },
   { id: "voice-chat", title: "Голосовой помощник", url: "/voice-chat", icon: Mic },
+  { id: "notification-settings", title: "Настройки уведомлений", url: "/notification-settings", icon: Bell },
   { id: "user-profile", title: "Профили пользователей", url: "/user-profile", icon: User },
   { id: "user-management", title: "Управление пользователями", url: "/user-management", icon: UserCog },
 ];

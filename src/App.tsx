@@ -39,6 +39,7 @@ import MasterDashboard from "./pages/MasterDashboard";
 import { RegistrationRequest } from "./pages/RegistrationRequest";
 import { ForgotPassword } from "./pages/ForgotPassword";
 import { ResetPassword } from "./pages/ResetPassword";
+import NotificationSettingsPage from "./pages/NotificationSettingsPage";
 
 const App = () => (
   <TooltipProvider>
@@ -82,6 +83,7 @@ const App = () => (
             <Route path="user-management" element={<UserManagement />} />
             <Route path="user-profile" element={<UserProfile />} />
             <Route path="master-dashboard" element={<MasterDashboard />} />
+            <Route path="notification-settings" element={<NotificationSettingsPage />} />
           </Route>
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
