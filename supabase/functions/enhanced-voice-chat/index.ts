@@ -610,6 +610,22 @@ async function callOpenAIWithTools(messages: AIMessage[], settings: UserSettings
             required: ["query"]
           }
         }
+      },
+      {
+        type: "function",
+        function: {
+          name: "call_n8n_workflow",
+          description: "Вызвать workflow n8n для выполнения автоматизированных задач, обработки данных или интеграции с внешними сервисами",
+          parameters: {
+            type: "object",
+            properties: {
+              message: { type: "string", description: "Сообщение или данные для отправки в n8n workflow" },
+              workflow_context: { type: "string", description: "Контекст или тип задачи для workflow" },
+              additional_data: { type: "object", description: "Дополнительные данные для обработки в n8n" }
+            },
+            required: ["message"]
+          }
+        }
       }
     ];
 
@@ -891,6 +907,9 @@ async function executeFunction(functionName: string, args: any, userId: string, 
     
     case 'quick_search':
       return await quickSearch(userId, args);
+    
+    case 'call_n8n_workflow':
+      return await callN8nWorkflow(userId, args);
       
     default:
       return { error: `Unknown function: ${functionName}` };
@@ -947,6 +966,56 @@ async function delegateToAIAssistant(userId: string, args: any, userToken?: stri
     return {
       success: false,
       message: `❌ Ошибка делегирования: ${error instanceof Error ? error.message : 'Неизвестная ошибка'}`
+    };
+  }
+}
+
+// Вызов n8n workflow через webhook
+async function callN8nWorkflow(userId: string, args: any) {
+  console.log('Calling n8n workflow:', args);
+  try {
+    const N8N_WEBHOOK_URL = 'https://mybotteleg.ru/webhook-test/8db96187-b4b0-4292-a4db-31ab1fca81cf';
+    
+    const payload = {
+      user_id: userId,
+      message: args.message,
+      workflow_context: args.workflow_context || 'general',
+      additional_data: args.additional_data || {},
+      timestamp: new Date().toISOString()
+    };
+
+    console.log('Sending to n8n webhook:', payload);
+
+    const response = await fetch(N8N_WEBHOOK_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(payload)
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('n8n webhook error:', response.status, errorText);
+      return {
+        success: false,
+        message: `❌ Ошибка вызова n8n workflow: ${response.status} ${errorText}`
+      };
+    }
+
+    const result = await response.json();
+    console.log('n8n workflow result:', result);
+
+    return {
+      success: true,
+      result: result,
+      message: `✅ n8n workflow выполнен успешно\n\n${JSON.stringify(result, null, 2)}`
+    };
+  } catch (error) {
+    console.error('Error calling n8n workflow:', error);
+    return {
+      success: false,
+      message: `❌ Ошибка вызова n8n workflow: ${error instanceof Error ? error.message : 'Неизвестная ошибка'}`
     };
   }
 }
@@ -2891,6 +2960,11 @@ serve(async (req) => {
 БЫСТРЫЕ КОМАНДЫ:
 - daily_summary - ежедневная сводка (задачи на сегодня, новые клиенты, дедлайны)
 - quick_search - быстрый поиск по всем сущностям CRM (клиенты, задачи, сметы, КП, подрядчики, поставщики)
+
+N8N АВТОМАТИЗАЦИЯ:
+- call_n8n_workflow - вызвать автоматизированный workflow n8n для обработки данных, интеграции с внешними сервисами или выполнения сложных задач
+  Используется для: автоматизации бизнес-процессов, интеграции с внешними API, обработки данных, отправки уведомлений и других задач автоматизации
+  Примеры: "отправь данные в n8n", "обработай заказ через n8n", "запусти автоматизацию для клиента"
 
 АНАЛИТИКА ИИ-КОНСУЛЬТАНТА:
 - Статистика обращений через get_consultant_analytics (period: today/week/month/all, metric: count/questions/types/all)
