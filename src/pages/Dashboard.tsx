@@ -12,64 +12,12 @@ import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { DashboardWidget, WidgetSize } from "@/types/dashboard";
-import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent } from '@dnd-kit/core';
-import { arrayMove, SortableContext, sortableKeyboardCoordinates, rectSortingStrategy, useSortable } from '@dnd-kit/sortable';
-import { CSS } from '@dnd-kit/utilities';
-import { useToast } from '@/hooks/use-toast';
-import { useProfiles } from '@/hooks/useProfiles';
-
-interface SortableWidgetProps {
-  widget: DashboardWidget;
-  data: any;
-}
-
-function SortableWidget({ widget, data }: SortableWidgetProps) {
-  const {
-    attributes,
-    listeners,
-    setNodeRef,
-    transform,
-    transition,
-    isDragging,
-  } = useSortable({ id: widget.id });
-
-  const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-    opacity: isDragging ? 0.5 : 1,
-  };
-
-  return (
-    <div
-      ref={setNodeRef}
-      style={style}
-      {...attributes}
-      {...listeners}
-      className="cursor-grab active:cursor-grabbing h-full"
-    >
-      <WidgetRenderer
-        widgetId={widget.id}
-        size={widget.size}
-        data={data}
-      />
-    </div>
-  );
-}
 
 export default function Dashboard() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { widgets: initialWidgets, loading: widgetsLoading } = useDashboardWidgets();
   const [widgets, setWidgets] = useState<DashboardWidget[]>([]);
-  const { currentProfile } = useProfiles();
-  const { toast } = useToast();
-
-  const sensors = useSensors(
-    useSensor(PointerSensor),
-    useSensor(KeyboardSensor, {
-      coordinateGetter: sortableKeyboardCoordinates,
-    })
-  );
   const { clients, loading: clientsLoading } = useClients();
   const { tasks, loading: tasksLoading } = useTasks();
   const { estimates, loading: estimatesLoading } = useEstimates();
@@ -407,49 +355,6 @@ export default function Dashboard() {
     loadConsultantStats();
   }, [user]);
 
-  const handleDragEnd = async (event: DragEndEvent) => {
-    const { active, over } = event;
-
-    if (over && active.id !== over.id) {
-      const oldIndex = widgets.findIndex((w) => w.id === active.id);
-      const newIndex = widgets.findIndex((w) => w.id === over.id);
-      
-      const newWidgets = arrayMove(widgets, oldIndex, newIndex).map((w, index) => ({
-        ...w,
-        order: index,
-      }));
-      
-      setWidgets(newWidgets);
-
-      if (currentProfile) {
-        try {
-          const currentPrefs = (currentProfile.ui_preferences as any) || {};
-          
-          await supabase
-            .from('profiles')
-            .update({
-              ui_preferences: {
-                ...currentPrefs,
-                dashboard_widgets: newWidgets
-              }
-            })
-            .eq('user_id', currentProfile.user_id);
-
-          toast({
-            title: 'Порядок виджетов обновлен',
-          });
-        } catch (error) {
-          console.error('Error saving widget order:', error);
-          toast({
-            title: 'Ошибка',
-            description: 'Не удалось сохранить порядок виджетов',
-            variant: 'destructive',
-          });
-        }
-      }
-    }
-  };
-
   const getGridColsClass = (size: WidgetSize) => {
     switch (size) {
       case "2x2":
@@ -520,24 +425,17 @@ export default function Dashboard() {
           </Button>
         </div>
       ) : (
-        <DndContext
-          sensors={sensors}
-          collisionDetection={closestCenter}
-          onDragEnd={handleDragEnd}
-        >
-          <SortableContext
-            items={widgets.map((w) => w.id)}
-            strategy={rectSortingStrategy}
-          >
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 auto-rows-fr">
-              {widgets.map((widget) => (
-                <div key={widget.id} className={cn(getGridColsClass(widget.size))}>
-                  <SortableWidget widget={widget} data={dashboardData} />
-                </div>
-              ))}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 auto-rows-fr">
+          {widgets.map((widget) => (
+            <div key={widget.id} className={cn(getGridColsClass(widget.size))}>
+              <WidgetRenderer
+                widgetId={widget.id}
+                size={widget.size}
+                data={dashboardData}
+              />
             </div>
-          </SortableContext>
-        </DndContext>
+          ))}
+        </div>
       )}
     </div>
   );
