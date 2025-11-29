@@ -425,7 +425,7 @@ export default function Dashboard() {
           </Button>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 auto-rows-fr" style={{ gridAutoFlow: 'dense' }}>
           {widgets.map((widget) => (
             <div key={widget.id} className={cn(getGridColsClass(widget.size), "h-full")}>
               <WidgetRenderer
