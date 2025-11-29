@@ -1,5 +1,3 @@
-export type WidgetSize = 'small' | 'medium' | 'large';
-
 export type WidgetId = 
   | 'new_leads'
   | 'new_messages'
@@ -21,7 +19,6 @@ export type WidgetId =
 export interface DashboardWidget {
   id: WidgetId;
   enabled: boolean;
-  size: WidgetSize;
   order: number;
 }
 
@@ -29,8 +26,6 @@ export interface DashboardWidgetConfig {
   id: WidgetId;
   title: string;
   description: string;
-  defaultSize: WidgetSize;
-  availableSizes: WidgetSize[];
   category: 'manager' | 'director' | 'master' | 'common';
   icon: React.ComponentType<any>;
 }

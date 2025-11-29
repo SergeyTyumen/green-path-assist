@@ -379,7 +379,13 @@ export default function Dashboard() {
     proposalsSent: proposals.filter((p) => p.status === "sent").length,
     revenue: `₽${(proposals.filter((p) => p.status === "approved").reduce((sum, p) => sum + p.amount, 0) / 1000000).toFixed(1)}М`,
     consultantStats,
-    todayTasks: tasks.filter((task) => task.status === "pending").slice(0, 3),
+    tasksStats: {
+      total: tasks.length,
+      pending: tasks.filter((t) => t.status === "pending").length,
+      inProgress: tasks.filter((t) => t.status === "in-progress").length,
+      overdue: tasks.filter((t) => t.status === "overdue").length,
+      highPriority: tasks.filter((t) => t.priority === "high" && t.status !== "completed").length,
+    },
     recentClients: clients.slice(0, 4),
   };
 
@@ -412,54 +418,14 @@ export default function Dashboard() {
           </Button>
         </div>
       ) : (
-        <div className="space-y-6">
-          {/* Маленькие виджеты - 4 в ряд */}
-          {widgets.filter(w => w.size === 'small').length > 0 && (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-              {widgets
-                .filter(w => w.size === 'small')
-                .map((widget) => (
-                  <WidgetRenderer
-                    key={widget.id}
-                    widgetId={widget.id}
-                    size={widget.size}
-                    data={dashboardData}
-                  />
-                ))}
-            </div>
-          )}
-          
-          {/* Средние виджеты - 3 в ряд */}
-          {widgets.filter(w => w.size === 'medium').length > 0 && (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {widgets
-                .filter(w => w.size === 'medium')
-                .map((widget) => (
-                  <WidgetRenderer
-                    key={widget.id}
-                    widgetId={widget.id}
-                    size={widget.size}
-                    data={dashboardData}
-                  />
-                ))}
-            </div>
-          )}
-          
-          {/* Большие виджеты - 2 в ряд */}
-          {widgets.filter(w => w.size === 'large').length > 0 && (
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-              {widgets
-                .filter(w => w.size === 'large')
-                .map((widget) => (
-                  <WidgetRenderer
-                    key={widget.id}
-                    widgetId={widget.id}
-                    size={widget.size}
-                    data={dashboardData}
-                  />
-                ))}
-            </div>
-          )}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+          {widgets.map((widget) => (
+            <WidgetRenderer
+              key={widget.id}
+              widgetId={widget.id}
+              data={dashboardData}
+            />
+          ))}
         </div>
       )}
     </div>

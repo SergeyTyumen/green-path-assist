@@ -1,40 +1,25 @@
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { useProfiles } from '@/hooks/useProfiles';
 import { supabase } from '@/integrations/supabase/client';
 import { WIDGET_CONFIGS, WIDGET_PRESETS } from '@/config/dashboardWidgets';
-import { DashboardWidget, WidgetSize } from '@/types/dashboard';
+import { DashboardWidget } from '@/types/dashboard';
 import { Loader2, GripVertical, LayoutGrid } from 'lucide-react';
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent } from '@dnd-kit/core';
 import { arrayMove, SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 
-// Миграция старых размеров в новые
-function migrateWidgetSize(oldSize: string): WidgetSize {
-  const sizeMap: Record<string, WidgetSize> = {
-    '1x1': 'small',
-    '1x2': 'medium',
-    '2x1': 'medium',
-    '2x2': 'large'
-  };
-  
-  return sizeMap[oldSize] || 'small';
-}
-
 interface SortableWidgetItemProps {
   widget: DashboardWidget;
   config: any;
   onToggle: (id: string) => void;
-  onSizeChange: (id: string, size: WidgetSize) => void;
 }
 
-function SortableWidgetItem({ widget, config, onToggle, onSizeChange }: SortableWidgetItemProps) {
+function SortableWidgetItem({ widget, config, onToggle }: SortableWidgetItemProps) {
   const {
     attributes,
     listeners,
@@ -71,20 +56,6 @@ function SortableWidgetItem({ widget, config, onToggle, onSizeChange }: Sortable
       </div>
 
       <div className="flex items-center gap-3">
-        <Select
-          value={widget.size}
-          onValueChange={(value: WidgetSize) => onSizeChange(widget.id, value)}
-          disabled={!widget.enabled}
-        >
-          <SelectTrigger className="w-[110px] h-8">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="small">Малый</SelectItem>
-            <SelectItem value="medium">Средний</SelectItem>
-            <SelectItem value="large">Большой</SelectItem>
-          </SelectContent>
-        </Select>
         <Switch
           checked={widget.enabled}
           onCheckedChange={() => onToggle(widget.id)}
@@ -113,12 +84,12 @@ export function DashboardWidgetSettings() {
     if (currentProfile) {
       const prefs = currentProfile.ui_preferences as any;
       if (prefs?.dashboard_widgets && Array.isArray(prefs.dashboard_widgets)) {
-        // Мигрируем старые размеры в новые
-        const migratedWidgets = prefs.dashboard_widgets.map((widget: any) => ({
-          ...widget,
-          size: migrateWidgetSize(widget.size)
-        }));
-        setWidgets(migratedWidgets);
+        // Удаляем поле size если оно есть
+        const cleanedWidgets = prefs.dashboard_widgets.map((widget: any) => {
+          const { size, ...rest } = widget;
+          return rest;
+        });
+        setWidgets(cleanedWidgets);
       } else {
         // Установка значений по умолчанию для менеджера
         setWidgets(WIDGET_PRESETS.manager as DashboardWidget[]);
@@ -138,12 +109,6 @@ export function DashboardWidgetSettings() {
         return newItems.map((item, index) => ({ ...item, order: index }));
       });
     }
-  };
-
-  const handleSizeChange = (widgetId: string, size: WidgetSize) => {
-    setWidgets((prev) =>
-      prev.map((w) => (w.id === widgetId ? { ...w, size } : w))
-    );
   };
 
   const handleToggle = (id: string) => {
@@ -279,7 +244,6 @@ export function DashboardWidgetSettings() {
                     widget={widget}
                     config={config}
                     onToggle={handleToggle}
-                    onSizeChange={handleSizeChange}
                   />
                 );
               })}
