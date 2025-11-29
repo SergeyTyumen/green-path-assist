@@ -3,7 +3,6 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { LucideIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { WidgetSize } from '@/types/dashboard';
 
 interface DashboardWidgetProps {
   title: string;
@@ -15,7 +14,6 @@ interface DashboardWidgetProps {
   trend?: number;
   highlight?: boolean;
   onClick?: () => void;
-  size?: WidgetSize;
   children?: ReactNode;
 }
 
@@ -29,15 +27,12 @@ export function DashboardWidget({
   trend,
   highlight,
   onClick,
-  size = '1x1',
   children
 }: DashboardWidgetProps) {
-  const isLarge = size === '2x2' || size === '2x1' || size === '1x2';
-  
   return (
     <Card
       className={cn(
-        "transition-all hover:shadow-md cursor-pointer",
+        "transition-all hover:shadow-md cursor-pointer h-full flex flex-col",
         highlight && "ring-2 ring-primary animate-pulse",
         onClick && "hover:scale-[1.02]"
       )}
@@ -49,8 +44,8 @@ export function DashboardWidget({
           <Icon className={cn("h-4 w-4", iconColor)} />
         </div>
       </CardHeader>
-      <CardContent>
-        <div className={cn("text-2xl font-bold", isLarge && "text-3xl")}>{value}</div>
+      <CardContent className="flex-1">
+        <div className="text-2xl font-bold">{value}</div>
         {description && (
           <div className="flex items-center gap-2 mt-1">
             <p className="text-xs text-muted-foreground">{description}</p>
