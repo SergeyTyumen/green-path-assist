@@ -10,8 +10,8 @@ import { WidgetRenderer } from "@/components/dashboard/WidgetRenderer";
 import { Loader2, Settings } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
-import { cn } from "@/lib/utils";
-import { DashboardWidget, WidgetSize } from "@/types/dashboard";
+import { DashboardWidget } from "@/types/dashboard";
+import Masonry from 'react-masonry-css';
 
 export default function Dashboard() {
   const navigate = useNavigate();
@@ -355,18 +355,6 @@ export default function Dashboard() {
     loadConsultantStats();
   }, [user]);
 
-  const getGridColsClass = (size: WidgetSize) => {
-    switch (size) {
-      case "2x2":
-      case "2x1":
-        return "col-span-2";
-      case "1x2":
-        return "row-span-2";
-      default:
-        return "";
-    }
-  };
-
   if (
     widgetsLoading ||
     clientsLoading ||
@@ -425,9 +413,17 @@ export default function Dashboard() {
           </Button>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 auto-rows-fr" style={{ gridAutoFlow: 'dense' }}>
+        <Masonry
+          breakpointCols={{
+            default: 3,
+            1024: 2,
+            640: 1
+          }}
+          className="flex -ml-4 w-auto"
+          columnClassName="pl-4 bg-clip-padding"
+        >
           {widgets.map((widget) => (
-            <div key={widget.id} className={cn(getGridColsClass(widget.size), "h-full")}>
+            <div key={widget.id} className="mb-4">
               <WidgetRenderer
                 widgetId={widget.id}
                 size={widget.size}
@@ -435,7 +431,7 @@ export default function Dashboard() {
               />
             </div>
           ))}
-        </div>
+        </Masonry>
       )}
     </div>
   );
