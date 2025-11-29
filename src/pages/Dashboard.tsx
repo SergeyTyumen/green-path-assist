@@ -11,7 +11,6 @@ import { Loader2, Settings } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
 import { DashboardWidget } from "@/types/dashboard";
-import Masonry from 'react-masonry-css';
 
 export default function Dashboard() {
   const navigate = useNavigate();
@@ -413,17 +412,9 @@ export default function Dashboard() {
           </Button>
         </div>
       ) : (
-        <Masonry
-          breakpointCols={{
-            default: 3,
-            1024: 2,
-            640: 1
-          }}
-          className="flex -ml-4 w-auto"
-          columnClassName="pl-4 bg-clip-padding"
-        >
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
           {widgets.map((widget) => (
-            <div key={widget.id} className="mb-4">
+            <div key={widget.id} className="h-full">
               <WidgetRenderer
                 widgetId={widget.id}
                 size={widget.size}
@@ -431,7 +422,7 @@ export default function Dashboard() {
               />
             </div>
           ))}
-        </Masonry>
+        </div>
       )}
     </div>
   );
