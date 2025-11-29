@@ -15,6 +15,18 @@ import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, us
 import { arrayMove, SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 
+// Миграция старых размеров в новые
+function migrateWidgetSize(oldSize: string): WidgetSize {
+  const sizeMap: Record<string, WidgetSize> = {
+    '1x1': 'small',
+    '1x2': 'medium',
+    '2x1': 'medium',
+    '2x2': 'large'
+  };
+  
+  return sizeMap[oldSize] || 'small';
+}
+
 interface SortableWidgetItemProps {
   widget: DashboardWidget;
   config: any;
@@ -101,7 +113,12 @@ export function DashboardWidgetSettings() {
     if (currentProfile) {
       const prefs = currentProfile.ui_preferences as any;
       if (prefs?.dashboard_widgets && Array.isArray(prefs.dashboard_widgets)) {
-        setWidgets(prefs.dashboard_widgets);
+        // Мигрируем старые размеры в новые
+        const migratedWidgets = prefs.dashboard_widgets.map((widget: any) => ({
+          ...widget,
+          size: migrateWidgetSize(widget.size)
+        }));
+        setWidgets(migratedWidgets);
       } else {
         // Установка значений по умолчанию для менеджера
         setWidgets(WIDGET_PRESETS.manager as DashboardWidget[]);
