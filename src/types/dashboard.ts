@@ -1,4 +1,4 @@
-export type WidgetSize = '1x1' | '1x2' | '2x1' | '2x2';
+export type WidgetSize = 'small' | 'medium' | 'large';
 
 export type WidgetId = 
   | 'new_leads'

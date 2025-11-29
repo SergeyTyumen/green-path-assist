@@ -12,7 +12,7 @@ import {
   Bell
 } from 'lucide-react';
 import { DashboardWidget } from '@/components/dashboard/DashboardWidget';
-import { WidgetId } from '@/types/dashboard';
+import { WidgetId, WidgetSize } from '@/types/dashboard';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -20,10 +20,11 @@ import { Clock } from 'lucide-react';
 
 interface WidgetRendererProps {
   widgetId: WidgetId;
+  size: WidgetSize;
   data: any;
 }
 
-export function WidgetRenderer({ widgetId, data }: WidgetRendererProps) {
+export function WidgetRenderer({ widgetId, size, data }: WidgetRendererProps) {
   const navigate = useNavigate();
 
   switch (widgetId) {
