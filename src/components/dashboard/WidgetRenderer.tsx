@@ -1,30 +1,21 @@
-import { useNavigate } from 'react-router-dom';
-import { 
-  MessageSquare, 
-  MessageCircle, 
-  Users, 
-  CheckSquare, 
-  Calculator, 
-  FileText,
-  TrendingUp,
-  Activity,
-  Briefcase,
-  Bell
-} from 'lucide-react';
 import { DashboardWidget } from '@/components/dashboard/DashboardWidget';
-import { WidgetId, WidgetSize } from '@/types/dashboard';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { Clock } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { 
+  Users, MessageSquare, UserCheck, CheckSquare, 
+  FileText, Send, TrendingUp, DollarSign,
+  HardHat, UsersRound, Bot, Clock,
+  Building2, FolderCheck, AlertCircle
+} from 'lucide-react';
+import { WidgetId } from '@/types/dashboard';
 
 interface WidgetRendererProps {
   widgetId: WidgetId;
-  size: WidgetSize;
   data: any;
 }
 
-export function WidgetRenderer({ widgetId, size, data }: WidgetRendererProps) {
+export function WidgetRenderer({ widgetId, data }: WidgetRendererProps) {
   const navigate = useNavigate();
 
   switch (widgetId) {
@@ -48,7 +39,7 @@ export function WidgetRenderer({ widgetId, size, data }: WidgetRendererProps) {
           title="Новые сообщения"
           value={data.newMessagesCount}
           description="От ваших клиентов"
-          icon={MessageCircle}
+          icon={MessageSquare}
           iconColor="text-blue-600"
           bgColor="bg-blue-50"
           highlight={data.newMessagesCount > 0}
@@ -75,39 +66,31 @@ export function WidgetRenderer({ widgetId, size, data }: WidgetRendererProps) {
     case 'my_tasks':
       return (
         <Card className="cursor-pointer hover:shadow-md transition-all" onClick={() => navigate('/tasks')}>
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-sm font-medium">Мои задачи</CardTitle>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3 pt-4 px-4">
+            <CardTitle className="text-sm font-medium">Мои задачи</CardTitle>
+            <div className="rounded-full p-1.5 bg-green-50">
               <CheckSquare className="h-4 w-4 text-green-600" />
             </div>
           </CardHeader>
-          <CardContent>
-            <div className="space-y-2">
-              {data.todayTasks.length === 0 ? (
-                <p className="text-sm text-muted-foreground">Нет задач на сегодня</p>
-              ) : (
-                data.todayTasks.map((task: any) => (
-                  <div key={task.id} className="flex items-start justify-between p-2 bg-muted/50 rounded-md">
-                    <div className="flex-1">
-                      <p className="text-sm font-medium">{task.title}</p>
-                      {task.due_date && (
-                        <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                          <Clock className="h-3 w-3" />
-                          {new Date(task.due_date).toLocaleDateString('ru-RU')}
-                        </div>
-                      )}
-                    </div>
-                    <Badge variant={task.priority === 'high' ? 'destructive' : 'secondary'}>
-                      {task.priority === 'high' ? 'Высокий' : task.priority === 'medium' ? 'Средний' : 'Низкий'}
-                    </Badge>
-                  </div>
-                ))
-              )}
-              {data.todayTasks.length > 0 && (
-                <Button variant="outline" size="sm" className="w-full mt-2">
-                  Показать все задачи
-                </Button>
-              )}
+          <CardContent className="px-4 pb-4 pt-0">
+            <div className="text-2xl font-bold mb-2">{data.tasksStats.total}</div>
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-muted-foreground">Ожидают</span>
+                <Badge variant="secondary" className="text-xs">{data.tasksStats.pending}</Badge>
+              </div>
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-muted-foreground">В работе</span>
+                <Badge variant="secondary" className="text-xs">{data.tasksStats.inProgress}</Badge>
+              </div>
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-muted-foreground">Просрочено</span>
+                <Badge variant="destructive" className="text-xs">{data.tasksStats.overdue}</Badge>
+              </div>
+              <div className="flex items-center justify-between text-xs pt-1 border-t">
+                <span className="text-muted-foreground">Высокий приоритет</span>
+                <Badge variant="destructive" className="text-xs">{data.tasksStats.highPriority}</Badge>
+              </div>
             </div>
           </CardContent>
         </Card>
@@ -121,7 +104,7 @@ export function WidgetRenderer({ widgetId, size, data }: WidgetRendererProps) {
           description={data.statsChanges.estimatesChange !== 0
             ? `${data.statsChanges.estimatesChange > 0 ? '+' : ''}${data.statsChanges.estimatesChange}`
             : 'Нет изменений'}
-          icon={Calculator}
+          icon={FileText}
           iconColor="text-green-600"
           bgColor="bg-green-50"
           onClick={() => navigate('/estimates')}
@@ -136,7 +119,7 @@ export function WidgetRenderer({ widgetId, size, data }: WidgetRendererProps) {
           description={data.statsChanges.proposalsChange !== 0
             ? `${data.statsChanges.proposalsChange > 0 ? '+' : ''}${data.statsChanges.proposalsChange}`
             : 'Нет изменений'}
-          icon={FileText}
+          icon={Send}
           iconColor="text-purple-600"
           bgColor="bg-purple-50"
           onClick={() => navigate('/proposals')}
@@ -151,7 +134,7 @@ export function WidgetRenderer({ widgetId, size, data }: WidgetRendererProps) {
           description={data.statsChanges.revenueChange !== 0
             ? `${data.statsChanges.revenueChange > 0 ? '+' : ''}${data.statsChanges.revenueChange}%`
             : 'Нет изменений'}
-          icon={TrendingUp}
+          icon={DollarSign}
           iconColor="text-emerald-600"
           bgColor="bg-emerald-50"
           trend={data.statsChanges.revenueChange}
@@ -162,24 +145,24 @@ export function WidgetRenderer({ widgetId, size, data }: WidgetRendererProps) {
     case 'ai_consultant_stats':
       return (
         <Card className="cursor-pointer hover:shadow-md transition-all" onClick={() => navigate('/ai-consultant')}>
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-sm font-medium">AI Консультант</CardTitle>
-              <MessageCircle className="h-4 w-4 text-blue-600" />
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3 pt-4 px-4">
+            <CardTitle className="text-sm font-medium">AI Консультант</CardTitle>
+            <div className="rounded-full p-1.5 bg-blue-50">
+              <Bot className="h-4 w-4 text-blue-600" />
             </div>
           </CardHeader>
-          <CardContent>
-            <div className="space-y-2">
-              <div className="flex justify-between items-center">
-                <span className="text-sm text-muted-foreground">Диалоги сегодня</span>
+          <CardContent className="px-4 pb-4 pt-0">
+            <div className="space-y-1.5">
+              <div className="flex justify-between items-center text-xs">
+                <span className="text-muted-foreground">Диалоги сегодня</span>
                 <span className="font-bold">{data.consultantStats.todayConversations}</span>
               </div>
-              <div className="flex justify-between items-center">
-                <span className="text-sm text-muted-foreground">Среднее время ответа</span>
+              <div className="flex justify-between items-center text-xs">
+                <span className="text-muted-foreground">Среднее время ответа</span>
                 <span className="font-bold">{data.consultantStats.averageResponseTime}с</span>
               </div>
-              <div className="flex justify-between items-center">
-                <span className="text-sm text-muted-foreground">Всего сообщений</span>
+              <div className="flex justify-between items-center text-xs">
+                <span className="text-muted-foreground">Всего сообщений</span>
                 <span className="font-bold">{data.consultantStats.totalMessages}</span>
               </div>
             </div>
@@ -190,73 +173,28 @@ export function WidgetRenderer({ widgetId, size, data }: WidgetRendererProps) {
     case 'recent_clients':
       return (
         <Card className="cursor-pointer hover:shadow-md transition-all" onClick={() => navigate('/clients')}>
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-sm font-medium">Недавние клиенты</CardTitle>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3 pt-4 px-4">
+            <CardTitle className="text-sm font-medium">Недавние клиенты</CardTitle>
+            <div className="rounded-full p-1.5 bg-indigo-50">
               <Users className="h-4 w-4 text-indigo-600" />
             </div>
           </CardHeader>
-          <CardContent>
+          <CardContent className="px-4 pb-4 pt-0">
             <div className="space-y-2">
               {data.recentClients.length === 0 ? (
-                <p className="text-sm text-muted-foreground">Нет клиентов</p>
+                <p className="text-xs text-muted-foreground">Нет клиентов</p>
               ) : (
-                data.recentClients.map((client: any) => (
-                  <div key={client.id} className="flex items-center justify-between p-2 bg-muted/50 rounded-md">
-                    <div>
-                      <p className="text-sm font-medium">{client.name}</p>
-                      <p className="text-xs text-muted-foreground">{client.phone}</p>
+                data.recentClients.slice(0, 3).map((client: any) => (
+                  <div key={client.id} className="flex items-center justify-between p-2 bg-muted/30 rounded-md">
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-medium truncate">{client.name}</p>
+                      <p className="text-xs text-muted-foreground truncate">{client.phone}</p>
                     </div>
-                    <Badge variant="secondary">{client.status}</Badge>
+                    <Badge variant="secondary" className="text-xs ml-2">{client.status}</Badge>
                   </div>
                 ))
               )}
             </div>
-          </CardContent>
-        </Card>
-      );
-
-    case 'project_statuses':
-      return (
-        <Card className="cursor-pointer hover:shadow-md transition-all">
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-sm font-medium">Статусы проектов</CardTitle>
-              <Activity className="h-4 w-4 text-purple-600" />
-            </div>
-          </CardHeader>
-          <CardContent>
-            <p className="text-sm text-muted-foreground">Данные проектов...</p>
-          </CardContent>
-        </Card>
-      );
-
-    case 'contractors_status':
-      return (
-        <Card className="cursor-pointer hover:shadow-md transition-all" onClick={() => navigate('/contractors')}>
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-sm font-medium">Подрядчики</CardTitle>
-              <Briefcase className="h-4 w-4 text-orange-600" />
-            </div>
-          </CardHeader>
-          <CardContent>
-            <p className="text-sm text-muted-foreground">Данные подрядчиков...</p>
-          </CardContent>
-        </Card>
-      );
-
-    case 'ai_notifications':
-      return (
-        <Card className="cursor-pointer hover:shadow-md transition-all">
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-sm font-medium">AI-уведомления</CardTitle>
-              <Bell className="h-4 w-4 text-blue-600" />
-            </div>
-          </CardHeader>
-          <CardContent>
-            <p className="text-sm text-muted-foreground">Нет новых уведомлений</p>
           </CardContent>
         </Card>
       );
