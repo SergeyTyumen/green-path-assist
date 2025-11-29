@@ -5,7 +5,6 @@ import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
 import { useProfiles } from '@/hooks/useProfiles';
 import { supabase } from '@/integrations/supabase/client';
@@ -190,10 +189,6 @@ export function DashboardWidgetSettings() {
     });
   };
 
-  const getWidgetsByCategory = (category: string) => {
-    return widgets.filter((w) => WIDGET_CONFIGS[w.id]?.category === category);
-  };
-
   if (loading) {
     return (
       <Card>
@@ -249,50 +244,34 @@ export function DashboardWidgetSettings() {
         </div>
 
         {/* Табы по категориям */}
-        <Tabs defaultValue="manager" className="w-full">
-          <TabsList className="grid w-full grid-cols-4">
-            <TabsTrigger value="manager">Менеджер</TabsTrigger>
-            <TabsTrigger value="director">Руководитель</TabsTrigger>
-            <TabsTrigger value="master">Мастер</TabsTrigger>
-            <TabsTrigger value="common">Общие</TabsTrigger>
-          </TabsList>
+        <div className="space-y-2">
+          <Label className="text-sm font-medium">Все виджеты (перетащите для изменения порядка)</Label>
+          <DndContext
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            onDragEnd={handleDragEnd}
+          >
+            <SortableContext
+              items={widgets.map((w) => w.id)}
+              strategy={verticalListSortingStrategy}
+            >
+              {widgets.map((widget) => {
+                const config = WIDGET_CONFIGS[widget.id];
+                if (!config) return null;
 
-          {['manager', 'director', 'master', 'common'].map((category) => (
-            <TabsContent key={category} value={category} className="space-y-2">
-              <DndContext
-                sensors={sensors}
-                collisionDetection={closestCenter}
-                onDragEnd={handleDragEnd}
-              >
-                <SortableContext
-                  items={widgets.map((w) => w.id)}
-                  strategy={verticalListSortingStrategy}
-                >
-                  {getWidgetsByCategory(category).map((widget) => {
-                    const config = WIDGET_CONFIGS[widget.id];
-                    if (!config) return null;
-
-                    return (
-                      <SortableWidgetItem
-                        key={widget.id}
-                        widget={widget}
-                        config={config}
-                        onToggle={handleToggle}
-                        onSizeChange={handleSizeChange}
-                      />
-                    );
-                  })}
-                </SortableContext>
-              </DndContext>
-              
-              {getWidgetsByCategory(category).length === 0 && (
-                <p className="text-center text-muted-foreground py-8">
-                  Нет виджетов в этой категории
-                </p>
-              )}
-            </TabsContent>
-          ))}
-        </Tabs>
+                return (
+                  <SortableWidgetItem
+                    key={widget.id}
+                    widget={widget}
+                    config={config}
+                    onToggle={handleToggle}
+                    onSizeChange={handleSizeChange}
+                  />
+                );
+              })}
+            </SortableContext>
+          </DndContext>
+        </div>
 
         {/* Кнопки управления */}
         <div className="flex justify-end gap-2 pt-4 border-t">
