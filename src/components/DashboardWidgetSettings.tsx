@@ -4,7 +4,6 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { useProfiles } from '@/hooks/useProfiles';
 import { supabase } from '@/integrations/supabase/client';
@@ -19,10 +18,9 @@ interface SortableWidgetItemProps {
   widget: DashboardWidget;
   config: any;
   onToggle: (id: string) => void;
-  onSizeChange: (id: string, size: WidgetSize) => void;
 }
 
-function SortableWidgetItem({ widget, config, onToggle, onSizeChange }: SortableWidgetItemProps) {
+function SortableWidgetItem({ widget, config, onToggle }: SortableWidgetItemProps) {
   const {
     attributes,
     listeners,
@@ -59,23 +57,6 @@ function SortableWidgetItem({ widget, config, onToggle, onSizeChange }: Sortable
       </div>
 
       <div className="flex items-center gap-4">
-        <Select
-          value={widget.size}
-          onValueChange={(value) => onSizeChange(widget.id, value as WidgetSize)}
-          disabled={!widget.enabled}
-        >
-          <SelectTrigger className="w-24">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {config.availableSizes.map((size: WidgetSize) => (
-              <SelectItem key={size} value={size}>
-                {size}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-
         <Switch
           checked={widget.enabled}
           onCheckedChange={() => onToggle(widget.id)}
@@ -129,12 +110,6 @@ export function DashboardWidgetSettings() {
   const handleToggle = (id: string) => {
     setWidgets((prev) =>
       prev.map((w) => (w.id === id ? { ...w, enabled: !w.enabled } : w))
-    );
-  };
-
-  const handleSizeChange = (id: string, size: WidgetSize) => {
-    setWidgets((prev) =>
-      prev.map((w) => (w.id === id ? { ...w, size } : w))
     );
   };
 
@@ -209,7 +184,7 @@ export function DashboardWidgetSettings() {
               Настройка дашборда
             </CardTitle>
             <CardDescription>
-              Настройте виджеты рабочего стола: перетаскивайте для изменения порядка, выбирайте размер и включайте/выключайте нужные
+              Настройте виджеты рабочего стола: перетаскивайте для изменения порядка и включайте/выключайте нужные
             </CardDescription>
           </div>
         </div>
@@ -265,7 +240,6 @@ export function DashboardWidgetSettings() {
                     widget={widget}
                     config={config}
                     onToggle={handleToggle}
-                    onSizeChange={handleSizeChange}
                   />
                 );
               })}

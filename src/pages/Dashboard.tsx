@@ -37,10 +37,10 @@ export default function Dashboard() {
   });
 
   useEffect(() => {
-    if (initialWidgets.length > 0) {
+    if (initialWidgets.length > 0 && widgets.length === 0) {
       setWidgets(initialWidgets);
     }
-  }, [initialWidgets]);
+  }, [initialWidgets.length]);
 
   // Расчет изменений статистики
   useEffect(() => {
@@ -412,15 +412,13 @@ export default function Dashboard() {
           </Button>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
           {widgets.map((widget) => (
-            <div key={widget.id} className="h-full">
-              <WidgetRenderer
-                widgetId={widget.id}
-                size={widget.size}
-                data={dashboardData}
-              />
-            </div>
+            <WidgetRenderer
+              key={widget.id}
+              widgetId={widget.id}
+              data={dashboardData}
+            />
           ))}
         </div>
       )}

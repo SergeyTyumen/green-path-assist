@@ -12,7 +12,7 @@ import {
   Bell
 } from 'lucide-react';
 import { DashboardWidget } from '@/components/dashboard/DashboardWidget';
-import { WidgetId, WidgetSize } from '@/types/dashboard';
+import { WidgetId } from '@/types/dashboard';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -20,11 +20,10 @@ import { Clock } from 'lucide-react';
 
 interface WidgetRendererProps {
   widgetId: WidgetId;
-  size: WidgetSize;
   data: any;
 }
 
-export function WidgetRenderer({ widgetId, size, data }: WidgetRendererProps) {
+export function WidgetRenderer({ widgetId, data }: WidgetRendererProps) {
   const navigate = useNavigate();
 
   switch (widgetId) {
@@ -37,7 +36,6 @@ export function WidgetRenderer({ widgetId, size, data }: WidgetRendererProps) {
           icon={MessageSquare}
           iconColor="text-orange-600"
           bgColor="bg-orange-50"
-          size={size}
           highlight={data.newRequestsCount > 0}
           onClick={() => navigate('/ai-consultant')}
         />
@@ -52,7 +50,6 @@ export function WidgetRenderer({ widgetId, size, data }: WidgetRendererProps) {
           icon={MessageCircle}
           iconColor="text-blue-600"
           bgColor="bg-blue-50"
-          size={size}
           highlight={data.newMessagesCount > 0}
           onClick={() => navigate('/ai-consultant')}
         />
@@ -69,7 +66,6 @@ export function WidgetRenderer({ widgetId, size, data }: WidgetRendererProps) {
           icon={Users}
           iconColor="text-indigo-600"
           bgColor="bg-indigo-50"
-          size={size}
           trend={data.statsChanges.clientsChange}
           onClick={() => navigate('/clients')}
         />
@@ -127,7 +123,6 @@ export function WidgetRenderer({ widgetId, size, data }: WidgetRendererProps) {
           icon={Calculator}
           iconColor="text-green-600"
           bgColor="bg-green-50"
-          size={size}
           onClick={() => navigate('/estimates')}
         />
       );
@@ -143,7 +138,6 @@ export function WidgetRenderer({ widgetId, size, data }: WidgetRendererProps) {
           icon={FileText}
           iconColor="text-purple-600"
           bgColor="bg-purple-50"
-          size={size}
           onClick={() => navigate('/proposals')}
         />
       );
@@ -159,7 +153,6 @@ export function WidgetRenderer({ widgetId, size, data }: WidgetRendererProps) {
           icon={TrendingUp}
           iconColor="text-emerald-600"
           bgColor="bg-emerald-50"
-          size={size}
           trend={data.statsChanges.revenueChange}
           onClick={() => navigate('/proposals')}
         />
