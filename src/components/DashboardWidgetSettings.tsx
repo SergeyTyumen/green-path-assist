@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { useProfiles } from '@/hooks/useProfiles';
 import { supabase } from '@/integrations/supabase/client';
@@ -18,9 +19,10 @@ interface SortableWidgetItemProps {
   widget: DashboardWidget;
   config: any;
   onToggle: (id: string) => void;
+  onSizeChange: (id: string, size: WidgetSize) => void;
 }
 
-function SortableWidgetItem({ widget, config, onToggle }: SortableWidgetItemProps) {
+function SortableWidgetItem({ widget, config, onToggle, onSizeChange }: SortableWidgetItemProps) {
   const {
     attributes,
     listeners,
@@ -56,7 +58,21 @@ function SortableWidgetItem({ widget, config, onToggle }: SortableWidgetItemProp
         </div>
       </div>
 
-      <div className="flex items-center gap-4">
+      <div className="flex items-center gap-3">
+        <Select
+          value={widget.size}
+          onValueChange={(value: WidgetSize) => onSizeChange(widget.id, value)}
+          disabled={!widget.enabled}
+        >
+          <SelectTrigger className="w-[110px] h-8">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="small">Малый</SelectItem>
+            <SelectItem value="medium">Средний</SelectItem>
+            <SelectItem value="large">Большой</SelectItem>
+          </SelectContent>
+        </Select>
         <Switch
           checked={widget.enabled}
           onCheckedChange={() => onToggle(widget.id)}
@@ -105,6 +121,12 @@ export function DashboardWidgetSettings() {
         return newItems.map((item, index) => ({ ...item, order: index }));
       });
     }
+  };
+
+  const handleSizeChange = (widgetId: string, size: WidgetSize) => {
+    setWidgets((prev) =>
+      prev.map((w) => (w.id === widgetId ? { ...w, size } : w))
+    );
   };
 
   const handleToggle = (id: string) => {
@@ -240,6 +262,7 @@ export function DashboardWidgetSettings() {
                     widget={widget}
                     config={config}
                     onToggle={handleToggle}
+                    onSizeChange={handleSizeChange}
                   />
                 );
               })}

@@ -412,14 +412,54 @@ export default function Dashboard() {
           </Button>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-          {widgets.map((widget) => (
-            <WidgetRenderer
-              key={widget.id}
-              widgetId={widget.id}
-              data={dashboardData}
-            />
-          ))}
+        <div className="space-y-6">
+          {/* Маленькие виджеты - 4 в ряд */}
+          {widgets.filter(w => w.size === 'small').length > 0 && (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+              {widgets
+                .filter(w => w.size === 'small')
+                .map((widget) => (
+                  <WidgetRenderer
+                    key={widget.id}
+                    widgetId={widget.id}
+                    size={widget.size}
+                    data={dashboardData}
+                  />
+                ))}
+            </div>
+          )}
+          
+          {/* Средние виджеты - 3 в ряд */}
+          {widgets.filter(w => w.size === 'medium').length > 0 && (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {widgets
+                .filter(w => w.size === 'medium')
+                .map((widget) => (
+                  <WidgetRenderer
+                    key={widget.id}
+                    widgetId={widget.id}
+                    size={widget.size}
+                    data={dashboardData}
+                  />
+                ))}
+            </div>
+          )}
+          
+          {/* Большие виджеты - 2 в ряд */}
+          {widgets.filter(w => w.size === 'large').length > 0 && (
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              {widgets
+                .filter(w => w.size === 'large')
+                .map((widget) => (
+                  <WidgetRenderer
+                    key={widget.id}
+                    widgetId={widget.id}
+                    size={widget.size}
+                    data={dashboardData}
+                  />
+                ))}
+            </div>
+          )}
         </div>
       )}
     </div>
