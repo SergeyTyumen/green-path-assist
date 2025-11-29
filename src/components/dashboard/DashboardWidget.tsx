@@ -32,22 +32,22 @@ export function DashboardWidget({
   return (
     <Card
       className={cn(
-        "transition-all hover:shadow-md cursor-pointer h-full flex flex-col",
+        "transition-all hover:shadow-md cursor-pointer",
         highlight && "ring-2 ring-primary animate-pulse",
         onClick && "hover:scale-[1.02]"
       )}
       onClick={onClick}
     >
-      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3 pt-4 px-4">
         <CardTitle className="text-sm font-medium">{title}</CardTitle>
-        <div className={cn("rounded-full p-2", bgColor)}>
+        <div className={cn("rounded-full p-1.5", bgColor)}>
           <Icon className={cn("h-4 w-4", iconColor)} />
         </div>
       </CardHeader>
-      <CardContent className="flex-1">
-        <div className="text-2xl font-bold">{value}</div>
+      <CardContent className="px-4 pb-4 pt-0">
+        <div className="text-2xl font-bold mb-1">{value}</div>
         {description && (
-          <div className="flex items-center gap-2 mt-1">
+          <div className="flex items-center gap-2">
             <p className="text-xs text-muted-foreground">{description}</p>
             {trend !== undefined && trend !== 0 && (
               <Badge variant={trend > 0 ? "default" : "secondary"} className="text-xs">
@@ -56,7 +56,7 @@ export function DashboardWidget({
             )}
           </div>
         )}
-        {children && <div className="mt-4">{children}</div>}
+        {children && <div className="mt-3">{children}</div>}
       </CardContent>
     </Card>
   );
