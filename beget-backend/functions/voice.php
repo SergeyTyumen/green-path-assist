@@ -8,6 +8,134 @@ function voice_openai_key(): string
     return $key;
 }
 
+function voice_crm_records(string $table, string $userId, int $limit = 50): array
+{
+    $limit = max(1, min(100, $limit));
+    $stmt = db()->prepare("SELECT * FROM crm_records WHERE logical_table = ? AND user_id = ? ORDER BY created_at DESC LIMIT $limit");
+    $stmt->execute([$table, $userId]);
+    return array_map('row_to_record', $stmt->fetchAll());
+}
+
+function voice_save_crm_record(string $table, string $userId, array $record): array
+{
+    [$id, $recordUserId, $createdAt, $updatedAt, $data] = split_record($record, $userId);
+    db()->prepare('INSERT INTO crm_records (id, logical_table, user_id, data, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE data = VALUES(data), updated_at = VALUES(updated_at)')
+        ->execute([$id, $table, $recordUserId, json_encode($data, JSON_UNESCAPED_UNICODE), $createdAt, $updatedAt]);
+    return array_merge($data, ['id' => $id, 'user_id' => $recordUserId, 'created_at' => $createdAt, 'updated_at' => $updatedAt]);
+}
+
+function voice_normalize_phone(string $phone): string
+{
+    return preg_replace('/\D+/', '', $phone);
+}
+
+function voice_find_client(array $clients, string $message): ?array
+{
+    $messageLower = mb_strtolower($message);
+    $messagePhone = voice_normalize_phone($message);
+
+    foreach ($clients as $client) {
+        $name = mb_strtolower((string)($client['name'] ?? ''));
+        $phone = voice_normalize_phone((string)($client['phone'] ?? ''));
+        if ($name !== '' && str_contains($messageLower, $name)) return $client;
+        if ($phone !== '' && $messagePhone !== '' && str_contains($messagePhone, $phone)) return $client;
+    }
+
+    return null;
+}
+
+function voice_format_clients(array $clients): string
+{
+    if (!$clients) return 'В CRM сейчас нет клиентов.';
+
+    $lines = array_map(function ($client) {
+        $name = trim((string)($client['name'] ?? 'Без имени'));
+        $phone = trim((string)($client['phone'] ?? ''));
+        $status = trim((string)($client['status'] ?? $client['conversion_stage'] ?? ''));
+        $parts = [$name];
+        if ($phone !== '') $parts[] = $phone;
+        if ($status !== '') $parts[] = 'статус: ' . $status;
+        return '— ' . implode(', ', $parts);
+    }, array_slice($clients, 0, 20));
+
+    return "Клиенты в CRM (" . count($clients) . "):\n" . implode("\n", $lines);
+}
+
+function voice_format_tasks(array $tasks): string
+{
+    if (!$tasks) return 'В CRM сейчас нет задач.';
+
+    $lines = array_map(function ($task) {
+        $title = trim((string)($task['title'] ?? 'Без названия'));
+        $status = trim((string)($task['status'] ?? 'pending'));
+        $priority = trim((string)($task['priority'] ?? 'medium'));
+        $due = trim((string)($task['due_date'] ?? ''));
+        $parts = [$title, 'статус: ' . $status, 'приоритет: ' . $priority];
+        if ($due !== '') $parts[] = 'срок: ' . $due;
+        return '— ' . implode(', ', $parts);
+    }, array_slice($tasks, 0, 20));
+
+    return "Задачи в CRM (" . count($tasks) . "):\n" . implode("\n", $lines);
+}
+
+function voice_extract_task_title(string $message): string
+{
+    $title = trim(preg_replace('/^(создай|создать|добавь|добавить|поставь|поставить)\s+(мне\s+)?задач[ауи]?\s*[:\-]?\s*/iu', '', $message));
+    return $title !== '' ? $title : trim($message);
+}
+
+function voice_handle_crm_command(array $user, string $message): ?array
+{
+    $text = mb_strtolower($message);
+
+    if (preg_match('/\b(какие|список|покажи|есть|выведи)\b.*\b(клиент|клиенты|клиентов|заявк|лид)/iu', $text)
+        || preg_match('/\b(клиент|клиенты|клиентов)\b.*\b(какие|список|покажи|есть|выведи)\b/iu', $text)) {
+        $clients = voice_crm_records('applications', $user['id']);
+        return ['response' => voice_format_clients($clients), 'message' => voice_format_clients($clients)];
+    }
+
+    if (preg_match('/\b(какие|список|покажи|есть|выведи|стоят)\b.*\b(задач|задачи|задача)\b/iu', $text)
+        || preg_match('/\b(задач|задачи|задача)\b.*\b(какие|список|покажи|есть|выведи|стоят)\b/iu', $text)) {
+        $tasks = voice_crm_records('tasks', $user['id']);
+        return ['response' => voice_format_tasks($tasks), 'message' => voice_format_tasks($tasks)];
+    }
+
+    if (preg_match('/\b(создай|создать|добавь|добавить|поставь|поставить)\b.*\bзадач/iu', $text)) {
+        $clients = voice_crm_records('applications', $user['id']);
+        $client = voice_find_client($clients, $message);
+        $title = voice_extract_task_title($message);
+        $task = voice_save_crm_record('tasks', $user['id'], [
+            'title' => $title,
+            'description' => $message,
+            'client_id' => $client['id'] ?? null,
+            'status' => 'pending',
+            'priority' => 'medium',
+            'category' => 'other',
+            'is_public' => false,
+        ]);
+
+        $clientNote = $client
+            ? ' Я привязал её к клиенту ' . ($client['name'] ?? 'из CRM') . '.'
+            : ' Клиента из текста я не нашёл в CRM, поэтому задача создана без привязки к клиенту.';
+
+        $answer = 'Задача создана: «' . ($task['title'] ?? $title) . '».' . $clientNote;
+        return ['response' => $answer, 'message' => $answer, 'task' => $task];
+    }
+
+    return null;
+}
+
+function voice_crm_context(array $user): string
+{
+    $clients = voice_crm_records('applications', $user['id'], 20);
+    $tasks = voice_crm_records('tasks', $user['id'], 20);
+
+    return "РЕАЛЬНЫЕ ДАННЫЕ CRM. Ничего не придумывай: если данных нет, прямо скажи, что в CRM данных нет.\n\n"
+        . voice_format_clients($clients)
+        . "\n\n"
+        . voice_format_tasks($tasks);
+}
+
 
 /**
  * Chat: принимает {message, conversation_history} -> ответ модели.
@@ -18,6 +146,9 @@ function voice_chat(array $user, array $body): array
     $message = trim((string)($body['message'] ?? ''));
     if ($message === '') throw new RuntimeException('Пустое сообщение');
 
+    $crmCommandResult = voice_handle_crm_command($user, $message);
+    if ($crmCommandResult !== null) return $crmCommandResult;
+
     $history = array_map(function ($m) {
         $role = ($m['role'] ?? 'user') === 'assistant' ? 'assistant' : 'user';
         return ['role' => $role, 'content' => (string)($m['content'] ?? '')];
@@ -25,7 +156,9 @@ function voice_chat(array $user, array $body): array
 
     $systemPrompt = "Ты голосовой помощник CRM для строительной компании. "
         . "Отвечай кратко, дружелюбно, по-русски. Помогай с задачами, клиентами, сметами, ТЗ. "
-        . "Если пользователь просит выполнить действие в CRM — сообщи, что действие ставится в очередь.";
+        . "Используй только переданные ниже реальные данные CRM. Не выдумывай клиентов, задачи, сметы и цифры. "
+        . "Если пользователь просит создать задачу или показать клиентов/задачи, но действие не выполнено заранее инструментом, скажи что нужно повторить команду точнее.\n\n"
+        . voice_crm_context($user);
 
     $messages = array_merge(
         [['role' => 'system', 'content' => $systemPrompt]],
