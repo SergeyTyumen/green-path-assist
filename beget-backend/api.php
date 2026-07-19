@@ -143,7 +143,7 @@ function handle_profiles_query(array $payload, array $user): void
 
         $stmt = db()->prepare("SELECT * FROM profiles WHERE $where$orderSql");
         $stmt->execute($params);
-        $rows = $stmt->fetchAll();
+        $rows = array_map('normalize_profile_row', $stmt->fetchAll());
         if (!empty($payload['single']) || !empty($payload['maybeSingle'])) json_response($rows[0] ?? null);
         json_response($rows);
     }
@@ -181,13 +181,15 @@ function handle_profiles_query(array $payload, array $user): void
         $where .= real_filter_sql($payload['filters'] ?? [], $params, $columns);
         $updates = array_intersect_key($payload['values'] ?? [], array_flip($columns));
         unset($updates['id'], $updates['user_id'], $updates['created_at']);
+        $updates = encode_profile_json_fields($updates);
         $updates['updated_at'] = now_iso();
         if (!$updates) json_response(null, 400, ['message' => 'Нет данных для обновления']);
         $set = implode(', ', array_map(fn($c) => "$c = ?", array_keys($updates)));
         db()->prepare("UPDATE profiles SET $set WHERE $where")->execute([...array_values($updates), ...$params]);
         $stmt = db()->prepare("SELECT * FROM profiles WHERE $where LIMIT 1");
         $stmt->execute($params);
-        json_response($stmt->fetch() ?: null);
+        $row = $stmt->fetch();
+        json_response($row ? normalize_profile_row($row) : null);
     }
 
     json_response(null, 400, ['message' => 'Неподдерживаемая операция профилей']);
@@ -199,6 +201,16 @@ function normalize_profile_row(array $row): array
         if (isset($row[$field]) && is_string($row[$field])) $row[$field] = json_decode($row[$field], true);
     }
     return $row;
+}
+
+function encode_profile_json_fields(array $values): array
+{
+    foreach (['voice_settings', 'ai_settings', 'advanced_features', 'ui_preferences'] as $field) {
+        if (array_key_exists($field, $values) && !is_string($values[$field])) {
+            $values[$field] = json_encode($values[$field], JSON_UNESCAPED_UNICODE);
+        }
+    }
+    return $values;
 }
 
 function handle_user_roles_query(array $payload, array $user): void
