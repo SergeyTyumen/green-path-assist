@@ -575,9 +575,7 @@ export function VoiceAssistantSettings() {
                   rate={settings.voice_settings.speech_rate}
                   pitch={settings.voice_settings.speech_pitch}
                   apiKey={
-                    settings.voice_settings.tts_provider === 'elevenlabs' 
-                      ? settings.voice_settings.elevenlabs_api_key
-                      : settings.voice_settings.tts_provider === 'yandex'
+                    settings.voice_settings.tts_provider === 'yandex'
                       ? settings.voice_settings.yandex_api_key
                       : undefined
                   }
