@@ -122,11 +122,6 @@ export const getOpenAIKey = async (userId: string): Promise<string | null> => {
   return keys.openai || null;
 };
 
-export const getElevenLabsKey = async (userId: string): Promise<string | null> => {
-  const keys = await getAPIKeys(userId);
-  return keys.elevenlabs || null;
-};
-
 export const getYandexKey = async (userId: string): Promise<string | null> => {
   const keys = await getAPIKeys(userId);
   return keys.yandexgpt || null;
