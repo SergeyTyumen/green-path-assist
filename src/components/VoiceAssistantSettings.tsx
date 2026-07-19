@@ -506,19 +506,7 @@ export function VoiceAssistantSettings() {
               </Select>
             </div>
 
-            {/* API ключи для платных провайдеров */}
-            {settings.voice_settings.tts_provider === 'elevenlabs' && (
-              <div className="grid w-full items-center gap-1.5">
-                <Label htmlFor="elevenlabs-key">API ключ ElevenLabs</Label>
-                <Input
-                  type="password"
-                  value={settings.voice_settings.elevenlabs_api_key || ''}
-                  onChange={(e) => updateVoiceSettings('elevenlabs_api_key', e.target.value)}
-                  placeholder="Введите API ключ ElevenLabs"
-                />
-              </div>
-            )}
-
+            {/* API ключ для платных провайдеров */}
             {settings.voice_settings.tts_provider === 'yandex' && (
               <div className="grid w-full items-center gap-1.5">
                 <Label htmlFor="yandex-key">API ключ Yandex</Label>
