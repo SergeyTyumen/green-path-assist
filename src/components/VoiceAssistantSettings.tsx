@@ -180,17 +180,6 @@ export function VoiceAssistantSettings() {
           { id: 'nova', name: 'Nova (женский)' },
           { id: 'shimmer', name: 'Shimmer (женский)' }
         ];
-      case 'elevenlabs':
-        return [
-          { id: '9BWtsMINqrJLrRacOk9x', name: 'Aria (женский)' },
-          { id: 'CwhRBWXzGAHq8TQ4Fs17', name: 'Roger (мужской)' },
-          { id: 'EXAVITQu4vr4xnSDxMaL', name: 'Sarah (женский)' },
-          { id: 'FGY2WhTYpPnrIDTdsKH5', name: 'Laura (женский)' },
-          { id: 'IKne3meq5aSn9XLyUdCD', name: 'Charlie (мужской)' },
-          { id: 'JBFqnCBsd6RMkjVDRZzb', name: 'George (мужской)' },
-          { id: 'N2lVS1w4EtoT3dr4eOWO', name: 'Callum (мужской)' },
-          { id: 'SAz9YHcvj6GT2YYXdXww', name: 'River (нейтральный)' }
-        ];
       case 'yandex':
         return [
           { id: 'alena', name: 'Алёна (женский)' },
