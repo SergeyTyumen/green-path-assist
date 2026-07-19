@@ -3,15 +3,21 @@ require_once __DIR__ . '/auth.php';
 
 $config = app_config();
 $origin = $_SERVER['HTTP_ORIGIN'] ?? '';
-if ($origin && (empty($config['allowed_origins']) || in_array($origin, $config['allowed_origins'], true))) {
+$allowed = !empty($config['allowed_origins']) && in_array($origin, $config['allowed_origins'], true);
+// Разрешаем все превью Lovable (*.lovable.app / *.lovable.dev) и опубликованный домен.
+if (!$allowed && $origin && preg_match('#^https://([a-z0-9-]+\.)*lovable\.(app|dev)$#i', $origin)) {
+    $allowed = true;
+}
+if ($allowed) {
     header("Access-Control-Allow-Origin: $origin");
     header('Vary: Origin');
 }
 header('Access-Control-Allow-Credentials: true');
-header('Access-Control-Allow-Headers: Authorization, Content-Type');
+header('Access-Control-Allow-Headers: Authorization, Content-Type, X-Requested-With');
 header('Access-Control-Allow-Methods: POST, OPTIONS');
+header('Access-Control-Max-Age: 86400');
 
-if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') exit;
+if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') { http_response_code(204); exit; }
 
 $action = $_GET['action'] ?? '';
 $body = $_SERVER['REQUEST_METHOD'] === 'POST' && str_starts_with($_SERVER['CONTENT_TYPE'] ?? '', 'multipart/form-data') ? [] : read_json_body();
