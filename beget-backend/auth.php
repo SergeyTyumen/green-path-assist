@@ -108,6 +108,8 @@ function handle_auth_action(string $action, array $body): void
             $stmt = db()->prepare('INSERT INTO users (id, email, password_hash, full_name, status, created_at, updated_at) VALUES (?, ?, ?, ?, "active", ?, ?)');
             $stmt->execute([$id, $email, password_hash($password, PASSWORD_DEFAULT), 'Администратор', now_iso(), now_iso()]);
             db()->prepare('INSERT INTO user_roles (id, user_id, role, created_at) VALUES (?, ?, "admin", ?)')->execute([uuidv4(), $id, now_iso()]);
+            db()->prepare('INSERT INTO profiles (id, user_id, email, full_name, status, created_at, updated_at) VALUES (?, ?, ?, ?, "active", ?, ?)')
+                ->execute([uuidv4(), $id, $email, 'Администратор', now_iso(), now_iso()]);
         }
 
         $stmt = db()->prepare('SELECT id, email, password_hash, full_name, status FROM users WHERE email = ? LIMIT 1');

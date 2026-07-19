@@ -98,11 +98,170 @@ function load_records(string $table, string $userId, array $payload): array
     return array_map('row_to_record', $stmt->fetchAll());
 }
 
+function real_filter_sql(array $filters, array &$params, array $allowedColumns): string
+{
+    $parts = [];
+    foreach ($filters as $filter) {
+        $column = clean_identifier((string)($filter['column'] ?? ''));
+        if (!in_array($column, $allowedColumns, true)) continue;
+        $op = (string)($filter['operator'] ?? 'eq');
+        $value = $filter['value'] ?? null;
+
+        if ($op === 'eq') { $parts[] = "$column = ?"; $params[] = $value; }
+        elseif ($op === 'in' && is_array($value)) {
+            if (!$value) { $parts[] = '1=0'; continue; }
+            $parts[] = "$column IN (" . implode(',', array_fill(0, count($value), '?')) . ')';
+            array_push($params, ...$value);
+        } elseif ($op === 'is') {
+            $parts[] = $value === null ? "$column IS NULL" : "$column IS NOT NULL";
+        }
+    }
+    return $parts ? ' AND ' . implode(' AND ', $parts) : '';
+}
+
+function handle_profiles_query(array $payload, array $user): void
+{
+    $columns = ['id', 'user_id', 'email', 'full_name', 'phone', 'user_type', 'company_name', 'status', 'position', 'department', 'telegram_username', 'whatsapp_phone', 'avatar_url', 'preferred_ai_model', 'interaction_mode', 'voice_settings', 'ai_settings', 'advanced_features', 'ui_preferences', 'created_at', 'updated_at'];
+    $operation = $payload['operation'] ?? 'select';
+    $isAdmin = user_has_role($user['id'], 'admin');
+
+    if ($operation === 'select') {
+        $params = [];
+        $where = $isAdmin ? '1=1' : 'user_id = ?';
+        if (!$isAdmin) $params[] = $user['id'];
+        $where .= real_filter_sql($payload['filters'] ?? [], $params, $columns);
+
+        $orderSql = ' ORDER BY full_name ASC';
+        foreach (($payload['order'] ?? []) as $order) {
+            $column = clean_identifier((string)($order['column'] ?? 'full_name'));
+            if (in_array($column, $columns, true)) {
+                $dir = !empty($order['ascending']) ? 'ASC' : 'DESC';
+                $orderSql = " ORDER BY $column $dir";
+            }
+            break;
+        }
+
+        $stmt = db()->prepare("SELECT * FROM profiles WHERE $where$orderSql");
+        $stmt->execute($params);
+        $rows = $stmt->fetchAll();
+        if (!empty($payload['single']) || !empty($payload['maybeSingle'])) json_response($rows[0] ?? null);
+        json_response($rows);
+    }
+
+    if ($operation === 'insert' || $operation === 'upsert') {
+        $values = $payload['values'] ?? [];
+        $items = array_is_list($values) ? $values : [$values];
+        $saved = [];
+        foreach ($items as $item) {
+            $profileUserId = $item['user_id'] ?? $user['id'];
+            if (!$isAdmin && $profileUserId !== $user['id']) json_response(null, 403, ['message' => 'Недостаточно прав']);
+            $id = $item['id'] ?? uuidv4();
+            $now = now_iso();
+            $data = array_intersect_key($item, array_flip($columns));
+            $data = array_merge([
+                'id' => $id,
+                'user_id' => $profileUserId,
+                'email' => $user['email'] ?? null,
+                'full_name' => $user['full_name'] ?? null,
+                'status' => 'active',
+                'created_at' => $now,
+                'updated_at' => $now,
+            ], $data, ['updated_at' => $now]);
+            db()->prepare('INSERT INTO profiles (id, user_id, email, full_name, phone, user_type, company_name, status, position, department, telegram_username, whatsapp_phone, avatar_url, preferred_ai_model, interaction_mode, voice_settings, ai_settings, advanced_features, ui_preferences, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE email = VALUES(email), full_name = VALUES(full_name), phone = VALUES(phone), user_type = VALUES(user_type), company_name = VALUES(company_name), status = VALUES(status), position = VALUES(position), department = VALUES(department), telegram_username = VALUES(telegram_username), whatsapp_phone = VALUES(whatsapp_phone), avatar_url = VALUES(avatar_url), preferred_ai_model = VALUES(preferred_ai_model), interaction_mode = VALUES(interaction_mode), voice_settings = VALUES(voice_settings), ai_settings = VALUES(ai_settings), advanced_features = VALUES(advanced_features), ui_preferences = VALUES(ui_preferences), updated_at = VALUES(updated_at)')
+                ->execute([$data['id'], $data['user_id'], $data['email'], $data['full_name'], $data['phone'] ?? null, $data['user_type'] ?? null, $data['company_name'] ?? null, $data['status'], $data['position'] ?? null, $data['department'] ?? null, $data['telegram_username'] ?? null, $data['whatsapp_phone'] ?? null, $data['avatar_url'] ?? null, $data['preferred_ai_model'] ?? null, $data['interaction_mode'] ?? null, json_encode($data['voice_settings'] ?? null, JSON_UNESCAPED_UNICODE), json_encode($data['ai_settings'] ?? null, JSON_UNESCAPED_UNICODE), json_encode($data['advanced_features'] ?? null, JSON_UNESCAPED_UNICODE), json_encode($data['ui_preferences'] ?? null, JSON_UNESCAPED_UNICODE), $data['created_at'], $data['updated_at']]);
+            $saved[] = normalize_profile_row($data);
+        }
+        json_response(!empty($payload['single']) ? ($saved[0] ?? null) : $saved);
+    }
+
+    if ($operation === 'update') {
+        $params = [];
+        $where = $isAdmin ? '1=1' : 'user_id = ?';
+        if (!$isAdmin) $params[] = $user['id'];
+        $where .= real_filter_sql($payload['filters'] ?? [], $params, $columns);
+        $updates = array_intersect_key($payload['values'] ?? [], array_flip($columns));
+        unset($updates['id'], $updates['user_id'], $updates['created_at']);
+        $updates['updated_at'] = now_iso();
+        if (!$updates) json_response(null, 400, ['message' => 'Нет данных для обновления']);
+        $set = implode(', ', array_map(fn($c) => "$c = ?", array_keys($updates)));
+        db()->prepare("UPDATE profiles SET $set WHERE $where")->execute([...array_values($updates), ...$params]);
+        $stmt = db()->prepare("SELECT * FROM profiles WHERE $where LIMIT 1");
+        $stmt->execute($params);
+        json_response($stmt->fetch() ?: null);
+    }
+
+    json_response(null, 400, ['message' => 'Неподдерживаемая операция профилей']);
+}
+
+function normalize_profile_row(array $row): array
+{
+    foreach (['voice_settings', 'ai_settings', 'advanced_features', 'ui_preferences'] as $field) {
+        if (isset($row[$field]) && is_string($row[$field])) $row[$field] = json_decode($row[$field], true);
+    }
+    return $row;
+}
+
+function handle_user_roles_query(array $payload, array $user): void
+{
+    $operation = $payload['operation'] ?? 'select';
+    $isAdmin = user_has_role($user['id'], 'admin');
+    $columns = ['id', 'user_id', 'role', 'created_at'];
+
+    if ($operation === 'select') {
+        $params = [];
+        $where = $isAdmin ? '1=1' : 'user_id = ?';
+        if (!$isAdmin) $params[] = $user['id'];
+        $where .= real_filter_sql($payload['filters'] ?? [], $params, $columns);
+        $stmt = db()->prepare("SELECT * FROM user_roles WHERE $where ORDER BY created_at DESC");
+        $stmt->execute($params);
+        $rows = $stmt->fetchAll();
+        if (!empty($payload['single']) || !empty($payload['maybeSingle'])) json_response($rows[0] ?? null);
+        json_response($rows);
+    }
+
+    if (!$isAdmin) json_response(null, 403, ['message' => 'Недостаточно прав']);
+
+    if ($operation === 'insert' || $operation === 'upsert') {
+        $values = $payload['values'] ?? [];
+        $items = array_is_list($values) ? $values : [$values];
+        $saved = [];
+        foreach ($items as $item) {
+            $id = $item['id'] ?? uuidv4();
+            $createdAt = $item['created_at'] ?? now_iso();
+            db()->prepare('INSERT INTO user_roles (id, user_id, role, created_at) VALUES (?, ?, ?, ?) ON DUPLICATE KEY UPDATE role = VALUES(role)')
+                ->execute([$id, $item['user_id'], $item['role'], $createdAt]);
+            $saved[] = ['id' => $id, 'user_id' => $item['user_id'], 'role' => $item['role'], 'created_at' => $createdAt];
+        }
+        json_response(!empty($payload['single']) ? ($saved[0] ?? null) : $saved);
+    }
+
+    if ($operation === 'update') {
+        $params = [];
+        $where = '1=1' . real_filter_sql($payload['filters'] ?? [], $params, $columns);
+        $role = $payload['values']['role'] ?? null;
+        if (!$role) json_response(null, 400, ['message' => 'Не указана роль']);
+        db()->prepare("UPDATE user_roles SET role = ? WHERE $where")->execute([$role, ...$params]);
+        json_response(null);
+    }
+
+    if ($operation === 'delete') {
+        $params = [];
+        $where = '1=1' . real_filter_sql($payload['filters'] ?? [], $params, $columns);
+        db()->prepare("DELETE FROM user_roles WHERE $where")->execute($params);
+        json_response(null);
+    }
+
+    json_response(null, 400, ['message' => 'Неподдерживаемая операция ролей']);
+}
+
 function handle_query(array $payload): void
 {
     $user = require_user();
     $table = clean_identifier((string)($payload['table'] ?? ''));
     $operation = $payload['operation'] ?? 'select';
+
+    if ($table === 'profiles') handle_profiles_query($payload, $user);
+    if ($table === 'user_roles') handle_user_roles_query($payload, $user);
 
     if ($operation === 'select') {
         $rows = load_records($table, $user['id'], $payload);
