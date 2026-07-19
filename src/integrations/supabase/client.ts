@@ -4,7 +4,13 @@ type ApiError = { message: string; code?: string; details?: string } | null;
 type ApiResult<T = any> = { data: T | null; error: ApiError; count?: number | null };
 type AuthListener = (event: string, session: any | null) => void;
 
-const API_URL = import.meta.env.VITE_BEGET_API_URL || '/api.php';
+// В превью Lovable нет PHP — обращаемся к прод-бэку на Beget напрямую.
+// В проде (когда фронт залит рядом с api.php) используем относительный путь.
+const PROD_API_FALLBACK = 'https://gavrilyuks.beget.tech/api.php';
+const isLovablePreview = typeof window !== 'undefined' && /lovable\.(app|dev)$/.test(window.location.hostname);
+const API_URL =
+  import.meta.env.VITE_BEGET_API_URL ||
+  (isLovablePreview ? PROD_API_FALLBACK : '/api.php');
 const SESSION_KEY = 'beget_crm_session';
 
 function readSession() {
