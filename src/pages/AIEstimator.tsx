@@ -22,7 +22,6 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
-import { getAIConfigForAssistant } from '@/utils/getAPIKeys';
 import { EstimatorSettings } from '@/components/ai-settings/EstimatorSettings';
 
 interface WorkItem {
@@ -156,16 +155,6 @@ const AIEstimator = () => {
     setCalculating(true);
     
     try {
-      const aiConfig = await getAIConfigForAssistant(user!.id, 'estimator');
-      if (!aiConfig?.apiKey) {
-        toast({
-          title: "API ключ не найден",
-          description: "Настройте API ключ в разделе 'Настройки' → 'API Ключи'",
-          variant: "destructive"
-        });
-        return;
-      }
-
       // Объединяем автоматические и ручные позиции
       const allItems = [
         ...workItems,
@@ -179,8 +168,7 @@ const AIEstimator = () => {
           data: { 
             services: allItems,
             technical_spec: techSpec
-          },
-          aiConfig // Передаем настройки AI
+          }
         }
       });
 

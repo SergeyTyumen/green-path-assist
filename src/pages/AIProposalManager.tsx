@@ -29,7 +29,6 @@ import { useEstimates } from '@/hooks/useEstimates';
 import { useProposalSettings } from '@/hooks/useProposalSettings';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
-import { getAIConfigForAssistant } from '@/utils/getAPIKeys';
 import { ProposalTemplateManager } from '@/components/ProposalTemplateManager';
 
 const AIProposalManager = () => {

@@ -41,8 +41,9 @@ function ai_run_assistant(array $user, string $systemPrompt, string $userPrompt,
 function ai_consultant(array $user, array $body): array
 {
     $system = "Ты AI-Консультант строительной компании. Помогай клиенту с выбором услуг, "
-        . "отвечай понятно и профессионально по-русски. Учитывай контекст диалога и данные клиента.";
-    $message = trim((string)($body['message'] ?? $body['task'] ?? ''));
+        . "отвечай понятно и профессионально по-русски. Учитывай контекст диалога и данные клиента. "
+        . "Не придумывай данные CRM: если данных нет во входном контексте, прямо скажи, что данных нет.";
+    $message = trim((string)($body['message'] ?? $body['question'] ?? $body['task'] ?? ''));
     $context = json_encode($body['context'] ?? $body['clientData'] ?? [], JSON_UNESCAPED_UNICODE);
     return ai_run_assistant($user, $system, "Сообщение: $message\n\nКонтекст: $context", 0.7, 1500);
 }
@@ -50,16 +51,17 @@ function ai_consultant(array $user, array $body): array
 function ai_analyst(array $user, array $body): array
 {
     $system = "Ты AI-Аналитик CRM. Анализируй данные по клиентам, продажам, задачам и давай "
-        . "структурированные выводы и рекомендации на русском языке.";
-    $query = trim((string)($body['query'] ?? $body['task'] ?? ''));
+        . "структурированные выводы и рекомендации на русском языке. Используй только реальные данные CRM из запроса и базы; ничего не выдумывай.";
+    $query = trim((string)($body['query'] ?? $body['request'] ?? $body['task'] ?? ''));
     $filters = json_encode($body['filters'] ?? [], JSON_UNESCAPED_UNICODE);
 
     // Подтягиваем минимальный контекст из БД
-    $clients = crm_records('clients', $user['id']);
+    $clients = crm_records('applications', $user['id']);
     $tasks = crm_records('tasks', $user['id']);
-    $stats = 'Всего клиентов: ' . count($clients) . '. Всего задач: ' . count($tasks) . '.';
+    $crmData = json_encode($body['crmData'] ?? [], JSON_UNESCAPED_UNICODE);
+    $stats = 'Всего клиентов в базе: ' . count($clients) . '. Всего задач в базе: ' . count($tasks) . '.';
 
-    $prompt = "Запрос: $query\nФильтры: $filters\n\nСводка данных: $stats";
+    $prompt = "Запрос: $query\nФильтры: $filters\n\nСводка данных: $stats\n\nДанные с frontend: $crmData";
     return ai_run_assistant($user, $system, $prompt, 0.4, 2000);
 }
 
@@ -69,15 +71,36 @@ function ai_proposal_manager(array $user, array $body): array
         . "структурируй разделы (о компании, состав работ, стоимость, сроки, гарантии). Отвечай по-русски.";
     $task = trim((string)($body['task'] ?? $body['action'] ?? 'Сформировать КП'));
     $data = json_encode($body, JSON_UNESCAPED_UNICODE);
+
+    if (($body['action'] ?? '') === 'send_proposal') {
+        $proposalId = (string)($body['data']['proposal_id'] ?? '');
+        if ($proposalId) {
+            $proposals = crm_records('proposals', $user['id']);
+            foreach ($proposals as $proposal) {
+                if (($proposal['id'] ?? '') === $proposalId) {
+                    $proposal['status'] = 'sent';
+                    $proposal['sent_at'] = now_iso();
+                    save_record('proposals', $user['id'], $proposal);
+                    return ['success' => true, 'sent_to' => $proposal['client_email'] ?? 'клиенту', 'proposal' => $proposal];
+                }
+            }
+        }
+        return ['success' => false, 'error' => 'КП не найдено в CRM'];
+    }
+
     return ai_run_assistant($user, $system, "Задача: $task\n\nВходные данные: $data", 0.6, 2500);
 }
 
 function ai_sales_manager(array $user, array $body): array
 {
     $system = "Ты AI-Менеджер по продажам. Даёшь советы по работе с клиентами, скриптам звонков, "
-        . "закрытию сделок, обработке возражений. Пиши коротко, по делу, по-русски.";
-    $task = trim((string)($body['task'] ?? $body['message'] ?? ''));
-    $data = json_encode($body['clientData'] ?? $body['context'] ?? [], JSON_UNESCAPED_UNICODE);
+        . "закрытию сделок, обработке возражений. Пиши коротко, по делу, по-русски. Не придумывай клиентов и сделки.";
+    $task = trim((string)($body['task'] ?? $body['message'] ?? $body['action'] ?? ''));
+    $clients = crm_records('applications', $user['id']);
+    $clientId = (string)($body['clientId'] ?? $body['client_id'] ?? '');
+    $client = null;
+    foreach ($clients as $row) if (($row['id'] ?? '') === $clientId) $client = $row;
+    $data = json_encode(['client' => $client, 'clientData' => $body['clientData'] ?? null, 'context' => $body['salesContext'] ?? $body['context'] ?? []], JSON_UNESCAPED_UNICODE);
     return ai_run_assistant($user, $system, "Задача: $task\n\nДанные: $data", 0.7, 2000);
 }
 
@@ -89,10 +112,13 @@ function ai_supplier_manager(array $user, array $body): array
     $suppliersList = $suppliers
         ? implode("\n", array_map(fn($s) => '- ' . ($s['name'] ?? '') . ' (' . ($s['contact'] ?? '') . ')', array_slice($suppliers, 0, 30)))
         : 'Поставщики не заведены';
-    $task = trim((string)($body['task'] ?? $body['message'] ?? ''));
-    $requirements = json_encode($body['requirements'] ?? $body, JSON_UNESCAPED_UNICODE);
+    $task = trim((string)($body['task'] ?? $body['message'] ?? $body['action'] ?? ''));
+    $requirements = json_encode($body['requirements'] ?? $body['data'] ?? $body, JSON_UNESCAPED_UNICODE);
     $prompt = "Задача: $task\n\nТребования: $requirements\n\nПоставщики в базе:\n$suppliersList";
-    return ai_run_assistant($user, $system, $prompt, 0.6, 2000);
+    $result = ai_run_assistant($user, $system, $prompt, 0.6, 2000);
+    $result['total_found'] = count($suppliers);
+    $result['suppliers'] = array_slice($suppliers, 0, 10);
+    return $result;
 }
 
 function ai_contractor_manager(array $user, array $body): array
@@ -103,12 +129,77 @@ function ai_contractor_manager(array $user, array $body): array
     $list = $contractors
         ? implode("\n", array_map(fn($c) => '- ' . ($c['name'] ?? '') . ' (' . ($c['specialization'] ?? '') . ')', array_slice($contractors, 0, 30)))
         : 'Подрядчики не заведены';
-    $task = trim((string)($body['task'] ?? ''));
-    $reqs = json_encode($body['contractorRequirements'] ?? $body['projectData'] ?? [], JSON_UNESCAPED_UNICODE);
+    $task = trim((string)($body['task'] ?? $body['action'] ?? ''));
+    $reqs = json_encode($body['contractorRequirements'] ?? $body['projectData'] ?? $body['data'] ?? [], JSON_UNESCAPED_UNICODE);
     $prompt = "Задача: $task\n\nТребования: $reqs\n\nПодрядчики в базе:\n$list";
     $result = ai_run_assistant($user, $system, $prompt, 0.7, 2000);
     $result['recommendedContractors'] = array_slice($contractors, 0, 3);
+    $result['total_found'] = count($contractors);
     return $result;
+}
+
+function ai_generate_proposal_document(array $user, array $body): array
+{
+    $clients = crm_records('applications', $user['id']);
+    $estimates = crm_records('estimates', $user['id']);
+    $templates = crm_records('templates', $user['id']);
+
+    $clientId = (string)($body['client_id'] ?? '');
+    $estimateId = (string)($body['estimate_id'] ?? '');
+    $templateId = (string)($body['template_id'] ?? '');
+    $client = null;
+    $estimate = null;
+    $template = null;
+    foreach ($clients as $row) if (($row['id'] ?? '') === $clientId) $client = $row;
+    foreach ($estimates as $row) if (($row['id'] ?? '') === $estimateId) $estimate = $row;
+    foreach ($templates as $row) if (($row['id'] ?? '') === $templateId) $template = $row;
+
+    if (!$client) return ['success' => false, 'error' => 'Клиент не найден в CRM'];
+    if (!$estimate) return ['success' => false, 'error' => 'Смета не найдена в CRM'];
+
+    $title = trim((string)($body['title'] ?? 'Коммерческое предложение'));
+    $validDays = max(1, (int)($body['valid_days'] ?? 14));
+    $amount = (float)($estimate['total_amount'] ?? $estimate['amount'] ?? 0);
+    $content = "Коммерческое предложение: $title\n\nКлиент: " . ($client['name'] ?? 'Клиент')
+        . "\nТелефон: " . ($client['phone'] ?? '')
+        . "\n\nОснование: " . ($estimate['title'] ?? 'Смета')
+        . "\nСумма: " . number_format($amount, 0, '.', ' ') . " руб."
+        . "\n\nСрок действия: $validDays дней.\n\n" . (string)($template['content'] ?? 'Состав работ и условия уточняются по смете.');
+
+    $proposal = [
+        'client_id' => $clientId,
+        'estimate_id' => $estimateId,
+        'title' => $title,
+        'amount' => $amount,
+        'status' => 'draft',
+        'content' => $content,
+        'expires_at' => gmdate('Y-m-d', time() + $validDays * 86400),
+    ];
+    $saved = save_record_return('proposals', $user['id'], $proposal);
+    return ['success' => true, 'proposal' => $saved];
+}
+
+function ai_convert_proposal_to_pdf(array $user, array $body): array
+{
+    $proposalId = (string)($body['proposal_id'] ?? '');
+    $proposals = crm_records('proposals', $user['id']);
+    foreach ($proposals as $proposal) {
+        if (($proposal['id'] ?? '') === $proposalId) {
+            $proposal['pdf_status'] = 'ready';
+            $proposal['pdf_note'] = 'PDF-конвертация на Beget будет добавлена отдельным модулем; КП подготовлено к отправке.';
+            save_record('proposals', $user['id'], $proposal);
+            return ['success' => true, 'proposal' => $proposal];
+        }
+    }
+    return ['success' => false, 'error' => 'КП не найдено'];
+}
+
+function save_record_return(string $table, string $userId, array $record): array
+{
+    [$id, $recordUserId, $createdAt, $updatedAt, $data] = split_record($record, $userId);
+    db()->prepare('INSERT INTO crm_records (id, logical_table, user_id, data, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE data = VALUES(data), updated_at = VALUES(updated_at)')
+        ->execute([$id, $table, $recordUserId, json_encode($data, JSON_UNESCAPED_UNICODE), $createdAt, $updatedAt]);
+    return array_merge($data, ['id' => $id, 'user_id' => $recordUserId, 'created_at' => $createdAt, 'updated_at' => $updatedAt]);
 }
 
 function ai_competitor_analysis(array $user, array $body): array

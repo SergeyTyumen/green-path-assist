@@ -19,7 +19,6 @@ import {
 import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
-import { getOpenAIKey } from '@/utils/getAPIKeys';
 
 interface Message {
   id: string;
@@ -573,15 +572,6 @@ const VoiceChatAssistant = () => {
       return;
     }
 
-    const openaiKey = await getOpenAIKey(user.id);
-    if (!openaiKey) {
-      toast({
-        title: 'API ключ не найден',
-        description: 'Настройте OpenAI API ключ в разделе "Настройки" → "API Ключи"',
-        variant: 'destructive'
-      });
-      return;
-    }
     let mediaRecorder: MediaRecorder | null = null;
     let chunks: Blob[] = [];
 
@@ -611,7 +601,7 @@ const VoiceChatAssistant = () => {
             const response = await supabase.functions.invoke('speech-to-text', {
               body: { 
                 audio: base64Audio,
-                apiKey: openaiKey
+                mimeType: audioBlob.type || 'audio/webm'
               }
             });
 
