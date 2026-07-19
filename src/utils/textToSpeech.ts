@@ -2,7 +2,7 @@ import { supabase } from "@/integrations/supabase/client";
 
 export interface TTSOptions {
   text: string;
-  provider: 'web_speech' | 'openai' | 'elevenlabs' | 'yandex';
+  provider: 'web_speech' | 'openai' | 'yandex';
   voice?: string;
   rate?: number;
   pitch?: number;
@@ -33,17 +33,18 @@ export class TextToSpeechService {
       case 'web_speech':
         await this.speakWithWebSpeech(text, voice, rate, pitch);
         break;
-      
+
       case 'openai':
-      case 'elevenlabs':
       case 'yandex':
         await this.speakWithAPI(provider, text, voice, rate, pitch, apiKey);
         break;
-      
+
       default:
-        throw new Error(`Unsupported TTS provider: ${provider}`);
+        // Неизвестный серверный провайдер — откатываемся на OpenAI через бэкенд
+        await this.speakWithAPI('openai', text, voice, rate, pitch, apiKey);
     }
   }
+
 
   private async speakWithWebSpeech(text: string, voice?: string, rate: number = 1.0, pitch: number = 1.0): Promise<void> {
     if (!('speechSynthesis' in window)) {
