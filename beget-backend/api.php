@@ -344,6 +344,19 @@ function handle_function(array $body): void
         require_once __DIR__ . '/functions/ai-estimator.php';
         json_response(ai_estimator($user, $fnBody));
     }
+    if (in_array($name, ['enhanced_voice_chat', 'voice_chat'], true)) {
+        require_once __DIR__ . '/functions/voice.php';
+        require_once __DIR__ . '/functions/ai-technical-specialist.php'; // для openai_chat()
+        json_response(voice_chat($user, $fnBody));
+    }
+    if ($name === 'speech_to_text') {
+        require_once __DIR__ . '/functions/voice.php';
+        json_response(voice_stt($user, $fnBody));
+    }
+    if ($name === 'text_to_speech') {
+        require_once __DIR__ . '/functions/voice.php';
+        json_response(voice_tts($user, $fnBody));
+    }
     json_response(null, 501, ['message' => "Функция $name ещё не перенесена на PHP"]);
 }
 

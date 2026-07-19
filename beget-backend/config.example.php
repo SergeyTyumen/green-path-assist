@@ -15,8 +15,9 @@ return [
     // После создания первого пользователя обязательно поменяйте на false.
     'allow_first_admin_bootstrap' => true,
 
-    // Ключ AI-провайдера хранится только на Beget, не во frontend-коде.
+    // Ключи AI-провайдеров хранятся только на Beget, не во frontend-коде.
     'openai_api_key' => getenv('OPENAI_API_KEY') ?: '',
+    'elevenlabs_api_key' => getenv('ELEVENLABS_API_KEY') ?: '', // опционально, только если TTS через ElevenLabs
 
     // Если frontend и api лежат на одном домене, оставьте пустым массивом.
     'allowed_origins' => [],
