@@ -37,7 +37,6 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useKnowledgeBase } from '@/hooks/useKnowledgeBase';
 import { useIntegrationStatus } from '@/hooks/useIntegrationStatus';
-import { getAIConfigForAssistant } from '@/utils/getAPIKeys';
 import WhatsAppIntegrationDialog from '@/components/WhatsAppIntegrationDialog';
 import TelegramIntegrationDialog from '@/components/TelegramIntegrationDialog';
 import WebsiteWidgetIntegrationDialog from '@/components/WebsiteWidgetIntegrationDialog';
