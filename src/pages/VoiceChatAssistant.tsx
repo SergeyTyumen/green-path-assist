@@ -217,57 +217,23 @@ const VoiceChatAssistant = () => {
     }
   }, [inputValue, addMessage, isVoiceMode, browserSupport.speechSynthesis]);
 
-  // Generate AI response with streaming support
+  // Generate AI response (через Beget PHP backend)
   const generateResponse = async (userMessage: string): Promise<string> => {
     try {
-      console.log('Calling enhanced-voice-chat edge function...');
-      
-      // Получаем пользователя для аутентификации
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
-        throw new Error('User not authenticated');
-      }
-
-      // Делаем прямой fetch запрос для поддержки streaming
-      const response = await fetch(
-        `https://nxyzmxqtzsvjezmkmkja.supabase.co/functions/v1/enhanced-voice-chat`,
-        {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${session.access_token}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            message: userMessage,
-            conversation_history: messages.slice(-10).map(m => ({
-              role: m.type,
-              content: m.content
-            }))
-          })
+      const { data, error } = await supabase.functions.invoke('enhanced-voice-chat', {
+        body: {
+          message: userMessage,
+          conversation_history: messages.slice(-10).map(m => ({
+            role: m.type,
+            content: m.content
+          }))
         }
-      );
+      });
 
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`HTTP ${response.status}: ${errorText}`);
-      }
-
-      // Проверяем, потоковый ли это ответ
-      const contentType = response.headers.get('content-type');
-      
-      if (contentType?.includes('text/plain')) {
-        // Потоковый ответ
-        console.log('Processing streaming response...');
-        return await handleStreamingResponse(response);
-      } else {
-        // Обычный JSON ответ
-        const data = await response.json();
-        console.log('Response from edge function:', data);
-        return data?.response || 'Ответ получен от голосового помощника';
-      }
-      
+      if (error) throw new Error(error.message || 'Ошибка голосового помощника');
+      return (data?.response as string) || 'Ответ получен от голосового помощника';
     } catch (error) {
-      console.error('Error calling enhanced-voice-chat:', error);
+      console.error('Error calling voice-chat:', error);
       return 'Извините, произошла ошибка при обработке запроса. Проверьте настройки API или попробуйте позже.';
     }
   };
