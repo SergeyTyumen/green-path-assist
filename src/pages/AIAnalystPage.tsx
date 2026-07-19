@@ -19,7 +19,6 @@ import {
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
-import { getAIConfigForAssistant } from '@/utils/getAPIKeys';
 
 interface AnalysisReport {
   analysis: string;
@@ -75,22 +74,10 @@ const AIAnalystPage = () => {
         .select('*')
         .order('created_at', { ascending: false });
 
-      const aiConfig = await getAIConfigForAssistant(user!.id, 'analyst');
-      if (!aiConfig?.apiKey) {
-        toast({
-          title: "API ключ не найден",
-          description: "Настройте API ключ в разделе 'Настройки' → 'API Ключи'",
-          variant: "destructive"
-        });
-        setLoading(false);
-        return;
-      }
-
       const { data, error } = await supabase.functions.invoke('ai-analyst', {
         body: { 
           request: customRequest || `Создай ${reportTypes.find(t => t.id === reportType)?.title.toLowerCase()}`,
           reportType,
-          aiConfig, // Передаем настройки AI
           crmData: {
             clients: clientsData || [],
             totalClients: clientsData?.length || 0,
