@@ -341,6 +341,7 @@ function handle_function(array $body): void
         json_response(ai_technical_specialist($user, $fnBody));
     }
     if ($name === 'ai_estimator') {
+        require_once __DIR__ . '/functions/ai-technical-specialist.php';
         require_once __DIR__ . '/functions/ai-estimator.php';
         json_response(ai_estimator($user, $fnBody));
     }
@@ -369,6 +370,8 @@ function handle_function(array $body): void
         'competitor_analysis' => 'ai_competitor_analysis',
         'generate_next_action' => 'ai_generate_next_action',
         'generate_conversation_summary' => 'ai_generate_summary',
+        'generate_proposal_document' => 'ai_generate_proposal_document',
+        'convert_proposal_to_pdf' => 'ai_convert_proposal_to_pdf',
         'edit_technical_specification' => 'ai_edit_technical_specification',
         'assistant_router' => 'assistant_router',
     ];
