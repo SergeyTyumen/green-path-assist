@@ -159,7 +159,9 @@ export const supabase = {
       return {
         data: {
           subscription: {
-            unsubscribe: () => listeners.delete(callback),
+            unsubscribe: () => {
+              listeners.delete(callback);
+            },
           },
         },
       };
@@ -226,8 +228,11 @@ export const supabase = {
   },
 
   channel(_name: string) {
-    const noop = () => this.channel(_name);
-    return { on: noop, subscribe: noop };
+    const channelApi = {
+      on: (_event: string, _filter?: any, _callback?: any) => channelApi,
+      subscribe: (_callback?: any) => channelApi,
+    };
+    return channelApi;
   },
 
   removeChannel(_channel: any) {
