@@ -1,5 +1,5 @@
 <?php
-// Голосовой помощник: STT (Whisper), Chat (GPT-4o), TTS (OpenAI / ElevenLabs)
+// Голосовой помощник: STT (Whisper), Chat (GPT-4o), TTS (OpenAI)
 
 function voice_openai_key(): string
 {
@@ -8,10 +8,6 @@ function voice_openai_key(): string
     return $key;
 }
 
-function voice_elevenlabs_key(): string
-{
-    return app_config()['elevenlabs_api_key'] ?? '';
-}
 
 /**
  * Chat: принимает {message, conversation_history} -> ответ модели.
