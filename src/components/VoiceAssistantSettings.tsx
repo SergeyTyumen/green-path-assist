@@ -533,12 +533,6 @@ export function VoiceAssistantSettings() {
                   Стоимость ~$15 за 1M символов. Очень естественное звучание.
                 </div>
               )}
-              {settings.voice_settings.tts_provider === 'elevenlabs' && (
-                <div>
-                  <strong>ElevenLabs:</strong> Премиум качество с эмоциональностью. 
-                  Самое высокое качество, но дороже OpenAI.
-                </div>
-              )}
               {settings.voice_settings.tts_provider === 'yandex' && (
                 <div>
                   <strong>Yandex SpeechKit:</strong> Оптимизирован для русского языка. 
