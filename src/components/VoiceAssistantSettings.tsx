@@ -15,12 +15,11 @@ import { TTSTestButton } from "@/components/TTSTestButton";
 import { getOpenAIKey } from "@/utils/getAPIKeys";
 
 interface VoiceSettings {
-  tts_provider: 'web_speech' | 'openai' | 'elevenlabs' | 'yandex';
+  tts_provider: 'web_speech' | 'openai' | 'yandex';
   voice_provider: 'web_speech' | 'server';
   voice_id: string;
   speech_rate: number;
   speech_pitch: number;
-  elevenlabs_api_key?: string;
   yandex_api_key?: string;
 }
 
