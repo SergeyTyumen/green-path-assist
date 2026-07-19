@@ -469,7 +469,7 @@ export function VoiceAssistantSettings() {
             <Label htmlFor="tts-provider">Провайдер синтеза речи</Label>
               <Select
                 value={settings.voice_settings.tts_provider}
-                onValueChange={(value: 'web_speech' | 'openai' | 'elevenlabs' | 'yandex') => {
+                onValueChange={(value: 'web_speech' | 'openai' | 'yandex') => {
                   updateVoiceSettings('tts_provider', value);
                   // Сбросить голос при смене провайдера
                   const firstVoice = getVoiceOptions(value)[0]?.id || '';
@@ -482,7 +482,6 @@ export function VoiceAssistantSettings() {
                 <SelectContent>
                   <SelectItem value="web_speech">Web Speech API (встроенный)</SelectItem>
                   <SelectItem value="openai">OpenAI TTS (высокое качество)</SelectItem>
-                  <SelectItem value="elevenlabs">ElevenLabs (премиум)</SelectItem>
                   <SelectItem value="yandex">Yandex SpeechKit (русский)</SelectItem>
                 </SelectContent>
               </Select>
