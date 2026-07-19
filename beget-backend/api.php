@@ -346,7 +346,7 @@ function handle_function(array $body): void
     }
     if (in_array($name, ['enhanced_voice_chat', 'voice_chat'], true)) {
         require_once __DIR__ . '/functions/voice.php';
-        require_once __DIR__ . '/functions/ai-technical-specialist.php'; // для openai_chat()
+        require_once __DIR__ . '/functions/ai-technical-specialist.php';
         json_response(voice_chat($user, $fnBody));
     }
     if ($name === 'speech_to_text') {
@@ -357,6 +357,27 @@ function handle_function(array $body): void
         require_once __DIR__ . '/functions/voice.php';
         json_response(voice_tts($user, $fnBody));
     }
+
+    // Остальные AI-помощники
+    $aiMap = [
+        'ai_consultant' => 'ai_consultant',
+        'ai_analyst' => 'ai_analyst',
+        'ai_proposal_manager' => 'ai_proposal_manager',
+        'ai_sales_manager' => 'ai_sales_manager',
+        'ai_supplier_manager' => 'ai_supplier_manager',
+        'ai_contractor_manager' => 'ai_contractor_manager',
+        'competitor_analysis' => 'ai_competitor_analysis',
+        'generate_next_action' => 'ai_generate_next_action',
+        'generate_conversation_summary' => 'ai_generate_summary',
+        'edit_technical_specification' => 'ai_edit_technical_specification',
+        'assistant_router' => 'assistant_router',
+    ];
+    if (isset($aiMap[$name])) {
+        require_once __DIR__ . '/functions/ai-assistants.php';
+        $fn = $aiMap[$name];
+        json_response($fn($user, $fnBody));
+    }
+
     json_response(null, 501, ['message' => "Функция $name ещё не перенесена на PHP"]);
 }
 
