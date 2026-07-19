@@ -5,7 +5,7 @@ import { ttsService, TTSOptions, TextToSpeechService } from "@/utils/textToSpeec
 import { Play, Square, Volume2 } from "lucide-react";
 
 interface TTSTestButtonProps {
-  provider: 'web_speech' | 'openai' | 'elevenlabs' | 'yandex';
+  provider: 'web_speech' | 'openai' | 'yandex';
   voice?: string;
   rate?: number;
   pitch?: number;

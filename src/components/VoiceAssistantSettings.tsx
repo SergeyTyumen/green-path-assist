@@ -15,12 +15,11 @@ import { TTSTestButton } from "@/components/TTSTestButton";
 import { getOpenAIKey } from "@/utils/getAPIKeys";
 
 interface VoiceSettings {
-  tts_provider: 'web_speech' | 'openai' | 'elevenlabs' | 'yandex';
+  tts_provider: 'web_speech' | 'openai' | 'yandex';
   voice_provider: 'web_speech' | 'server';
   voice_id: string;
   speech_rate: number;
   speech_pitch: number;
-  elevenlabs_api_key?: string;
   yandex_api_key?: string;
 }
 
@@ -180,17 +179,6 @@ export function VoiceAssistantSettings() {
           { id: 'onyx', name: 'Onyx (глубокий мужской)' },
           { id: 'nova', name: 'Nova (женский)' },
           { id: 'shimmer', name: 'Shimmer (женский)' }
-        ];
-      case 'elevenlabs':
-        return [
-          { id: '9BWtsMINqrJLrRacOk9x', name: 'Aria (женский)' },
-          { id: 'CwhRBWXzGAHq8TQ4Fs17', name: 'Roger (мужской)' },
-          { id: 'EXAVITQu4vr4xnSDxMaL', name: 'Sarah (женский)' },
-          { id: 'FGY2WhTYpPnrIDTdsKH5', name: 'Laura (женский)' },
-          { id: 'IKne3meq5aSn9XLyUdCD', name: 'Charlie (мужской)' },
-          { id: 'JBFqnCBsd6RMkjVDRZzb', name: 'George (мужской)' },
-          { id: 'N2lVS1w4EtoT3dr4eOWO', name: 'Callum (мужской)' },
-          { id: 'SAz9YHcvj6GT2YYXdXww', name: 'River (нейтральный)' }
         ];
       case 'yandex':
         return [
@@ -481,7 +469,7 @@ export function VoiceAssistantSettings() {
             <Label htmlFor="tts-provider">Провайдер синтеза речи</Label>
               <Select
                 value={settings.voice_settings.tts_provider}
-                onValueChange={(value: 'web_speech' | 'openai' | 'elevenlabs' | 'yandex') => {
+                onValueChange={(value: 'web_speech' | 'openai' | 'yandex') => {
                   updateVoiceSettings('tts_provider', value);
                   // Сбросить голос при смене провайдера
                   const firstVoice = getVoiceOptions(value)[0]?.id || '';
@@ -494,7 +482,6 @@ export function VoiceAssistantSettings() {
                 <SelectContent>
                   <SelectItem value="web_speech">Web Speech API (встроенный)</SelectItem>
                   <SelectItem value="openai">OpenAI TTS (высокое качество)</SelectItem>
-                  <SelectItem value="elevenlabs">ElevenLabs (премиум)</SelectItem>
                   <SelectItem value="yandex">Yandex SpeechKit (русский)</SelectItem>
                 </SelectContent>
               </Select>
@@ -519,19 +506,7 @@ export function VoiceAssistantSettings() {
               </Select>
             </div>
 
-            {/* API ключи для платных провайдеров */}
-            {settings.voice_settings.tts_provider === 'elevenlabs' && (
-              <div className="grid w-full items-center gap-1.5">
-                <Label htmlFor="elevenlabs-key">API ключ ElevenLabs</Label>
-                <Input
-                  type="password"
-                  value={settings.voice_settings.elevenlabs_api_key || ''}
-                  onChange={(e) => updateVoiceSettings('elevenlabs_api_key', e.target.value)}
-                  placeholder="Введите API ключ ElevenLabs"
-                />
-              </div>
-            )}
-
+            {/* API ключ для платных провайдеров */}
             {settings.voice_settings.tts_provider === 'yandex' && (
               <div className="grid w-full items-center gap-1.5">
                 <Label htmlFor="yandex-key">API ключ Yandex</Label>
@@ -556,12 +531,6 @@ export function VoiceAssistantSettings() {
                 <div>
                   <strong>OpenAI TTS:</strong> Высококачественные голоса от OpenAI. 
                   Стоимость ~$15 за 1M символов. Очень естественное звучание.
-                </div>
-              )}
-              {settings.voice_settings.tts_provider === 'elevenlabs' && (
-                <div>
-                  <strong>ElevenLabs:</strong> Премиум качество с эмоциональностью. 
-                  Самое высокое качество, но дороже OpenAI.
                 </div>
               )}
               {settings.voice_settings.tts_provider === 'yandex' && (
@@ -606,9 +575,7 @@ export function VoiceAssistantSettings() {
                   rate={settings.voice_settings.speech_rate}
                   pitch={settings.voice_settings.speech_pitch}
                   apiKey={
-                    settings.voice_settings.tts_provider === 'elevenlabs' 
-                      ? settings.voice_settings.elevenlabs_api_key
-                      : settings.voice_settings.tts_provider === 'yandex'
+                    settings.voice_settings.tts_provider === 'yandex'
                       ? settings.voice_settings.yandex_api_key
                       : undefined
                   }

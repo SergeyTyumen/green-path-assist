@@ -1,5 +1,5 @@
 <?php
-// Голосовой помощник: STT (Whisper), Chat (GPT-4o), TTS (OpenAI / ElevenLabs)
+// Голосовой помощник: STT (Whisper), Chat (GPT-4o), TTS (OpenAI)
 
 function voice_openai_key(): string
 {
@@ -8,10 +8,6 @@ function voice_openai_key(): string
     return $key;
 }
 
-function voice_elevenlabs_key(): string
-{
-    return app_config()['elevenlabs_api_key'] ?? '';
-}
 
 /**
  * Chat: принимает {message, conversation_history} -> ответ модели.
@@ -90,7 +86,8 @@ function voice_stt(array $user, array $body): array
 }
 
 /**
- * Text-to-speech: принимает {text, provider?, voice?} -> {audioContent: base64 mp3}.
+ * Text-to-speech: принимает {text, voice?} -> {audioContent: base64 mp3}.
+ * Всегда используется OpenAI TTS (достаточно одного ключа).
  */
 function voice_tts(array $user, array $body): array
 {
@@ -98,28 +95,8 @@ function voice_tts(array $user, array $body): array
     if ($text === '') throw new RuntimeException('Пустой текст для озвучки');
     if (mb_strlen($text) > 4000) $text = mb_substr($text, 0, 4000);
 
-    $provider = strtolower((string)($body['provider'] ?? 'openai'));
     $voice = (string)($body['voice'] ?? '');
 
-    if ($provider === 'elevenlabs') {
-        $key = voice_elevenlabs_key();
-        if (!$key) throw new RuntimeException('ELEVENLABS_API_KEY не настроен');
-        $voiceId = $voice ?: 'JBFqnCBsd6RMkjVDRZzb'; // George
-        $ch = curl_init("https://api.elevenlabs.io/v1/text-to-speech/$voiceId?output_format=mp3_44100_128");
-        curl_setopt_array($ch, [
-            CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_POST => true,
-            CURLOPT_HTTPHEADER => ['xi-api-key: ' . $key, 'Content-Type: application/json'],
-            CURLOPT_POSTFIELDS => json_encode(['text' => $text, 'model_id' => 'eleven_multilingual_v2'], JSON_UNESCAPED_UNICODE),
-            CURLOPT_TIMEOUT => 120,
-        ]);
-        $raw = curl_exec($ch);
-        $status = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        if ($raw === false || $status >= 400) throw new RuntimeException('ElevenLabs TTS: ' . ($raw ?: curl_error($ch)));
-        return ['audioContent' => base64_encode($raw), 'provider' => 'elevenlabs'];
-    }
-
-    // OpenAI по умолчанию
     $ch = curl_init('https://api.openai.com/v1/audio/speech');
     curl_setopt_array($ch, [
         CURLOPT_RETURNTRANSFER => true,

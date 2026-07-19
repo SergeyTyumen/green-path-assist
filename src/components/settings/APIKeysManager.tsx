@@ -18,7 +18,6 @@ interface APIKey {
 
 const providers = [
   { id: 'openai', name: 'OpenAI', description: 'Для GPT моделей и TTS' },
-  { id: 'elevenlabs', name: 'ElevenLabs', description: 'Для высококачественного синтеза речи' },
   { id: 'yandexgpt', name: 'YandexGPT', description: 'Для русскоязычных моделей' },
   { id: 'anthropic', name: 'Anthropic', description: 'Для Claude моделей' },
 ];
